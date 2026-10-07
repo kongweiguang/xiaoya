@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "formalPromotionRequiresOfficialEditor": true,
+  "parameters": [
+    { "Id": "ParamBrowLAngle", "GroupId": "Face", "Name": "左眉角与弧度" },
+    { "Id": "ParamBrowRAngle", "GroupId": "Face", "Name": "右眉角与弧度" },
+    { "Id": "ParamEyeSmile", "GroupId": "Face", "Name": "笑眼弯曲" }
+  ],
+  "expressions": {
+    "happy": [
+      { "Id": "ParamEyeSmile", "Value": 1, "Blend": "Overwrite" },
+      { "Id": "ParamBrowLAngle", "Value": -0.2, "Blend": "Overwrite" },
+      { "Id": "ParamBrowRAngle", "Value": 0.2, "Blend": "Overwrite" }
+    ],
+    "gentle": [
+      { "Id": "ParamEyeSmile", "Value": 0.3, "Blend": "Overwrite" },
+      { "Id": "ParamBrowLAngle", "Value": -0.1, "Blend": "Overwrite" },
+      { "Id": "ParamBrowRAngle", "Value": 0.1, "Blend": "Overwrite" }
+    ],
+    "concerned": [
+      { "Id": "ParamBrowLAngle", "Value": -0.7, "Blend": "Overwrite" },
+      { "Id": "ParamBrowRAngle", "Value": 0.7, "Blend": "Overwrite" }
+    ],
+    "curious": [
+      { "Id": "ParamBrowLAngle", "Value": -0.45, "Blend": "Overwrite" },
+      { "Id": "ParamBrowRAngle", "Value": -0.1, "Blend": "Overwrite" }
+    ]
+  }
+}

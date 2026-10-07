@@ -1,0 +1,12 @@
+# 固定文本换行，避免 Windows 提交后影响 WSL 脚本。
+* text=auto eol=lf
+
+# 模型、原画和图片必须保持原始字节，便于资源指纹核验。
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.psd binary
+*.cmo3 binary
+*.moc3 binary

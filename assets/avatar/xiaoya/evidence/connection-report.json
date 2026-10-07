@@ -1,0 +1,3293 @@
+{
+  "mocSha256": "e6684a201f6b5038779b498680fdae08038430f21f0235628cf9651142096cda",
+  "poses": [
+    {
+      "values": {},
+      "opaqueOverlapSourcePixels": {
+        "neck": 4536,
+        "shoulderL": 5877,
+        "shoulderR": 5328,
+        "mountL": 20673,
+        "mountR": 17109
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleY": 1.5,
+        "ParamAngleZ": -2,
+        "ParamBreath": 0.5
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 4689,
+        "shoulderL": 5931,
+        "shoulderR": 5319,
+        "mountL": 20412,
+        "mountR": 17550
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 6,
+        "ParamAngleY": 3,
+        "ParamAngleZ": 4,
+        "ParamBreath": 0.5
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 4590,
+        "shoulderL": 5931,
+        "shoulderR": 5319,
+        "mountL": 20331,
+        "mountR": 17388
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamMouthOpenY": 0.8,
+        "ParamArmL": 0.7,
+        "ParamLeafSwing": 0.5
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 4536,
+        "shoulderL": 5832,
+        "shoulderR": 5328,
+        "mountL": 20691,
+        "mountR": 17487
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5994,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5994,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5994,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5994,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6012,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6012,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6012,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6012,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5733,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5697,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5733,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5697,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5733,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5697,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5733,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5697,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5733,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5733,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5733,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5733,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3879,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3870,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3879,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3870,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3879,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3870,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3879,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3870,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3834,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3852,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3834,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3852,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3834,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3852,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3834,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3852,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3609,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3600,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3609,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3600,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3609,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3600,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3609,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3600,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3537,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3537,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3537,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3537,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3537,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3537,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3537,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": -30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3537,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6075,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6066,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6075,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6066,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6075,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6066,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6075,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6066,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6012,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6012,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6012,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6012,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 6003,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5697,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5697,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5697,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5697,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5742,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5742,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5742,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5742,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": -30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 5724,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3870,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3861,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3870,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3861,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20178,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3870,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3861,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3870,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3861,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20610,
+        "mountR": 17595
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3915,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3924,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3915,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3924,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20205,
+        "mountR": 17244
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3915,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3924,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3915,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": -30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3924,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20619,
+        "mountR": 17703
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3609,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3582,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3609,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3582,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20187,
+        "mountR": 17325
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3609,
+        "shoulderL": 6066,
+        "shoulderR": 5391,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3582,
+        "shoulderL": 6165,
+        "shoulderR": 5463,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3609,
+        "shoulderL": 5445,
+        "shoulderR": 6192,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": -30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3582,
+        "shoulderL": 5517,
+        "shoulderR": 6291,
+        "mountL": 20610,
+        "mountR": 17721
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3591,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3591,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3591,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": -1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3591,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20160,
+        "mountR": 17271
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3591,
+        "shoulderL": 6948,
+        "shoulderR": 4725,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": -1,
+        "ParamArmR": 1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3591,
+        "shoulderL": 7065,
+        "shoulderR": 4797,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 0
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3591,
+        "shoulderL": 6156,
+        "shoulderR": 5454,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    },
+    {
+      "values": {
+        "ParamAngleX": 30,
+        "ParamAngleY": 30,
+        "ParamAngleZ": 30,
+        "ParamBodyAngleX": 30,
+        "ParamLeafSwing": 1,
+        "ParamArmL": 1,
+        "ParamArmR": -1,
+        "ParamBreath": 1
+      },
+      "opaqueOverlapSourcePixels": {
+        "neck": 3591,
+        "shoulderL": 6264,
+        "shoulderR": 5508,
+        "mountL": 20637,
+        "mountR": 17640
+      },
+      "earMountsBehindHead": true,
+      "attachmentRenderOrders": {
+        "LeafL": 5,
+        "LeafR": 6,
+        "Head": 7
+      }
+    }
+  ],
+  "poseCount": 132,
+  "minimumOverlap": {
+    "neck": 3537,
+    "shoulderL": 5445,
+    "shoulderR": 4725,
+    "mountL": 20160,
+    "mountR": 17109
+  },
+  "mountSwingDisplacementSourcePixels": 0,
+  "earMountsBehindHead": true,
+  "passed": true
+}

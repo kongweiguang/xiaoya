@@ -1,0 +1,74 @@
+{
+  "checkedAt": "2026-10-07T03:00:31.598Z",
+  "mocSha256": "e6684a201f6b5038779b498680fdae08038430f21f0235628cf9651142096cda",
+  "fileCount": 13,
+  "parameterCount": 16,
+  "expressionCount": 4,
+  "motionCount": 2,
+  "physicsSettingCount": 1,
+  "mouthParametersExclusive": true,
+  "motionSyncVowels": [
+    "Silence",
+    "A",
+    "I",
+    "U",
+    "E",
+    "O"
+  ],
+  "runtimeAssetReferencesValid": true,
+  "officialEditorVerificationIncluded": false,
+  "assets": [
+    {
+      "file": "expressions/concerned.exp3.json",
+      "sha256": "237dc1e0c1c8124757376cb51e5ae08d0fe8a684265d6dfba8ec278b8c50545d"
+    },
+    {
+      "file": "expressions/happy.exp3.json",
+      "sha256": "8e132e23429699877e21b192e410bb960a0db27a72ce5ad88dec0428c0e00473"
+    },
+    {
+      "file": "expressions/listening.exp3.json",
+      "sha256": "997803e278207a933aede77503429682b5710c11dabb63f9ae59e8acf4c9a816"
+    },
+    {
+      "file": "expressions/thinking.exp3.json",
+      "sha256": "6344cf0cb4d8ca5714c7d37df686c86262d2406aedf846ea8b1429ddbf521522"
+    },
+    {
+      "file": "motions/idle.motion3.json",
+      "sha256": "ef67a9b88fbee13bce29147d2978f9761d0ba258403278a6cdd64f051b9bc997"
+    },
+    {
+      "file": "motions/speaking.motion3.json",
+      "sha256": "194dea477420df4d97fdc4aa1900c66c9738972b139aa84ef70bb9bfc4e3e593"
+    },
+    {
+      "file": "poster.png",
+      "sha256": "5d54a0634a28bdbf736b4c51c4d81b328c701369f202cae27d87586f77ca6391"
+    },
+    {
+      "file": "textures/texture_00.png",
+      "sha256": "cd64c59f4937b530e4586b8baf6febb4d0aae7488dc61f4e5a01c81abe067dcd"
+    },
+    {
+      "file": "xiaoya.cdi3.json",
+      "sha256": "d09f380723bfff87013b49616b07b72a3cdfbbb37682241c90274c7978b25376"
+    },
+    {
+      "file": "xiaoya.moc3",
+      "sha256": "e6684a201f6b5038779b498680fdae08038430f21f0235628cf9651142096cda"
+    },
+    {
+      "file": "xiaoya.model3.json",
+      "sha256": "001d3f433e9fdf645ec5b12f4b817580651066dc99c16904365346689b75e13c"
+    },
+    {
+      "file": "xiaoya.motionsync3.json",
+      "sha256": "fca394e33073fd4ed4baeff6ec68dda0293075ee21faa4aa8654a244634001cf"
+    },
+    {
+      "file": "xiaoya.physics3.json",
+      "sha256": "e9a6a57934116139ee1e8ff729661a454c0e2fc71a10b3a320d5b929502e65d2"
+    }
+  ]
+}

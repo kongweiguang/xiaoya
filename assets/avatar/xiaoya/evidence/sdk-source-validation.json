@@ -1,0 +1,81 @@
+{
+  "officialCoreFiles": [
+    {
+      "byteIdentical": true,
+      "officialFile": ".tools/live2d/web-r3/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js",
+      "sha256": "944988f1523c9f888afe3611b630121ff503ea6246971d2eeee76f45cbfb8004",
+      "file": "web/public/avatar/vendor/live2dcubismcore.min.js"
+    },
+    {
+      "byteIdentical": true,
+      "officialFile": ".tools/live2d/web-r3/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.d.ts",
+      "sha256": "fa914858b76cf0589be2a120dfbd6733951f725f79139342d4908af05c3ed2dd",
+      "file": "web/types/live2dcubismcore.d.ts"
+    },
+    {
+      "byteIdentical": true,
+      "officialFile": ".tools/live2d/motionsync-r2/CubismSdkMotionSyncPluginForWeb-5-r.2/Core/CRI/live2dcubismmotionsynccore.min.js",
+      "sha256": "60e2a8ba9b422a0f8a3d7e066739352e9b903cc1011339984ad922e80a3cd19a",
+      "file": "web/public/avatar/vendor/live2dcubismmotionsynccore.min.js"
+    },
+    {
+      "byteIdentical": true,
+      "officialFile": ".tools/live2d/motionsync-r2/CubismSdkMotionSyncPluginForWeb-5-r.2/Core/CRI/live2dcubismmotionsynccore.d.ts",
+      "sha256": "a4aedace54df065bcd2d93115021b3fdd580c36cf76e3724b02ef084ffccca5e",
+      "file": "web/types/live2dcubismmotionsynccore.d.ts"
+    }
+  ],
+  "licenseFiles": [
+    {
+      "officialFile": ".tools/live2d/web-r3/CubismSdkForWeb-5-r.3/LICENSE.md",
+      "file": "web/public/avatar/vendor/CUBISM-SDK-LICENSE.md",
+      "identicalAfterLineEndingAndFinalNewlineNormalization": true
+    },
+    {
+      "officialFile": ".tools/live2d/web-r3/CubismSdkForWeb-5-r.3/Core/LICENSE.md",
+      "file": "web/public/avatar/vendor/CUBISM-CORE-LICENSE.md",
+      "identicalAfterLineEndingAndFinalNewlineNormalization": true
+    },
+    {
+      "officialFile": ".tools/live2d/web-r3/CubismSdkForWeb-5-r.3/Core/RedistributableFiles.txt",
+      "file": "web/public/avatar/vendor/CUBISM-CORE-REDISTRIBUTABLE.txt",
+      "identicalAfterLineEndingAndFinalNewlineNormalization": true
+    },
+    {
+      "officialFile": ".tools/live2d/web-r3/CubismSdkForWeb-5-r.3/Framework/LICENSE.md",
+      "file": "web/public/avatar/vendor/CUBISM-FRAMEWORK-LICENSE.md",
+      "identicalAfterLineEndingAndFinalNewlineNormalization": true
+    },
+    {
+      "officialFile": ".tools/live2d/motionsync-r2/CubismSdkMotionSyncPluginForWeb-5-r.2/LICENSE.md",
+      "file": "web/public/avatar/vendor/MOTIONSYNC-SDK-LICENSE.md",
+      "identicalAfterLineEndingAndFinalNewlineNormalization": true
+    },
+    {
+      "officialFile": ".tools/live2d/motionsync-r2/CubismSdkMotionSyncPluginForWeb-5-r.2/Core/LICENSE.md",
+      "file": "web/public/avatar/vendor/MOTIONSYNC-COMPONENTS-LICENSE.md",
+      "identicalAfterLineEndingAndFinalNewlineNormalization": true
+    },
+    {
+      "officialFile": ".tools/live2d/motionsync-r2/CubismSdkMotionSyncPluginForWeb-5-r.2/Core/CRI/LICENSE.md",
+      "file": "web/public/avatar/vendor/MOTIONSYNC-CORE-LICENSE.md",
+      "identicalAfterLineEndingAndFinalNewlineNormalization": true
+    },
+    {
+      "officialFile": ".tools/live2d/motionsync-r2/CubismSdkMotionSyncPluginForWeb-5-r.2/Core/CRI/RedistributableFiles.txt",
+      "file": "web/public/avatar/vendor/MOTIONSYNC-CORE-REDISTRIBUTABLE.txt",
+      "identicalAfterLineEndingAndFinalNewlineNormalization": true
+    }
+  ],
+  "checkedAt": "2026-10-06T09:02:53.3309317Z",
+  "archives": [
+    {
+      "sha256": "c70cc086950c7a318515e8ee606d8458a6dd2b96773fc2514ff67bf8a2d9ead7",
+      "file": ".tools/live2d/CubismSdkForWeb-5-r.3.zip"
+    },
+    {
+      "sha256": "74dc9236e28263f9cba7962704ce61ad06677e79ca6e56657f216a098015452f",
+      "file": ".tools/live2d/CubismSdkMotionSyncPluginForWeb-5-r.2.zip"
+    }
+  ]
+}

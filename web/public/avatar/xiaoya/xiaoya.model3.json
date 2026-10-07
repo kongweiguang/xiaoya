@@ -1,0 +1,28 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "xiaoya.moc3",
+    "Textures": ["textures/texture_00.png"],
+    "Physics": "xiaoya.physics3.json",
+    "DisplayInfo": "xiaoya.cdi3.json",
+    "MotionSync": "xiaoya.motionsync3.json",
+    "Expressions": [
+      { "Name": "listening", "File": "expressions/listening.exp3.json" },
+      { "Name": "thinking", "File": "expressions/thinking.exp3.json" },
+      { "Name": "happy", "File": "expressions/happy.exp3.json" },
+      { "Name": "concerned", "File": "expressions/concerned.exp3.json" },
+      { "Name": "gentle", "File": "expressions/gentle.exp3.json" },
+      { "Name": "curious", "File": "expressions/curious.exp3.json" }
+    ],
+    "Motions": {
+      "Idle": [{ "File": "motions/idle.motion3.json", "FadeInTime": 0.6, "FadeOutTime": 0.6 }],
+      "Speaking": [
+        { "File": "motions/speaking.motion3.json", "FadeInTime": 0.4, "FadeOutTime": 0.4 }
+      ]
+    }
+  },
+  "Groups": [
+    { "Target": "Parameter", "Name": "EyeBlink", "Ids": ["ParamEyeLOpen", "ParamEyeROpen"] },
+    { "Target": "Parameter", "Name": "LipSync", "Ids": ["ParamMouthOpenY"] }
+  ]
+}

@@ -1,0 +1,18 @@
+canvas	1280	1280
+# 耳座位于头壳后方，由头壳遮住安装根部，避免绿色耳座覆盖面壳。
+LegL	LegL.png	430	1027	180	140
+LegR	LegR.png	643	1027	180	140
+ArmL	ArmL.png	350	820	164	270
+ArmR	ArmR.png	757	820	150	270
+Torso	Torso.png	430	746	402	318
+LeafL	LeafL.png	108	141	221	504
+LeafR	LeafR.png	932	141	221	504
+Head	Head.png	233	177	785	606
+EyeWhiteL	EyeWhiteL.png	409	456	110	151
+EyeWhiteR	EyeWhiteR.png	738	456	110	151
+PupilL	PupilL.png	444	485	66	101
+PupilR	PupilR.png	768	485	66	101
+BrowL	BrowL.png	425	390	75	43
+BrowR	BrowR.png	759	390	75	43
+MouthOuter	MouthOuter.png	576	583	100	60
+MouthInner	MouthInner.png	582	594	86	41

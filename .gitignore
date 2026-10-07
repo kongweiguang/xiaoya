@@ -1,0 +1,41 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+.env
+.env.*
+!.env.example
+console-recordings/
+.tools/
+node_modules/
+.next/
+.next-build/
+*.tsbuildinfo
+# 本机编辑器设置及可再生成的验证输出。
+.idea/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+.mypy_cache/
+.DS_Store
+Thumbs.db
+mcp.local.json
+
+# 验收原始数据和历史备份留在本地；公开说明与正式模型单独提交。
+/deployment/evidence/
+
+# Next.js 的临时构建目录不随源码发布。
+.next-*/
+
+# 运行日志、凭据及工具编译结果均可在本机重新生成。
+*.log
+*.pid
+*.pem
+*.key
+*.p12
+*.pfx
+*.class

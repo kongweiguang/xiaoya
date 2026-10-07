@@ -1,0 +1,178 @@
+[
+  {
+    "file": "assets/avatar/xiaoya/concept.png",
+    "sha256": "d737743f735d415c9437249a62e636308ac51a5e0faf940aed7896b5bd17fbb8"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/ArmL.png",
+    "sha256": "02292b110af64b049388a80ac189a862e07117c229630fa0d45cd13f0a4c45af"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/ArmR.png",
+    "sha256": "d5b025e257ca255c4cf0fdc78e7e1747392e562e03135cb0a1906769a815a09e"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/BrowL.png",
+    "sha256": "02e9cbdb025b0a7b20fbed0affb7be435f4c156129d889f0fcfc82f34d1cec23"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/BrowR.png",
+    "sha256": "47ab45fd5399be93af51382eea4db6f33bb724eebcf6be2ef9e1722557b024b5"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/EyeWhiteL.png",
+    "sha256": "0a4848f18ca35db174eb6bb459afd64014caf413a772523acbf440f45af128de"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/EyeWhiteR.png",
+    "sha256": "b9dcd9def5b01977474ad9ee57a1c1eaef420e8fd016a6f04bcbdebcb6f4db15"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/Head.png",
+    "sha256": "383b7096f9c7da3b28d35216d03006847a20f81b0e549c0dc89ec69f6761992f"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/LeafL.png",
+    "sha256": "cc1020863d1517666487d8610ddda55cb2ed4826f351b195b6d296871a761006"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/LeafR.png",
+    "sha256": "fa1ac2357ea733960e4560df4a651ee283422253a6ba77311af39273fc64f4ac"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/LegL.png",
+    "sha256": "664aa8315cda9c5fa7ecbf53535694a20329f7364be7f1d1b94d34b0f7e569a9"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/LegR.png",
+    "sha256": "dfa1b1a206ae62f62e5ba0daab97e0407b8be9c4b793a1737f07c97a1965ed12"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/MouthInner.png",
+    "sha256": "bc7e3d66117a3972301a024c6ff03d31c48070a0aa580443e9196f86c4119705"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/MouthOuter.png",
+    "sha256": "846fbf48af7b977998f55b99d4645bfb042beadc238bc9529faa703b0fa9ae9c"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/PupilL.png",
+    "sha256": "0a89bf05e901b9951d8101316b62703fe2c5e032ce73f401d4a2c2bab45ce4f4"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/PupilR.png",
+    "sha256": "6cd9fd294fd605d3498e933b8ec0f2b66d2c7bfe4274c5b99e99536fcb7bdc39"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/Torso.png",
+    "sha256": "27097e955056924cb62f1b85d6be1701d939b36dbc955efe787e61671885eda8"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/extraction.tsv",
+    "sha256": "aa2474b142a7e00b8414faea38b696a8a3c84604178313610bb4f41d65b7e330"
+  },
+  {
+    "file": "assets/avatar/xiaoya/layers/layers.tsv",
+    "sha256": "268c5db648583f45ddc68513889deeaede73e548f9212c4d51252224903e26bf"
+  },
+  {
+    "file": "assets/avatar/xiaoya/source-sheet.original.png",
+    "sha256": "cbb99bee5de26cc4136cb0f08fb0ab485d4aeaeb43979eab0b1f9ff87d86a31f"
+  },
+  {
+    "file": "assets/avatar/xiaoya/source-sheet.png",
+    "sha256": "ab3e09dd97606ca1a2ddba330e2ebbfd50b33208420f78c87d3d985a19570bac"
+  },
+  {
+    "file": "assets/avatar/xiaoya/tooling/ExportXiaoya.java",
+    "sha256": "14ec5edf96ed83451bbbd2543327e8b3716de5f5cdaedd8b059cfcc0ea27e46f"
+  },
+  {
+    "file": "assets/avatar/xiaoya/tooling/ExtractLayers.java",
+    "sha256": "fc579bb5faea767bd8be42762485a1e0789193b3f69a3ece9f052fcdb69b96a8"
+  },
+  {
+    "file": "assets/avatar/xiaoya/tooling/ValidateSource.java",
+    "sha256": "481ed5a4ddce0fb605e5c60673621855168655a5fcc58ed5ebc72e28fbd7b1a7"
+  },
+  {
+    "file": "assets/avatar/xiaoya/tooling/refine_layers.py",
+    "sha256": "d3c1ff64cad2ab989b6b8e10fd71a20364b35bea4b9c4ad2d4441e7cfac8b0eb"
+  },
+  {
+    "file": "assets/avatar/xiaoya/tooling/validate-connections.cjs",
+    "sha256": "9d66ffd5196796fd07e4dff3bb1537af775a53160ae955ad52787145a5c2a5d8"
+  },
+  {
+    "file": "assets/avatar/xiaoya/tooling/validate-core.cjs",
+    "sha256": "4b3147c8aaa66365ced060127b855c60d6739bef0b41a2408e8b7a33019bdf4a"
+  },
+  {
+    "file": "assets/avatar/xiaoya/tooling/validate-equivalence.cjs",
+    "sha256": "78987c10c83bd175b02cbe97027f380ce3ca51a87980dc94cc9b0bbb7c9ee4f7"
+  },
+  {
+    "file": "assets/avatar/xiaoya/tooling/validate-package.cjs",
+    "sha256": "2f85b1987fae883fd9ed44998eaf95f9c2593fd73039f399e24c1e8dca018d96"
+  },
+  {
+    "file": "assets/avatar/xiaoya/xiaoya-layers.psd",
+    "sha256": "d944d73590a4406c6bb4d30166cf2985e3e7a4fd81973de3e2bcb252191f872b"
+  },
+  {
+    "file": "assets/avatar/xiaoya/xiaoya.cmo3",
+    "sha256": "7f4d338cd8f8d88ebaf61e400c31f5c245f8f1371fedc6dcd98a8ebe6670b03a"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/expressions/concerned.exp3.json",
+    "sha256": "237dc1e0c1c8124757376cb51e5ae08d0fe8a684265d6dfba8ec278b8c50545d"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/expressions/happy.exp3.json",
+    "sha256": "8e132e23429699877e21b192e410bb960a0db27a72ce5ad88dec0428c0e00473"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/expressions/listening.exp3.json",
+    "sha256": "997803e278207a933aede77503429682b5710c11dabb63f9ae59e8acf4c9a816"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/expressions/thinking.exp3.json",
+    "sha256": "6344cf0cb4d8ca5714c7d37df686c86262d2406aedf846ea8b1429ddbf521522"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/motions/idle.motion3.json",
+    "sha256": "ef67a9b88fbee13bce29147d2978f9761d0ba258403278a6cdd64f051b9bc997"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/motions/speaking.motion3.json",
+    "sha256": "194dea477420df4d97fdc4aa1900c66c9738972b139aa84ef70bb9bfc4e3e593"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/poster.png",
+    "sha256": "5d54a0634a28bdbf736b4c51c4d81b328c701369f202cae27d87586f77ca6391"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/textures/texture_00.png",
+    "sha256": "cd64c59f4937b530e4586b8baf6febb4d0aae7488dc61f4e5a01c81abe067dcd"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/xiaoya.cdi3.json",
+    "sha256": "d09f380723bfff87013b49616b07b72a3cdfbbb37682241c90274c7978b25376"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/xiaoya.moc3",
+    "sha256": "e6684a201f6b5038779b498680fdae08038430f21f0235628cf9651142096cda"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/xiaoya.model3.json",
+    "sha256": "001d3f433e9fdf645ec5b12f4b817580651066dc99c16904365346689b75e13c"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/xiaoya.motionsync3.json",
+    "sha256": "fca394e33073fd4ed4baeff6ec68dda0293075ee21faa4aa8654a244634001cf"
+  },
+  {
+    "file": "web/public/avatar/xiaoya/xiaoya.physics3.json",
+    "sha256": "e9a6a57934116139ee1e8ff729661a454c0e2fc71a10b3a320d5b929502e65d2"
+  }
+]

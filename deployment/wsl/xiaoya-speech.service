@@ -1,0 +1,25 @@
+[Unit]
+Description=xiaoya local STT and TTS
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/xiaoya/speech
+Environment=SPEECH_STT_PATH=/opt/xiaoya/models/paraformer-streaming
+Environment=SPEECH_TTS_PATH=/opt/xiaoya/models/cosyvoice3-0.5b
+Environment=SPEECH_TTS_ACCELERATION=vllm
+Environment=SPEECH_TTS_NORMALIZER_PATH=/opt/xiaoya/models/wetext
+Environment=SPEECH_TTS_PROMPT_PATH=/opt/xiaoya/vendor/CosyVoice/asset/zero_shot_prompt.wav
+Environment="SPEECH_TTS_PROMPT_TEXT=希望你以后能够做的比我还好呦。"
+Environment=LD_LIBRARY_PATH=/usr/lib/wsl/lib
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+Environment=VLLM_NO_USAGE_STATS=1
+Environment=VLLM_DO_NOT_TRACK=1
+Environment=VLLM_WORKER_MULTIPROC_METHOD=spawn
+Environment=PYTHONPATH=/opt/xiaoya/speech/src:/opt/xiaoya/vendor/CosyVoice:/opt/xiaoya/vendor/CosyVoice/third_party/Matcha-TTS
+ExecStart=/opt/xiaoya/speech/.venv/bin/python -m uvicorn local_speech.api:app --host 127.0.0.1 --port 8001
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

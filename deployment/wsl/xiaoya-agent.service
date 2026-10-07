@@ -1,0 +1,19 @@
+[Unit]
+Description=xiaoya LiveKit Voice Agent with DeepSeek
+After=network-online.target xiaoya-livekit.service xiaoya-speech.service
+Wants=network-online.target
+Requires=xiaoya-livekit.service xiaoya-speech.service
+
+[Service]
+WorkingDirectory=/opt/xiaoya/agent
+EnvironmentFile=/opt/xiaoya/agent/.env.local
+Environment=PYTHONUTF8=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/xiaoya/agent/.venv/bin/python -m livekit.agents start src/xiaoya/interfaces/cli.py
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

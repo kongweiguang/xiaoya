@@ -1,0 +1,12 @@
+[Unit]
+Description=xiaoya private LiveKit Server
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/xiaoya
+ExecStart=/bin/bash /opt/xiaoya/start-livekit.sh
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

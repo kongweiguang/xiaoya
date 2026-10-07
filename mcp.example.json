@@ -1,0 +1,11 @@
+{
+  "servers": [
+    {
+      "id": "demo",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "xiaoya.interfaces.mcp_demo"],
+      "timeout_seconds": 15
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-10-07T03:03:58.293Z",
+  "platform": "Windows 11",
+  "sourceFile": "assets/avatar/xiaoya/xiaoya.cmo3",
+  "sourceSha256": "7f4d338cd8f8d88ebaf61e400c31f5c245f8f1371fedc6dcd98a8ebe6670b03a",
+  "mocSha256": "e6684a201f6b5038779b498680fdae08038430f21f0235628cf9651142096cda",
+  "officialEditorDiscovered": true,
+  "officialEditorVersion": "5.3.04",
+  "officialEditorPath": "C:\\Users\\24052\\AppData\\Local\\Programs\\Live2D-Cubism-5.3",
+  "editorLicense": {
+    "mode": "trial",
+    "remainingDaysObserved": 42,
+    "paidLicensePurchased": false
+  },
+  "nativeUiAutomationAvailable": true,
+  "automation": "Official Node REPL + @oai/sky Computer Use; session Editor authorization",
+  "officialEditorOpenVerified": true,
+  "officialEditorSaveVerified": true,
+  "officialEditorReopenVerified": true,
+  "officialEditorReexportVerified": true,
+  "saveEvidence": "2026-10-07 10:57:59 CST: official Editor Save As; normalized CMO read back with 645 keyforms",
+  "cleanReopenEvidence": "Saved official-export/xiaoya.cmo3 closed and reopened in Editor without version or hierarchy repair prompt",
+  "export": {
+    "format": "SDK 5.0 / Cubism 5.0",
+    "textureSize": 2048,
+    "pixelsPerUnit": 1280,
+    "textureColorBleedProcessing": true
+  },
+  "independentReader": "Umamo v0.4.0",
+  "independentReaderPassed": true,
+  "officialCoreRuntimeCheckPassed": true,
+  "sourceGeometryKeyforms": 645,
+  "geometryPoseCount": 93,
+  "maximumSourcePixelDelta": 0,
+  "connectionsVerified": true,
+  "refinementCompleted": true,
+  "humanDevicesVerified": false,
+  "physicalPhoneRequired": false,
+  "evidenceDirectory": "deployment/evidence/live2d-2026-10-07/ears",
+  "earMountsBehindHead": true,
+  "poseCount": 132
+}

@@ -1,0 +1,9 @@
+{
+  "Type": "Live2D Expression",
+  "FadeInTime": 0.35,
+  "FadeOutTime": 0.35,
+  "Parameters": [
+    { "Id": "ParamBrowLY", "Value": 0.12, "Blend": "Add" },
+    { "Id": "ParamBrowRY", "Value": 0.12, "Blend": "Add" }
+  ]
+}

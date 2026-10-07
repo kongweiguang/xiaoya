@@ -1,0 +1,52 @@
+{
+  "name": "xiaoya",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test tests/*.test.mjs",
+    "sdk:build": "tsc -p tsconfig.cubism.json && tsc -p tsconfig.motionsync.json",
+    "avatar:verify": "node tests/serve-avatar-verification.mjs"
+  },
+  "dependencies": {
+    "@livekit/components-react": "^2.9.24",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "livekit-client": "^2.22.2",
+    "livekit-server-sdk": "^2.18.0",
+    "lucide-react": "^0.555.0",
+    "next": "15.5.18",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "esbuild": "0.25.12",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.2",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.5.0",
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.6.11",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@9.15.9"
+}

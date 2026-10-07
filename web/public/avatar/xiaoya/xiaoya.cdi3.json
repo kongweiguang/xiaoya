@@ -1,0 +1,27 @@
+{
+  "Version": 3,
+  "Parameters": [
+    { "Id": "ParamAngleX", "GroupId": "Head", "Name": "转头" },
+    { "Id": "ParamAngleY", "GroupId": "Head", "Name": "抬头" },
+    { "Id": "ParamAngleZ", "GroupId": "Head", "Name": "侧头" },
+    { "Id": "ParamBodyAngleX", "GroupId": "Body", "Name": "身体倾斜" },
+    { "Id": "ParamEyeBallX", "GroupId": "Face", "Name": "水平视线" },
+    { "Id": "ParamEyeBallY", "GroupId": "Face", "Name": "垂直视线" },
+    { "Id": "ParamBrowLY", "GroupId": "Face", "Name": "左眉" },
+    { "Id": "ParamBrowRY", "GroupId": "Face", "Name": "右眉" },
+    { "Id": "ParamMouthForm", "GroupId": "Face", "Name": "圆唇与展开" },
+    { "Id": "ParamMouthOpenY", "GroupId": "Face", "Name": "嘴部开合" },
+    { "Id": "ParamEyeLOpen", "GroupId": "Face", "Name": "左眼开合" },
+    { "Id": "ParamEyeROpen", "GroupId": "Face", "Name": "右眼开合" },
+    { "Id": "ParamLeafSwing", "GroupId": "Body", "Name": "芽叶回弹" },
+    { "Id": "ParamArmL", "GroupId": "Body", "Name": "左手" },
+    { "Id": "ParamArmR", "GroupId": "Body", "Name": "右手" },
+    { "Id": "ParamBreath", "GroupId": "Body", "Name": "呼吸" }
+  ],
+  "ParameterGroups": [
+    { "Id": "Head", "GroupId": "", "Name": "头部" },
+    { "Id": "Face", "GroupId": "", "Name": "表情" },
+    { "Id": "Body", "GroupId": "", "Name": "身体" }
+  ],
+  "Parts": []
+}

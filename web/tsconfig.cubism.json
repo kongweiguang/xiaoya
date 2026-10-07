@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": false,
+    "skipLibCheck": true,
+    "declaration": true,
+    "outDir": "lib/avatar/vendor/cubism",
+    "rootDir": "lib/avatar/vendor-source/cubism"
+  },
+  "include": ["lib/avatar/vendor-source/cubism/src/**/*.ts", "types/live2dcubismcore.d.ts"]
+}
