@@ -228,6 +228,8 @@ Remove-Item Env:NEXT_DIST_DIR
 
 ## 提交内容与许可
 
+本项目原创代码与资源采用 [MIT 许可证](LICENSE)，版权归属 `kongweiguang`。第三方代码、SDK 与资源继续遵循各自随附的许可证。
+
 仓库保留源码、测试、依赖锁文件、示例配置、正式角色源文件与运行资源，以及 SDK 的版权和许可文本。
 
 `.env.local`（包括 `web/.env.local`）、`mcp.local.json`、私有凭据、虚拟环境、`node_modules`、Next.js 构建缓存、日志与 `.tools/` 均由 `.gitignore` 排除。`deployment/evidence/` 的原始验收录像、音频、截图和历史备份留在本地，文档中指向这些文件的链接需在原工作区查看。
