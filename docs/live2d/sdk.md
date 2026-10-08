@@ -55,16 +55,16 @@ Cubism Framework 与 MotionSync Components 使用 [Live2D Open Software 使用�
 
 官方 Core 再分发清单允许 Cubism 的 `.d.ts`、`.js`、`.min.js`，以及 MotionSync 的 `.d.ts`、`.js`、`.js.map`、`.min.js`；本项目选用其中 `.min.js` 与 `.d.ts`，不为运行时发布整套 SDK 或样例资源。
 
-2026-10-06 对当前文件重新校验，4 个 Core/声明文件与官方 ZIP 解压文件逐字节一致，8 个许可与再分发清单在统一换行和文件末尾空行后内容一致，两个固定 ZIP 指纹与上表相同。当前证据见 [sdk-source-validation.json](../../assets/avatar/xiaoya/evidence/sdk-source-validation.json)。
+2026-10-06 对当前文件重新校验，4 个 Core/声明文件与官方 ZIP 解压文件逐字节一致，8 个许可与再分发清单在统一换行和文件末尾空行后内容一致，两个固定 ZIP 指纹与上表相同。原始校验报告在本机保留，不随公开源码提交；上表为公开文件指纹。
 
 发行包许可要求符合其业务规模条件的企业取得 [Cubism SDK 发行许可证](https://www.live2d.com/zh-CHS/download/cubism-sdk/release-license/)。这份记录说明技术来源和随附许可，不代表已取得企业发行合同；本次范围为本地应用与私有房间验收，公网发布不在交付范围。
 
 ## 模型制作验收与 SDK 验证边界
 
-2026-10-07 的正式模型已经在官方 Cubism Editor 5.3.04 中打开、另存、关闭重开并导出。发布格式为 SDK 5.0 / Cubism 5.0，纹理 2048，pixelsPerUnit 1280，官方 Core 一致性通过；制作候选与官方运行导出的 93 种姿态几何差异为零。工程保留 16 个网格、16 个参数、6 个变形器和 645 个关键形态。头颈、肩部与头饰连接及原画边缘精修已同步至 PSD、CMO、MOC、纹理和后备图。模型完整证据见 [制作说明](../../assets/avatar/xiaoya/README.md) 与 [editor-verification.json](../../assets/avatar/xiaoya/evidence/editor-verification.json)，应用验收单独见 [验收记录](acceptance.md)。
+上述 SDK 证据只证明依赖来源，不证明当前模型工程验收。2026-10-07 极简重构要求从保留原画在 5.3.04 中重建 19 普通参数／0 BlendShape；组合样机与官方往返通过前保留当前运行包。旧 16 参数与第三方生成路线的记录只在历史归档保留。当前模型和浏览器验收见 [分层验收](../delivery-acceptance.md)。
 
-本机 Editor 位于 `C:\Users\24052\AppData\Local\Programs\Live2D-Cubism-5.3`，2026-10-07 耳座修复时为剩余 42 天的试用版，未购买长期 Editor 许可。Editor 制作许可和 SDK 发行许可分别适用；完成本地技术验收不代表已经取得企业 SDK 发行合同。
+本轮使用已安装的官方 Cubism Editor 5.3.04。启动时已有试用状态，未购买或启用新试用，也尚未证明目标模型已在 FREE 许可模式完成交付。Editor 制作许可和 SDK 发行许可分别适用；本地技术验收不代表已经取得企业 SDK 发行合同。
 
 ## 更新约束
 
-更新 SDK 时重新核对官方稳定发行包、ZIP 与 Core 指纹、声明文件、兼容性、再分发清单及许可证，保留 MotionSync 补丁所对应的验证证据，再运行 `pnpm sdk:build` 和项目规定的前端检查。模型资产当前指纹记录在 [asset-sha256.json](../../assets/avatar/xiaoya/evidence/asset-sha256.json)，SDK 文件不使用 pnpm CDN 动态加载。
+更新 SDK 时重新核对官方稳定发行包、ZIP 与 Core 指纹、声明文件、兼容性、再分发清单及许可证，保留 MotionSync 补丁所对应的验证证据，再运行 `pnpm sdk:build` 和项目规定的前端检查。历史模型指纹不能替代本轮资产验证；SDK 文件不使用 pnpm CDN 动态加载。

@@ -20,6 +20,9 @@ Environment=PYTHONPATH=/opt/xiaoya/speech/src:/opt/xiaoya/vendor/CosyVoice:/opt/
 ExecStart=/opt/xiaoya/speech/.venv/bin/python -m uvicorn local_speech.api:app --host 127.0.0.1 --port 8001
 Restart=on-failure
 RestartSec=5
+# 先让主进程按生命周期关闭子进程；主进程退出或 120 秒预算到期后，全组强制回收残留。
+KillMode=mixed
+TimeoutStopSec=120
 
 [Install]
 WantedBy=multi-user.target

@@ -10,8 +10,15 @@ from livekit import rtc
 from livekit.agents import Agent, FlushSentinel, ModelSettings, llm, tts
 from livekit.agents.voice.transcription import TranscriptSynchronizer, text_transforms
 
+from xiaoya.application.assistant_tools import Clock
+from xiaoya.domain.assistant import AssistantEnvironment
 from xiaoya.domain.delivery import DELIVERY_INSTRUCTIONS, DeliveryIntent, SpeechSegment
-from xiaoya.infrastructure.delivery_output import DeliveryTextOutput
+from xiaoya.infrastructure.assistant_tools import SystemClock
+from xiaoya.infrastructure.delivery_output import (
+    DeliverySnapshotEndpoint,
+    DeliveryState,
+    DeliveryTextOutput,
+)
 from xiaoya.infrastructure.delivery_stream import DeliveryStreamParser
 
 logger = logging.getLogger(__name__)
@@ -31,33 +38,64 @@ class ExpressiveAgent(Agent):
         tools: list,
         room: rtc.Room,
         voices: dict[str, tts.TTS],
+        environment: AssistantEnvironment | None = None,
+        clock: Clock | None = None,
     ) -> None:
-        """声音实例按有限预设固定配置，避免并行合成时修改共享 options。"""
+        """唯一语音链按实际渠道确认人物能力，输出仅由会话所有者在启动后装配。"""
         super().__init__(
-            instructions=instructions + DELIVERY_INSTRUCTIONS,
+            instructions=instructions,
             tools=tools,
             use_tts_aligned_transcript=False,
         )
+        self._environment = environment or AssistantEnvironment()
+        self._clock = clock or SystemClock()
         self._room = room
         self._voices = voices
+        self._delivery_closed = False
         self._delivery: DeliveryTextOutput | None = None
         self._synchronizer: TranscriptSynchronizer | None = None
         self._speech_ids: set[str] = set()
         self._tasks: set[asyncio.Task] = set()
 
-    async def on_enter(self) -> None:
-        """SDK 入场可能早于连接；这里尽早尝试，装配入口在 start 完成后兜底。"""
-        await self.enable_delivery()
+    @property
+    def environment(self) -> AssistantEnvironment:
+        """不可变事实由装配入口更新，不从用户消息或旧历史推断运行能力。"""
+        return self._environment
 
-    async def enable_delivery(self) -> None:
-        """连接与公开输出均就绪后幂等包装；console 不连接房间则保留其原始出口。"""
+    def set_environment(self, environment: AssistantEnvironment) -> None:
+        """实际渠道在会话启动后才确定，替换整个快照避免逐字段半更新。"""
+        self._environment = environment
+
+    def generation_context(self, chat_ctx: llm.ChatContext) -> llm.ChatContext:
+        """协议与最新时钟只放入本次生成副本，净历史不缓存指令或失效能力。"""
+        context = chat_ctx.copy()
+        context.add_message(
+            role="system",
+            content=DELIVERY_INSTRUCTIONS
+            + "\n"
+            + self._environment.instructions(self._clock.now()),
+        )
+        return context
+
+    @property
+    def delivery_snapshot(self) -> DeliveryState | None:
+        """只读取已实际输出的不可变状态；关闭或尚未装配时由共享入口返回中性就绪快照。"""
+        if self._delivery_closed or self._delivery is None:
+            return None
+        return self._delivery.snapshot
+
+    async def enable_delivery(self, endpoint: DeliverySnapshotEndpoint) -> None:
+        """唯一所有者借出快照；重复或关闭后的迟到调用不能重新创建表现资源。"""
+        if not endpoint.registered:
+            raise RuntimeError("不能附加已关闭的表现快照")
         if (
-            self._delivery is not None
+            self._delivery_closed
+            or self._delivery is not None
             or not self._room.isconnected()
             or self.session.output.audio is None
         ):
             return
-        self._delivery = DeliveryTextOutput(self._room)
+        self._delivery = DeliveryTextOutput(self._room, snapshot_endpoint=endpoint)
         self._synchronizer = TranscriptSynchronizer(
             next_in_chain_audio=self.session.output.audio,
             next_in_chain_text=self._delivery,
@@ -68,9 +106,10 @@ class ExpressiveAgent(Agent):
     async def llm_node(
         self, chat_ctx: llm.ChatContext, tools: list[llm.Tool], model_settings: ModelSettings
     ) -> AsyncIterator[llm.ChatChunk | str | FlushSentinel]:
-        """逐句提交仍保留工具与用量块，取消直接丢弃尚未完成的生成缓冲。"""
+        """净历史不含控制头，复制上下文临时重申协议；不增加调用或污染历史与工具链。"""
         parser = DeliveryStreamParser()
-        source = Agent.default.llm_node(self, chat_ctx, tools, model_settings)
+        generation_context = self.generation_context(chat_ctx)
+        source = Agent.default.llm_node(self, generation_context, tools, model_settings)
         async for chunk in source:
             if isinstance(chunk, str):
                 segments = parser.feed(chunk)
@@ -132,7 +171,7 @@ class ExpressiveAgent(Agent):
     async def transcription_node(
         self, text: AsyncIterable[str], model_settings: ModelSettings
     ) -> AsyncIterator[str]:
-        """播放获授权后绑定身份，并在 SDK 保存已说历史之前剥离内部协议。"""
+        """每次提交都复核播放身份；符号保留正文但不占用首个可朗读句段的表现绑定。"""
         handle = self.session.current_speech
         if self._synchronizer is not None:
             await self._synchronizer.barrier()
@@ -144,16 +183,20 @@ class ExpressiveAgent(Agent):
         try:
             async for chunk in text:
                 for segment in parser.feed(str(chunk)):
-                    if not bound:
+                    if not bound and any(character.isalnum() for character in segment.text):
                         if not await self._bind(handle, segment.intent):
                             return
                         bound = True
+                    if not self._can_transcribe(handle):
+                        return
                     yield segment.text
             for segment in parser.finish():
-                if not bound:
+                if not bound and any(character.isalnum() for character in segment.text):
                     if not await self._bind(handle, segment.intent):
                         return
                     bound = True
+                if not self._can_transcribe(handle):
+                    return
                 yield segment.text
         finally:
             if handle is not None and handle.interrupted and self._delivery is not None:
@@ -161,17 +204,22 @@ class ExpressiveAgent(Agent):
 
     async def _bind(self, handle, intent: DeliveryIntent) -> bool:
         """当前句段的不可变绑定不允许跨越播放许可或晚到的旧 speech handle。"""
+        if not self._can_transcribe(handle):
+            return False
         if self._delivery is None:
             return True
-        if (
-            handle is not None
+        await self._delivery.bind_segment(handle.id, intent)
+        return True
+
+    def _can_transcribe(self, handle) -> bool:
+        """公开 handle 的许可可以在任一 await 后失效，不能沿用首段的布尔绑定结论。"""
+        return (
+            not self._delivery_closed
+            and handle is not None
             and self.session.current_speech is handle
             and not handle.interrupted
             and not handle.done()
-        ):
-            await self._delivery.bind_segment(handle.id, intent)
-            return True
-        return False
+        )
 
     def _speech_done(self, handle) -> None:
         """完成回调带原回复身份，旧回调不能关闭后来获得播放许可的新回复。"""
@@ -189,7 +237,8 @@ class ExpressiveAgent(Agent):
             logger.warning("人物表现状态回收失败")
 
     async def aclose(self) -> None:
-        """会话音频停止后回收同步器、状态输出与监听任务，不持有额外播放器。"""
+        """关闭先阻止晚回调重开，再回收同步器和装饰输出；共享入口始终由会话装配者负责。"""
+        self._delivery_closed = True
         synchronizer, delivery = self._synchronizer, self._delivery
         self._synchronizer = None
         self._delivery = None

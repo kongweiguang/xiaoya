@@ -34,6 +34,7 @@ async def test_real_sdk_pipeline_can_be_constructed_without_livekit_credentials(
     adapter = LiveKitVoiceConversation(
         room=rtc.Room(), settings=private_settings, vad=process.userdata["vad"]
     )
+    adapter._initialize_models()
     assert adapter._session.turn_detection.model == "turn-detector-v1-mini"
     stream = adapter._session.turn_detection.stream()
     try:

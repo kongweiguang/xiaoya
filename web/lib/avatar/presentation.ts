@@ -1,8 +1,20 @@
 import type { AvatarBehavior } from './behavior';
 
-export type AvatarStyle = 'neutral' | 'happy' | 'gentle' | 'concerned' | 'curious';
-export type AvatarGesture = 'none' | 'nod' | 'tilt' | 'wave';
-export type AvatarDelivery = { id: string; style: AvatarStyle; gesture: AvatarGesture };
+export type AvatarStyle =
+  | 'neutral'
+  | 'happy'
+  | 'gentle'
+  | 'concerned'
+  | 'curious'
+  | 'shy'
+  | 'surprised';
+export type AvatarGesture = 'none' | 'nod' | 'tilt' | 'wave' | 'shy' | 'shake';
+export type AvatarDelivery = {
+  id: string;
+  replyKey: string;
+  style: AvatarStyle;
+  gesture: AvatarGesture;
+};
 type ExpressionName = AvatarStyle | 'listening' | 'thinking';
 type Blend = 'Add' | 'Multiply' | 'Overwrite';
 export type AvatarExpression = {
@@ -47,11 +59,13 @@ const expressionNames: readonly ExpressionName[] = [
   'gentle',
   'concerned',
   'curious',
+  'shy',
+  'surprised',
   'listening',
   'thinking',
 ];
-const styles = new Set(['neutral', 'happy', 'gentle', 'concerned', 'curious']);
-const gestureDurations = { none: 0, nod: 1.05, tilt: 1.35, wave: 1.65 };
+const styles = new Set(['neutral', 'happy', 'gentle', 'concerned', 'curious', 'shy', 'surprised']);
+const gestureDurations = { none: 0, nod: 1.05, tilt: 1.35, wave: 1.65, shy: 1.8, shake: 1.35 };
 
 /** 非有限输入退到安全中性值；控制器独立于 SDK，使网络异常不能把 NaN 送入网格。 */
 function clamp(value: number, min: number, max: number, fallback = 0): number {
@@ -102,6 +116,12 @@ export class AvatarPresentation {
   private readonly pose: Record<string, number> = {};
   private readonly seenDeliveries = new Set<string>();
   private activeGesture: { name: AvatarGesture; started: number } | null = null;
+  private gestureRun: {
+    replyKey: string;
+    name: AvatarGesture;
+    completed: boolean;
+    resetAfterCompletion: boolean;
+  } | null = null;
   private currentDelivery: string | null = null;
   private clock = 0;
   private energy = 0;
@@ -112,28 +132,65 @@ export class AvatarPresentation {
     for (const [id, [, , baseline]] of Object.entries(limits)) this.pose[id] = baseline;
   }
 
-  /** 主动作只接受新 delivery；取消清队列但记住最近 ID，迟到重发不得把旧手势重新演一遍。 */
+  /** 先归档自然完成，保证同帧到达的 none 可建立间隔；取消不能冒充动作已经播完。 */
+  private finishGesture() {
+    if (
+      !this.activeGesture ||
+      this.clock - this.activeGesture.started < gestureDurations[this.activeGesture.name]
+    )
+      return;
+    this.activeGesture = null;
+    if (this.gestureRun) {
+      this.gestureRun.completed = true;
+      if (this.gestureRun.resetAfterCompletion) this.gestureRun.name = 'none';
+      this.gestureRun.resetAfterCompletion = false;
+    }
+  }
+
+  /** 段 ID 防重发、回复身份防连续同款；none 仅在自然完成后开放，取消保留已消费栅栏。 */
   private accept(delivery: AvatarDelivery | null) {
-    if (!delivery) {
+    if (!delivery || !delivery.id || !delivery.replyKey) {
       this.currentDelivery = null;
       this.activeGesture = null;
+      if (this.gestureRun) this.gestureRun.resetAfterCompletion = false;
       return;
     }
-    if (delivery.id === this.currentDelivery) return;
+    // 迟到旧段必须在修改当前动作之前拒绝，不能借重复 ID 抢走新回复正在播放的动作。
+    if (delivery.id === this.currentDelivery || this.seenDeliveries.has(delivery.id)) return;
     this.currentDelivery = delivery.id;
-    this.activeGesture = null;
-    if (!delivery.id || this.seenDeliveries.has(delivery.id)) return;
     this.seenDeliveries.add(delivery.id);
     if (this.seenDeliveries.size > 32)
       this.seenDeliveries.delete(this.seenDeliveries.values().next().value!);
-    if (delivery.gesture !== 'none' && Object.hasOwn(gestureDurations, delivery.gesture))
-      this.activeGesture = { name: delivery.gesture, started: this.clock };
+    if (this.gestureRun?.replyKey !== delivery.replyKey) {
+      this.activeGesture = null;
+      this.gestureRun = {
+        replyKey: delivery.replyKey,
+        name: 'none',
+        completed: true,
+        resetAfterCompletion: false,
+      };
+    }
+    if (delivery.gesture === 'none') {
+      if (this.gestureRun.completed) this.gestureRun.name = 'none';
+      else if (this.activeGesture) this.gestureRun.resetAfterCompletion = true;
+      return;
+    }
+    this.gestureRun.resetAfterCompletion = false;
+    if (
+      delivery.gesture === this.gestureRun.name ||
+      !Object.hasOwn(gestureDurations, delivery.gesture)
+    )
+      return;
+    this.gestureRun.name = delivery.gesture;
+    this.gestureRun.completed = false;
+    this.activeGesture = { name: delivery.gesture, started: this.clock };
   }
 
-  /** 基线、语义表情、短动作和微动只合成一次；嘴部返回独立最终值，由宿主在物理后写入。 */
+  /** 主动作压低轻摆；害羞用已有低头/收臂、摇头用左右曲线，嘴由宿主在物理后独占。 */
   advance(input: AvatarPresentationInput): Record<string, number> {
     this.clock = Math.max(this.clock, clamp(input.time, 0, Number.MAX_SAFE_INTEGER, this.clock));
     const dt = clamp(input.delta, 0, 0.05);
+    this.finishGesture();
     this.accept(input.delivery);
     const thinking = input.behavior === 'thinking';
     const listening = input.behavior === 'listening';
@@ -185,23 +242,36 @@ export class AvatarPresentation {
         target[parameter.id] += (value - original) * weight;
       }
     }
+    let speechSwayWeight = 1;
     if (this.activeGesture) {
       const { name, started } = this.activeGesture;
       const phase = clamp((this.clock - started) / gestureDurations[name], 0, 1);
       const envelope = Math.sin(Math.PI * phase) ** 2;
+      speechSwayWeight = 1 - envelope * 0.7;
       if (name === 'nod') target.ParamAngleY -= 18 * Math.sin(phase * Math.PI * 2) * envelope;
       if (name === 'tilt') target.ParamAngleZ += 15 * envelope;
       if (name === 'wave') {
         target.ParamArmL = envelope * (0.8 + 0.18 * Math.sin(phase * Math.PI * 6));
         target.ParamAngleZ -= envelope * 3;
       }
-      if (phase >= 1) this.activeGesture = null;
+      if (name === 'shy') {
+        // 正式模型两侧正参数均向外展，负参数才向身体收拢；不虚构腮红或触碰嘴部。
+        target.ParamArmL = -0.55 * envelope;
+        target.ParamArmR = -0.55 * envelope;
+        target.ParamAngleY -= 14 * envelope;
+        target.ParamAngleX -= 6 * envelope;
+        target.ParamAngleZ -= 5 * envelope;
+      }
+      if (name === 'shake') {
+        // 一次左右往返用同一零端点包络，不能新建循环或在取消后继续补演。
+        target.ParamAngleX += 24 * Math.sin(phase * Math.PI * 2) * envelope;
+      }
     }
     // 音频包络只影响次级摆动，不猜测情绪；实际静音即关闭目标，保留轻微阻尼收尾。
     const open = clamp(input.lip?.open ?? 0, 0, 1);
     this.energy += (open - this.energy) * (1 - Math.exp(-dt * 12));
-    target.ParamAngleX += Math.sin(this.clock * 3.1) * this.energy * 1.8;
-    target.ParamAngleY += Math.sin(this.clock * 4.2) * this.energy * 1.2;
+    target.ParamAngleX += Math.sin(this.clock * 3.1) * this.energy * 1.8 * speechSwayWeight;
+    target.ParamAngleY += Math.sin(this.clock * 4.2) * this.energy * 1.2 * speechSwayWeight;
     const output: Record<string, number> = {};
     for (const [id, [min, max]] of Object.entries(limits)) {
       this.pose[id] += (clamp(target[id], min, max) - this.pose[id]) * (1 - Math.exp(-dt * 12));

@@ -5,13 +5,19 @@ Wants=network-online.target
 Requires=xiaoya-livekit.service xiaoya-speech.service
 
 [Service]
+Type=notify
+NotifyAccess=main
 WorkingDirectory=/opt/xiaoya/agent
 EnvironmentFile=/opt/xiaoya/agent/.env.local
 Environment=PYTHONUTF8=1
 Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/bin/bash /opt/xiaoya/wait-speech.sh
 ExecStart=/opt/xiaoya/agent/.venv/bin/python -m livekit.agents start src/xiaoya/interfaces/cli.py
 Restart=on-failure
 RestartSec=5
+TimeoutStartSec=330
+# 先让主进程按生命周期关闭子进程；主进程退出或 120 秒预算到期后，全组强制回收残留。
+KillMode=mixed
 TimeoutStopSec=120
 KillSignal=SIGTERM
 

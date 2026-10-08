@@ -6,15 +6,16 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
+    "dev": "pnpm sdk:build && next dev --turbopack --hostname 127.0.0.1",
+    "build": "pnpm sdk:build && next build",
+    "start": "next start --hostname 127.0.0.1",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --test tests/*.test.mjs",
+    "test": "pnpm sdk:build && node --test tests/*.test.mjs",
+    "typecheck": "pnpm sdk:build && tsc --noEmit --incremental false",
     "sdk:build": "tsc -p tsconfig.cubism.json && tsc -p tsconfig.motionsync.json",
-    "avatar:verify": "node tests/serve-avatar-verification.mjs"
+    "avatar:verify": "pnpm sdk:build && node tests/serve-avatar-verification.mjs"
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.24",
@@ -33,6 +34,8 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@trivago/prettier-plugin-sort-imports": "^5.2.2",
     "@types/node": "^24.0.0",
     "@types/react": "^19",
@@ -43,6 +46,7 @@
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-prettier": "^5.5.0",
+    "jsdom": "^30.1.2",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "tailwindcss": "^4",

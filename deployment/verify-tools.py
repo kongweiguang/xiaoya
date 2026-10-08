@@ -1,8 +1,9 @@
-"""使用显式配置的真实 LLM 和本地示例 MCP 验证工具闭环，不连接房间或录制音频。"""
+"""使用显式配置的 LLM 验证五个内置工具；示例 MCP 仅按显式参数启用。"""
 
 import argparse
 import asyncio
 import json
+import sys
 from contextlib import AsyncExitStack
 from pathlib import Path
 
@@ -17,16 +18,18 @@ from xiaoya.infrastructure.mcp_tools import MCPTools
 from xiaoya.infrastructure.settings import Settings
 
 
-async def verify() -> dict:
+async def verify(*, demo: bool = False) -> dict:
     """只提交固定文案；模型选项与语音会话一致，验证工具执行后确实产生回复。"""
     settings = Settings.from_environment()
     model = openai.LLM(
         model=settings.llm_model,
         base_url=settings.llm_base_url,
-        api_key=settings.llm_api_key or "not-required",
+        api_key=settings.llm_api_key,
         extra_body=settings.llm_extra_body,
     )
-    runtime = MCPTools(str(Path(__file__).resolve().parents[1] / "mcp.example.json"))
+    runtime = MCPTools(
+        str(Path(__file__).resolve().parents[1] / "mcp.example.json") if demo else ""
+    )
     adapter = AssistantToolAdapter(AssistantTools(clock=SystemClock()))
     session = AgentSession(llm=model)
     cases = (
@@ -35,9 +38,12 @@ async def verify() -> dict:
         ("save_note", "请保存便签，标题是工具验证，内容是带耳机和充电器。"),
         ("list_notes", "请调用便签工具，列出本次通话保存的便签。"),
         ("delete_note", "请删除标题为工具验证的便签。"),
-        ("demo__search_knowledge", "请用知识库工具查询便签能否永久保存。"),
-        ("demo__get_demo_ticket", "请用工单工具查询演示工单 DEMO-001。"),
     )
+    if demo:
+        cases += (
+            ("demo__search_knowledge", "请用知识库工具查询便签能否永久保存。"),
+            ("demo__get_demo_ticket", "请用工单工具查询演示工单 DEMO-001。"),
+        )
     results = []
     async with AsyncExitStack() as cleanup:
         cleanup.push_async_callback(runtime.close)
@@ -63,7 +69,8 @@ async def verify() -> dict:
             results.append({"expected_tool": expected, "actual_tools": names, "reply": replies[-1]})
     return {
         "passed": True,
-        "scope": "真实配置 LLM、内置工具、本地 stdio MCP；固定测试文字输入",
+        "scope": "真实配置 LLM、五个内置工具；固定测试文字输入",
+        "demo_mcp": demo,
         "livekit_room": False,
         "real_microphone": False,
         "results": results,
@@ -71,13 +78,15 @@ async def verify() -> dict:
 
 
 def main() -> None:
-    """证据仅含固定文案的回复，不输出环境配置、鉴权信息或外部异常正文。"""
-    parser = argparse.ArgumentParser(description="验证私有 LLM 的七种工具调用及后续回复")
+    """固定 UTF-8 兼容 Windows 与 emoji；证据只含测试文案，不输出配置或外部异常正文。"""
+    sys.stdout.reconfigure(encoding="utf-8")
+    parser = argparse.ArgumentParser(description="验证 LLM 的五种工具调用及后续回复")
+    parser.add_argument("--demo", action="store_true", help="额外验证独立示例 MCP")
     parser.add_argument("--output", type=Path, default=Path(".tools/logs/tool-verification.json"))
     args = parser.parse_args()
     load_dotenv(Path.cwd() / ".env.local", override=False)
     try:
-        result = asyncio.run(verify())
+        result = asyncio.run(verify(demo=args.demo))
     except Exception as error:
         raise SystemExit(
             f"工具验证失败（{type(error).__name__}），请核对模型的 function calling 支持。"

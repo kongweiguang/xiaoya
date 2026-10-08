@@ -1,471 +1,476 @@
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
-import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
-import vm from 'node:vm';
-import ts from 'typescript';
+import { afterEach, test } from 'node:test';
+import { LocalTrack, conversationPorts, events } from './helpers/conversation-ports.mjs';
+import {
+  React,
+  cleanup,
+  deferred,
+  fireEvent,
+  production,
+  render,
+  settle,
+  waitFor,
+} from './helpers/dom.mjs';
 
-const hookSource = await readFile(new URL('../hooks/use-conversation.ts', import.meta.url), 'utf8');
-const hookCode = ts.transpileModule(hookSource, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText;
-const states = {
-  Connected: 'connected',
-  Disconnected: 'disconnected',
-  Reconnecting: 'reconnecting',
-  SignalReconnecting: 'signal-reconnecting',
-};
-const connectedEvent = 'connected';
+afterEach(cleanup);
 
-/** 显式控制权限和 SDK 的完成顺序，测试不依赖网络、真实麦克风或脆弱的等待时长。 */
-function deferred() {
-  let resolve;
-  let reject;
-  const promise = new Promise((yes, no) => {
-    resolve = yes;
-    reject = no;
+/** 视觉舞台有独立资源测试，此处仅替换它的模型端口而保留真实页面、控件及会话宿主。 */
+async function app(options = {}) {
+  const environment = conversationPorts(options);
+  const { App } = await production('components/app/app.tsx', {
+    ...environment.ports,
+    '@/components/app/avatar-stage': {
+      AvatarStage: ({ status }) =>
+        React.createElement(
+          'section',
+          { 'aria-label': '小芽数字人' },
+          React.createElement('p', { role: 'status' }, status)
+        ),
+    },
   });
-  return { promise, resolve, reject };
+  const view = render(
+    React.createElement(
+      React.StrictMode,
+      null,
+      React.createElement(App, { tokenEndpoint: '/api/token' })
+    )
+  );
+  return { ...environment, ...view };
 }
 
-/** 等待真实 hook 的 Promise 链排空，不使用睡眠把竞态变成机器速度相关的偶然结果。 */
-async function settle() {
-  for (let turn = 0; turn < 12; turn++) await Promise.resolve();
-}
-
-/** 端口保留房间事件和采集所有权；只替换不可控的外部等待，不复制 hook 内部业务逻辑。 */
-function createSession({ startGate, endGates = [] } = {}) {
-  const calls = { start: 0, end: 0, disconnect: 0, published: [] };
-  const room = new EventEmitter();
-  room.state = states.Connected;
-  room.localParticipant = {
-    audioTrackPublications: new Map(),
-    /** 已发布轨道仍由会话持有，便于验证挂断停止采集而非仅清空界面状态。 */
-    async publishTrack(track, options) {
-      calls.published.push({ track, options });
-      this.audioTrackPublications.set(String(calls.published.length), { track });
-    },
-  };
-  /** SDK 允许连接取消后迟到成功，测试必须观察 hook 对该事件的主动回收。 */
-  room.disconnect = async () => {
-    calls.disconnect++;
-  };
-  const session = {
-    room,
-    connectionState: states.Connected,
-    calls,
-    /** 忽略取消信号来模拟不可取消的 SDK 令牌请求，并保留公开 Connected 事件。 */
-    async start() {
-      calls.start++;
-      if (startGate) await startGate.promise;
-      room.emit(connectedEvent);
-    },
-    /** 每次 SDK 关闭可独立迟到，只有这样才能复现双击和失败清理交错的真实风险。 */
-    async end() {
-      const gate = endGates[calls.end++];
-      if (gate) await gate.promise;
-    },
-  };
-  return session;
-}
-
-/** 微型 React 端口保持状态、依赖和 effect 清理语义，业务代码始终来自当前真实 TS 源码。 */
-function createHook({ session, resetRoom, microphone = async () => undefined }) {
-  const slots = [];
-  const timers = new Set();
-  let cursor = 0;
-  let mounted = true;
-  let currentSession = session;
-  let value;
-  let writesAfterUnmount = 0;
-  const startupAgent = {
-    state: 'listening',
-    /** Agent 就绪与连接相互独立；生命周期测试只控制房间与权限边界。 */
-    async waitUntilConnected(signal) {
-      signal.throwIfAborted();
-    },
-  };
-  const assistant = { state: 'listening' };
-  /** React 按 Object.is 比较依赖，避免伪端口因回调身份变化制造额外清理。 */
-  function sameDependencies(left, right) {
-    return Boolean(
-      left && right && left.length === right.length && left.every((v, i) => Object.is(v, right[i]))
-    );
-  }
-  const react = {
-    /** Ref 的对象身份跨 render 持续存在，才能验证代次栅栏和共享关闭任务。 */
-    useRef(initial) {
-      const index = cursor++;
-      return (slots[index] ??= { current: initial });
-    },
-    /** 异步更新保存到下一次显式 render；卸载后更新另计，不能静默掩盖资源复活。 */
-    useState(initial) {
-      const index = cursor++;
-      const state = (slots[index] ??= { value: initial });
-      return [
-        state.value,
-        (next) => {
-          if (!mounted) writesAfterUnmount++;
-          state.value = typeof next === 'function' ? next(state.value) : next;
-        },
-      ];
-    },
-    /** 保留 memo 依赖语义，effect 不因测试端口每次返回新函数而重复执行。 */
-    useCallback(callback, dependencies) {
-      const index = cursor++;
-      const previous = slots[index];
-      if (!previous || !sameDependencies(previous.dependencies, dependencies))
-        slots[index] = { callback, dependencies };
-      return slots[index].callback;
-    },
-    /** Effect 只在 render 提交后执行，清理先于新 effect，模拟 React 所有权转移。 */
-    useEffect(effect, dependencies) {
-      const index = cursor++;
-      const previous = slots[index];
-      if (!previous || !sameDependencies(previous.dependencies, dependencies))
-        slots[index] = { effect, dependencies, cleanup: previous?.cleanup, pending: true };
-    },
-  };
-  const ports = {
-    react,
-    'livekit-client': {
-      ConnectionState: states,
-      RoomEvent: { Connected: connectedEvent },
-      Track: { Source: { Microphone: 'microphone' } },
-      createLocalAudioTrack: microphone,
-    },
-    '@livekit/components-react': {
-      useSessionContext: () => currentSession,
-      useAgent: () => startupAgent,
-      /** 实时参与者状态与首次等待器分开，可复现 SDK 历史 failed 在恢复后仍残留。 */
-      useVoiceAssistant: () => assistant,
-    },
-    '@/lib/avatar/session-audio': { useSessionAudio: () => undefined },
-  };
-  const exports = {};
-  const context = vm.createContext({
-    exports,
-    /** 请求模块只接受列出的内存端口，测试不会意外加载真实 SDK 并连接外部服务。 */
-    require(name) {
-      assert.ok(Object.hasOwn(ports, name), '未声明的外部依赖: ' + name);
-      return ports[name];
-    },
-    AbortController,
-    DOMException,
-    Error,
-    /** 超时由测试显式持有，不在 Node 测试结束后遗留 30 秒的活动句柄。 */
-    setTimeout(callback, milliseconds) {
-      const timer = { callback, milliseconds };
-      timers.add(timer);
-      return timer;
-    },
-    /** 清理所有权按句柄验证，而非依赖虚拟计时器自动消失。 */
-    clearTimeout(timer) {
-      timers.delete(timer);
-    },
-  });
-  new vm.Script(hookCode, { filename: 'use-conversation.ts' }).runInContext(context);
-  const harness = {
-    /** 外部 provider 更换房间时更新当前值，旧回调仍必须持有原会话而不能碰新资源。 */
-    replaceSession(next) {
-      currentSession = next;
-    },
-    /** SDK 的可变 room.state 可以先于 React context 提交，覆盖参与者先断开的真实事件顺序。 */
-    setConnectionState(state, roomState = state) {
-      currentSession.connectionState = state;
-      currentSession.room.state = roomState;
-    },
-    /** 模拟公开参与者状态，同时允许初始等待 hook 保留 SDK 的历史失败标记。 */
-    setAgentState(state, startupState = state) {
-      assistant.state = state;
-      startupAgent.state = startupState;
-    },
-    /** 返回当前计时器以测试窗口是否跨越不同恢复模式保持同一截止点。 */
-    pendingTimers() {
-      return [...timers];
-    },
-    /** 显式执行计时器，可重放已进入事件队列的旧回调，不依赖真实 30 秒等待。 */
-    fireTimer(timer) {
-      timers.delete(timer);
-      timer.callback();
-    },
-    /** 显式提交避免用无限自动重渲染掩盖竞态，断言前可准确读到实际 hook 状态。 */
-    render() {
-      assert.ok(mounted, '卸载的 hook 不能重新 render');
-      cursor = 0;
-      value = exports.useConversation(resetRoom);
-      for (const slot of slots) {
-        if (slot?.pending) {
-          slot.pending = false;
-          slot.cleanup?.();
-          slot.cleanup = slot.effect();
-        }
-      }
-      return value;
-    },
-    /** 卸载只运行真实 effect 的清理，迟到 Promise 是否越界由业务代码自己决定。 */
-    unmount() {
-      mounted = false;
-      for (const slot of slots) slot?.cleanup?.();
-    },
-    /** 生命周期计数可暴露卸载后 setState 与未清除的连接超时句柄。 */
-    diagnostics() {
-      return { writesAfterUnmount, timers: timers.size };
-    },
-  };
-  harness.render();
-  return harness;
-}
-
-/** 双击挂断共用同一 Promise，重连必须等清理完成，避免第二个迟到 finally 重置新房间。 */
-test('挂断共享一次任务，清理中不能开始新连接，旧调用完成后新会话保持 active', async () => {
-  const closing = deferred();
-  const firstSession = createSession({ endGates: [closing] });
-  const nextSession = createSession();
-  let resets = 0;
-  const hook = createHook({
-    session: firstSession,
-    /** Provider 重建拥有新资源的房间，旧关闭任务不得再次触发这个所有权操作。 */
-    resetRoom() {
-      resets++;
-      hook.replaceSession(nextSession);
-    },
-  });
-  await hook.render().start(false);
-  assert.equal(hook.render().phase, 'active');
-  const firstEnd = hook.render().end();
-  const secondEnd = hook.render().end();
-  assert.equal(firstEnd, secondEnd);
-  assert.equal(firstSession.calls.end, 1);
-  assert.equal(hook.render().phase, 'ending');
-  await hook.render().start(false);
-  assert.equal(firstSession.calls.start, 1);
-  closing.resolve();
-  await firstEnd;
-  assert.equal(resets, 1);
-  assert.equal(hook.render().phase, 'idle');
-  await hook.render().start(false);
-  await secondEnd;
-  assert.equal(nextSession.calls.start, 1);
-  assert.equal(hook.render().phase, 'active');
-  assert.equal(resets, 1);
-  hook.unmount();
-  await settle();
-  assert.equal(hook.diagnostics().timers, 0);
+/** 欢迎页零媒体分配，开始才分配一个 Room／时钟，双击不会另建连接或音频出口。 */
+test('点击开始才创建资源，SDK 上下文使用当前房间且保持双连接配置', async () => {
+  const view = await app();
+  assert.equal(view.rooms.length, 0);
+  assert.equal(view.contexts.length, 0);
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  fireEvent.click(view.getByRole('button', { name: /正在连接/ }));
+  await waitFor(() => assert.ok(view.getByRole('button', { name: '结束聊天' })));
+  assert.equal(view.rooms.length, 1);
+  assert.equal(view.contexts.length, 1);
+  assert.equal(view.rooms[0].config.singlePeerConnection, false);
+  assert.equal(view.rooms[0].config.webAudioMix.audioContext, view.contexts[0]);
+  assert.equal(view.calls.microphones.length, 0);
+  assert.equal(view.rooms[0].starts, 1);
+  assert.equal(view.calls.renderers, 1);
+  assert.ok(
+    view.calls.sessionOptions.every(
+      (config) => config.room === view.rooms[0] && !('agentName' in config)
+    )
+  );
+  assert.equal(view.rooms[0].rpcCalls.length, 1);
+  assert.ok(view.rooms[0].rpcCalls[0].subscribed);
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '结束聊天' })));
+  assert.equal(view.contexts[0].closes, 1);
+  assert.equal(view.calls.renderers, 0);
+  assert.equal(view.rooms.length, 1);
+  assert.ok(view.getByRole('button', { name: '开始聊天' }));
 });
 
-/** 旧舞台卸载会递增代次，关闭 Promise 即使后到也不能重建当前 provider 的新房间。 */
-test('卸载前开始的关闭迟到完成，不调用 resetRoom 或更新已卸载状态', async () => {
-  const closing = deferred();
-  const session = createSession({ endGates: [closing] });
-  let resets = 0;
-  const hook = createHook({ session, resetRoom: () => resets++ });
-  await hook.render().start(false);
-  const ending = hook.render().end();
-  hook.unmount();
-  closing.resolve();
-  await ending;
-  await settle();
-  assert.equal(resets, 0);
-  assert.deepEqual(hook.diagnostics(), { writesAfterUnmount: 0, timers: 0 });
-});
-
-/** SDK 连接不可取消时可能在卸载后发 Connected，必须断开旧房间并移除监听而不能复活。 */
-test('卸载后迟到连接成功会回收旧房间，不发布轨道、不重置新资源', async () => {
-  const connecting = deferred();
-  const session = createSession({ startGate: connecting });
-  let resets = 0;
-  const hook = createHook({ session, resetRoom: () => resets++ });
-  const starting = hook.render().start(false);
-  await settle();
-  assert.equal(session.calls.start, 1);
-  hook.unmount();
-  await starting;
-  connecting.resolve();
-  await settle();
-  assert.ok(session.calls.disconnect >= 1);
-  assert.equal(session.room.listenerCount(connectedEvent), 0);
-  assert.equal(session.calls.published.length, 0);
-  assert.equal(resets, 0);
-  assert.deepEqual(hook.diagnostics(), { writesAfterUnmount: 0, timers: 0 });
-});
-
-/** 浏览器权限不能取消，旧权限结果到达时停止其采集，不能误停取消后建立的文字会话。 */
-test('取消后迟到的麦克风授权会 stop，旧尝试不连接或发布到新房间', async () => {
-  const permission = deferred();
-  const oldSession = createSession();
-  const nextSession = createSession();
-  let resets = 0;
-  let stops = 0;
-  const hook = createHook({
-    session: oldSession,
-    microphone: () => permission.promise,
-    /** 模拟正常取消后 provider 换房，迟到授权仍由旧 controller 负责停止。 */
-    resetRoom() {
-      resets++;
-      hook.replaceSession(nextSession);
-    },
-  });
-  const oldStart = hook.render().start();
-  await hook.render().end();
-  await oldStart;
-  assert.equal(hook.render().phase, 'idle');
-  await hook.render().start(false);
-  assert.equal(hook.render().phase, 'active');
-  permission.resolve({ stop: () => stops++ });
-  await settle();
-  assert.equal(stops, 1);
-  assert.equal(oldSession.calls.start, 0);
-  assert.equal(oldSession.calls.published.length, 0);
-  assert.equal(nextSession.calls.start, 1);
-  assert.equal(hook.render().phase, 'active');
-  assert.equal(resets, 1);
-  assert.equal(oldSession.room.listenerCount(connectedEvent), 0);
-  hook.unmount();
-  await settle();
-  assert.equal(hook.diagnostics().timers, 0);
-});
-
-/** 启动失败自己的 SDK 回收也可能迟到，手动取消并重连后旧 catch 不得再 resetRoom。 */
-test('启动失败的迟到清理不能重置取消后成功建立的新会话', async () => {
-  const connecting = deferred();
-  const failureCleanup = deferred();
-  const manualCleanup = deferred();
-  const oldSession = createSession({
-    startGate: connecting,
-    endGates: [failureCleanup, manualCleanup],
-  });
-  const nextSession = createSession();
-  let resets = 0;
-  const hook = createHook({
-    session: oldSession,
-    /** 同一 provider 在失败与手动取消交错时只能转移一次所有权。 */
-    resetRoom() {
-      resets++;
-      hook.replaceSession(nextSession);
-    },
-  });
-  const failedStart = hook.render().start(false);
-  connecting.reject(new Error('模拟令牌请求失败'));
-  await settle();
-  assert.equal(oldSession.calls.end, 1);
-  const manualEnd = hook.render().end();
-  assert.equal(oldSession.calls.end, 2);
-  manualCleanup.resolve();
-  await manualEnd;
-  await hook.render().start(false);
-  assert.equal(hook.render().phase, 'active');
-  assert.equal(nextSession.calls.start, 1);
-  failureCleanup.resolve();
-  await failedStart;
-  assert.equal(resets, 1);
-  assert.equal(hook.render().phase, 'active');
-  hook.unmount();
-  await settle();
-  assert.equal(hook.diagnostics().timers, 0);
-});
-
-/** 完整重连先移除 Agent，再提交房间状态；恢复过程中和恢复后的 SDK 历史 failed 都不能挂断。 */
-test('信令与完整重连保留 active，Agent 返回后清除等待且使用实时公开状态', async () => {
-  for (const mode of [states.Reconnecting, states.SignalReconnecting]) {
-    const session = createSession();
-    let resets = 0;
-    const hook = createHook({
-      session,
-      /** 意外 reset 会使真实浏览器回到欢迎页，必须作为测试失败观察。 */
-      resetRoom: () => resets++,
+/** 文字入口不能承诺收音；按钮和提示必须同时跟随实际轨道，而不是最初入口或开关意图。 */
+test('文字入口及麦克风开关同步角色与页脚，不把静音或 disabled 轨道当作采集', async () => {
+  const view = await app();
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('button', { name: '结束聊天' })));
+  assert.equal(view.calls.microphones.length, 0);
+  assert.ok(view.getByText('等你发来消息'));
+  assert.ok(view.getByText('可以打字，也可以开启麦克风。'));
+  assert.equal(view.queryByText(/说话时可以打断我/), null);
+  assert.equal(view.getByRole('textbox').placeholder, '想聊什么，打字告诉我…');
+  const room = view.rooms[0];
+  await settle(() => room.setPeer({ ...room.peer, state: 'speaking' }));
+  assert.ok(view.getByText('正在和你说话'));
+  await settle(() => room.setPeer({ ...room.peer, state: 'thinking' }));
+  assert.ok(view.getByText('让我想一想…'));
+  await settle(() => room.setPeer({ ...room.peer, state: 'listening' }));
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '开启麦克风' })));
+  assert.ok(view.getByText('正在听你说'));
+  assert.ok(view.getByText('随时开口，也可以打字。说话时可以打断我。'));
+  assert.ok(view.getByRole('button', { name: '关闭麦克风' }));
+  assert.equal(view.getByRole('textbox').placeholder, '想说什么，也可以打字…');
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '关闭麦克风' })));
+  assert.ok(view.getByText('等你发来消息'));
+  const track = view.tracks[0];
+  for (const [muted, enabled] of [
+    [true, true],
+    [false, false],
+  ]) {
+    await settle(() => {
+      track.isMuted = muted;
+      track.mediaStreamTrack.enabled = enabled;
+      room.notify();
     });
-    await hook.render().start(false);
-    assert.equal(hook.render().phase, 'active');
-    hook.setAgentState('disconnected', 'failed');
-    hook.setConnectionState(states.Connected, mode);
-    assert.equal(hook.render().reconnecting, true);
-    assert.equal(hook.render().phase, 'active');
-    assert.equal(session.calls.end, 0);
-    const timer = hook.pendingTimers()[0];
-    assert.equal(timer.milliseconds, 30_000);
-    hook.setConnectionState(mode);
-    hook.setAgentState('connecting', 'failed');
-    hook.render();
-    assert.equal(hook.pendingTimers()[0], timer);
-    hook.setConnectionState(states.Connected);
-    assert.equal(hook.render().reconnecting, true);
-    assert.equal(hook.pendingTimers()[0], timer);
-    // 实际 SDK 已恢复而 React context 仍滞后时，也不能让到期的旧超时把新连接关闭。
-    hook.setConnectionState(mode, states.Connected);
-    hook.setAgentState('thinking', 'failed');
-    assert.equal(hook.render().reconnecting, false);
-    assert.equal(hook.render().agent.state, 'thinking');
-    assert.equal(hook.render().phase, 'active');
-    assert.equal(hook.pendingTimers().length, 0);
-    hook.fireTimer(timer);
-    await settle();
-    assert.equal(session.calls.end, 0);
-    assert.equal(resets, 0);
-    assert.equal(hook.render().error, '');
-    hook.unmount();
-    await settle();
-    assert.equal(hook.diagnostics().timers, 0);
+    assert.ok(view.getByText('等你发来消息'));
+    assert.ok(view.getByRole('button', { name: '开启麦克风' }));
+    assert.equal(view.queryByText(/说话时可以打断我/), null);
   }
 });
 
-/** 信令恢复升级为完整重连不能重新获得 30 秒，房间已恢复但 Agent 未归来也算同一恢复窗口。 */
-test('恢复窗口跨越模式切换保持同一截止点，超时才回收会话并显示恢复操作', async () => {
-  const session = createSession();
-  let resets = 0;
-  const hook = createHook({
-    session,
-    /** 一次恢复失败只转移一次房间所有权，重复超时不得二次重建。 */
-    resetRoom: () => resets++,
+/** 原生轨道失效与同包装对象换轨不一定改变 SDK 对象身份，页面提示仍需跟随控件的唯一采集判定。 */
+test('热拔出及同包装对象换轨同步收音提示，结束解除监听并隔离旧采集', async () => {
+  const view = await app();
+  fireEvent.click(view.getByRole('button', { name: '开始聊天' }));
+  await waitFor(() => assert.ok(view.getByText('正在听你说')));
+  const track = view.tracks[0];
+  const previousMedia = track.mediaStreamTrack;
+  await settle(() => {
+    previousMedia.readyState = 'ended';
+    previousMedia.dispatchEvent(new Event('ended'));
   });
-  await hook.render().start(false);
-  hook.setConnectionState(states.SignalReconnecting);
-  hook.setAgentState('connecting', 'failed');
-  assert.equal(hook.render().phase, 'active');
-  const timer = hook.pendingTimers()[0];
-  hook.setConnectionState(states.Reconnecting);
-  assert.equal(hook.render().reconnecting, true);
-  assert.equal(hook.pendingTimers()[0], timer);
-  hook.setConnectionState(states.Connected);
-  hook.render();
-  assert.equal(hook.pendingTimers()[0], timer);
-  assert.equal(session.calls.end, 0);
-  hook.fireTimer(timer);
-  await settle();
-  assert.equal(session.calls.end, 1);
-  assert.equal(resets, 1);
-  assert.equal(hook.render().phase, 'idle');
-  assert.match(hook.render().error, /恢复连接超时/);
-  hook.fireTimer(timer);
-  await settle();
-  assert.equal(session.calls.end, 1);
-  hook.unmount();
-  await settle();
-  assert.equal(hook.diagnostics().timers, 0);
+  assert.ok(view.getByText('等你发来消息'));
+  assert.ok(view.getByText('可以打字，也可以开启麦克风。'));
+  await settle(() => {
+    track.mediaStreamTrack = new LocalTrack().mediaStreamTrack;
+    track.emit('restarted');
+  });
+  assert.ok(view.getByText('正在听你说'));
+  assert.equal(track.listenerCount('restarted'), 1);
+  await settle(() => previousMedia.dispatchEvent(new Event('ended')));
+  assert.ok(view.getByText('正在听你说'));
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '结束聊天' })));
+  assert.equal(track.listenerCount('restarted'), 0);
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('button', { name: '结束聊天' })));
+  await settle(() => {
+    track.mediaStreamTrack = new LocalTrack().mediaStreamTrack;
+    track.emit('restarted');
+    view.rooms[0].notify();
+  });
+  assert.ok(view.getByText('等你发来消息'));
+  assert.equal(view.queryByText(/说话时可以打断我/), null);
 });
 
-/** SDK 明确最终断开应立即结束，不能继续等待超时；React 状态落后时也读取公共 room.state。 */
-test('恢复失败的最终 Disconnected 立即结束，不等待 30 秒也不留下旧计时器', async () => {
-  const session = createSession();
-  let resets = 0;
-  const hook = createHook({ session, resetRoom: () => resets++ });
-  await hook.render().start(false);
-  hook.setConnectionState(states.Reconnecting);
-  hook.setAgentState('connecting', 'failed');
-  hook.render();
-  const timer = hook.pendingTimers()[0];
-  hook.setConnectionState(states.Reconnecting, states.Disconnected);
-  hook.render();
+/** 麦克风的存在不能覆盖连接许可，恢复与结束必须先说明当前不可继续聊天的边界。 */
+test('连接恢复和结束文案优先于真实采集，正常结束再连接保留草稿且不自动发送', async () => {
+  const ending = deferred();
+  const view = await app({
+    /** 仅延迟公开关闭端口，页面仍走真实取消、结束确认及资源回收流程。 */
+    configure(room) {
+      room.endGate = ending;
+    },
+  });
+  fireEvent.click(view.getByRole('button', { name: '开始聊天' }));
+  await waitFor(() => assert.ok(view.getByText('正在听你说')));
+  fireEvent.change(view.getByRole('textbox'), { target: { value: '这是结束后需要保留的草稿。' } });
+  const room = view.rooms[0];
+  await settle(() => room.setState('reconnecting'));
+  assert.ok(view.getByText('正在恢复连接…'));
+  assert.ok(view.getByText('正在恢复连接，未发送的文字会保留。'));
+  assert.equal(view.queryByText(/说话时可以打断我/), null);
+  assert.equal(view.getByRole('textbox').disabled, true);
+  await settle(() => room.setState('connected'));
+  await waitFor(() => assert.ok(view.getByText('正在听你说')));
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '结束聊天' })));
+  assert.ok(view.getByText('正在结束聊天…'));
+  assert.ok(view.getByText('正在结束聊天，未发送的文字会保留。'));
+  assert.equal(view.queryByText(/说话时可以打断我/), null);
+  await settle(() => ending.resolve());
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  assert.equal(view.getByRole('textbox').value, '这是结束后需要保留的草稿。');
+  assert.deepEqual(room.sent ?? [], []);
+  assert.deepEqual(view.rooms[1].sent ?? [], []);
+  assert.ok(view.getByText('等你发来消息'));
+});
+
+/** 开启意图和权限失败都不表示收音成功，文字会话必须保留可操作的错误与真实能力提示。 */
+test('文字会话开启麦克风被拒绝后保留输入与关闭提示', async () => {
+  const view = await app({
+    /** 从浏览器权限端口拒绝，不能直接伪造控制器状态绕过采集判断。 */
+    microphone: async () => {
+      throw new DOMException('private failure', 'NotAllowedError');
+    },
+  });
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  fireEvent.change(view.getByRole('textbox'), { target: { value: '权限失败也不丢草稿' } });
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '开启麦克风' })));
+  assert.match(view.getByRole('alert').textContent, /权限被拒绝/);
+  assert.equal(view.getByRole('textbox').value, '权限失败也不丢草稿');
+  assert.equal(view.getByRole('textbox').disabled, false);
+  assert.ok(view.getByRole('button', { name: '开启麦克风' }));
+  assert.ok(view.getByText('等你发来消息'));
+  assert.ok(view.getByText('可以打字，也可以开启麦克风。'));
+  assert.equal(view.queryByText(/说话时可以打断我/), null);
+});
+
+/** 浏览器权限不可取消，取消后迟到的轨道必须停止且不能发布；下一次文字尝试仍可成功。 */
+test('取消权限等待立即回收，迟到授权只停止旧采集', async () => {
+  const permission = deferred();
+  const track = new LocalTrack();
+  const view = await app({ microphone: () => permission.promise });
+  fireEvent.click(view.getByRole('button', { name: '开始聊天' }));
   await settle();
-  assert.equal(session.calls.end, 1);
-  assert.equal(resets, 1);
-  assert.equal(hook.render().phase, 'idle');
-  assert.match(hook.render().error, /聊天连接已断开/);
-  assert.equal(hook.pendingTimers().length, 0);
-  hook.fireTimer(timer);
+  assert.equal(view.calls.microphones.length, 1);
+  assert.ok(view.getByText('正在连接，马上就好…'));
+  assert.ok(view.getByText('正在连接，可以随时取消。'));
+  assert.equal(view.queryByText(/说话时可以打断我/), null);
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '取消连接' })));
+  assert.equal(view.contexts[0].closes, 1);
+  await settle(() => permission.resolve(track));
+  assert.equal(track.stops, 1);
+  assert.equal(view.rooms[0].published.length, 0);
+  assert.equal(view.rooms[0].starts, 0);
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('button', { name: '结束聊天' })));
+  assert.equal(view.rooms.length, 2);
+});
+
+/** SDK 令牌等待也可能无视取消，迟到连接只能释放原 Room，不能改变新尝试。 */
+test('旧令牌结果迟到不会复活房间或覆盖新连接', async () => {
+  const connection = deferred();
+  const view = await app({
+    /** 只延迟外部连接承诺，保留真实尝试对象对迟到结果的所有权。 */
+    configure(room) {
+      if (room.config && viewUnavailable(room)) room.startGate = connection;
+    },
+  });
+  /** 每次 app 环境的新 Room 尚未启动，以构造参数不依赖 React 私有代次。 */
+  function viewUnavailable(room) {
+    return room.starts === 0 && connection.pending !== false;
+  }
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
   await settle();
-  assert.equal(session.calls.end, 1);
-  hook.unmount();
-  await settle();
-  assert.equal(hook.diagnostics().timers, 0);
+  const old = view.rooms[0];
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '取消连接' })));
+  connection.pending = false;
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('button', { name: '结束聊天' })));
+  await settle(() => connection.resolve());
+  assert.equal(view.rooms.length, 2);
+  assert.ok(old.disconnects >= 2);
+  assert.equal(view.rooms[1].state, 'connected');
+  assert.equal(view.contexts[1].state, 'running');
+  assert.ok(view.getByRole('button', { name: '结束聊天' }));
+});
+
+/** 真实权限失败只显示安全提示，用户能从同一页面切换文字入口完成连接。 */
+test('麦克风拒绝后提示可操作，文字连接不再次请求权限', async () => {
+  const view = await app({
+    microphone: async () => {
+      throw new DOMException('private failure', 'NotAllowedError');
+    },
+  });
+  fireEvent.click(view.getByRole('button', { name: '开始聊天' }));
+  await waitFor(() => assert.match(view.getByRole('alert').textContent, /权限被拒绝/));
+  assert.equal(view.contexts[0].closes, 1);
+  fireEvent.click(view.getByRole('button', { name: '改用文字聊天' }));
+  await waitFor(() => assert.ok(view.getByRole('button', { name: '结束聊天' })));
+  assert.equal(view.calls.microphones.length, 1);
+});
+
+/** 不能将 RTC 连接成功当成聊天就绪；非法快照必须关闭资源并保留重试入口。 */
+test('非法权威快照不开放输入或假装连接成功', async () => {
+  const view = await app({
+    /** 返回可解析但缺少许可字段的正文，隔离协议验证而非网络断开行为。 */
+    configure(room) {
+      room.rpcResponses = ['{"v":1}'];
+    },
+  });
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.match(view.getByRole('alert').textContent, /连接失败/));
+  assert.equal(view.queryByRole('textbox'), null);
+  assert.equal(view.contexts[0].closes, 1);
+  assert.ok(view.getByRole('button', { name: '重新连接' }));
+});
+
+/** 网络恢复与 SID 换代都重新确认；等待期间保留草稿、挂断按钮并禁止发送。 */
+test('重连共用快照，恢复不重发草稿且旧 SID 响应不能放行', async () => {
+  const view = await app();
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  fireEvent.change(view.getByRole('textbox'), { target: { value: '恢复后仍待发送' } });
+  const room = view.rooms[0];
+  const gate = deferred();
+  await settle(() => room.setState('reconnecting'));
+  assert.equal(view.getByRole('textbox').disabled, true);
+  assert.ok(view.getByRole('button', { name: '结束聊天' }));
+  room.rpcGate = gate;
+  await settle(() => {
+    room.localParticipant.sid = 'PA_local_new';
+    room.setPeer({ state: 'listening', agent: { ...view.agent, sid: 'PA_agent_new' } });
+    room.setState('connected');
+  });
+  assert.equal(view.getByRole('textbox').disabled, true);
+  assert.equal(room.rpcCalls.length, 2);
+  await settle(() =>
+    gate.resolve(
+      JSON.stringify({
+        v: 1,
+        instance: 'job-a',
+        revision: 1,
+        reply_id: '',
+        segment_id: '',
+        state: 'closed',
+        style: 'neutral',
+        gesture: 'none',
+      })
+    )
+  );
+  assert.equal(view.getByRole('textbox').disabled, false);
+  assert.equal(view.getByRole('textbox').value, '恢复后仍待发送');
+  assert.deepEqual(room.sent ?? [], []);
+  assert.equal(room.rpcCalls.length, 2);
+});
+
+/** 故障及用户结束都只更换会话宿主；草稿和历史留在页面，重连不能隐式丢弃或发送。 */
+test('断连及正常结束后重连均保留草稿和历史，不自动重发', async () => {
+  const view = await app();
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  fireEvent.change(view.getByRole('textbox'), { target: { value: '未发送的文字' } });
+  await settle(() => {
+    view.rooms[0].messages = [
+      { id: 'history-a', message: '故障前的完整回复', timestamp: 0, from: view.agent },
+    ];
+    view.rooms[0].notify();
+  });
+  await settle(() => view.rooms[0].setState('disconnected'));
+  assert.match(view.getByRole('alert').textContent, /已断开/);
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  assert.equal(view.getByRole('textbox').value, '未发送的文字');
+  assert.ok(view.getByText('故障前的完整回复'));
+  assert.deepEqual(view.rooms[1].sent ?? [], []);
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '结束聊天' })));
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  assert.equal(view.getByRole('textbox').value, '未发送的文字');
+  assert.ok(view.getByText('故障前的完整回复'));
+  assert.deepEqual(view.rooms[2].sent ?? [], []);
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '发送文字' })));
+  assert.deepEqual(view.rooms[2].sent, ['未发送的文字']);
+  assert.equal(view.getByRole('textbox').value, '');
+});
+
+/** 持久历史不能借由 Participant 持有旧房间，也不能随已退出的 SDK 对象变成另一位作者。 */
+test('历史复制消息值，断连后 SDK 对象变化不能修改既有正文与作者', async () => {
+  const view = await app();
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  const from = { ...view.agent, isLocal: false, signalClient: { retainedRoom: view.rooms[0] } };
+  const message = { id: 'history-isolated', message: '这是一条已经显示的回复', timestamp: 0, from };
+  await settle(() => {
+    view.rooms[0].messages = [message];
+    view.rooms[0].notify();
+  });
+  await settle(() => view.rooms[0].setState('disconnected'));
+  from.isLocal = true;
+  message.message = '已退出 SDK 的可变正文';
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  assert.ok(view.getByText('这是一条已经显示的回复').closest('.chat-row.assistant'));
+  assert.equal(view.queryByText('已退出 SDK 的可变正文'), null);
+});
+
+/** 重复关闭期间不能建新尝试，迟到 ACK／关闭完成只释放旧房间自己的资源。 */
+test('结束等待保持单个资源所有者，双击关闭不重复请求', async () => {
+  const ending = deferred();
+  const view = await app({
+    /** 保留结束阶段的真实等待窗口，重复点击才能检验单一关闭所有者。 */
+    configure(room) {
+      room.endGate = ending;
+    },
+  });
+  fireEvent.click(view.getByRole('button', { name: '开始聊天' }));
+  await waitFor(() => assert.ok(view.getByRole('button', { name: '结束聊天' })));
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '结束聊天' })));
+  assert.ok(view.getByRole('button', { name: '正在结束…' }).disabled);
+  assert.equal(view.tracks[0].stops, 1);
+  assert.equal(view.rooms[0].ends, 1);
+  await settle(() => ending.resolve());
+  assert.equal(view.contexts[0].closes, 1);
+  assert.equal(view.rooms[0].listenerCount(events.DataReceived), 0);
+  assert.ok(view.getByRole('button', { name: '开始聊天' }));
+});
+
+/** 截止点不依赖测试机器速度；未完成的权限不会让连接永久占有时钟和页面。 */
+test('连接三十秒到期回收资源，迟到权限不能重新发布', async (context) => {
+  const permission = deferred();
+  const track = new LocalTrack();
+  const view = await app({ microphone: () => permission.promise });
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '开始聊天' })));
+  await settle(() => context.mock.timers.tick(29_999));
+  assert.equal(view.queryByRole('alert'), null);
+  assert.equal(view.contexts[0].closes, 0);
+  await settle(() => context.mock.timers.tick(1));
+  assert.match(view.getByRole('alert').textContent, /超过 30 秒/);
+  assert.equal(view.contexts[0].closes, 1);
+  await settle(() => permission.resolve(track));
+  assert.equal(track.stops, 1);
+  assert.equal(view.rooms[0].published.length, 0);
+  context.mock.timers.reset();
+});
+
+/** 恢复期间来回切换 SDK 状态不延长预算，输入始终保持在用户手中。 */
+test('恢复三十秒到期关闭，同一恢复过程不重置期限', async (context) => {
+  const view = await app();
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  fireEvent.change(view.getByRole('textbox'), { target: { value: '连接恢复后自己发送' } });
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  await settle(() => view.rooms[0].setState('reconnecting'));
+  await settle(() => context.mock.timers.tick(20_000));
+  await settle(() => view.rooms[0].setState('signal-reconnecting'));
+  await settle(() => context.mock.timers.tick(9_999));
+  assert.equal(view.getByRole('textbox').disabled, true);
+  assert.equal(view.contexts[0].closes, 0);
+  await settle(() => context.mock.timers.tick(1));
+  assert.match(view.getByRole('alert').textContent, /恢复连接超时/);
+  assert.equal(view.contexts[0].closes, 1);
+  assert.deepEqual(view.rooms[0].sent ?? [], []);
+  context.mock.timers.reset();
+});
+
+/** SDK 会复用参与者包装对象，必须依赖 SID 值而非对象身份重新建立发送许可。 */
+test('同一参与者对象换 SID 也重新确认，只有新快照允许输入', async () => {
+  const view = await app();
+  fireEvent.click(view.getByRole('button', { name: '用文字聊聊' }));
+  await waitFor(() => assert.ok(view.getByRole('textbox')));
+  const room = view.rooms[0];
+  const confirmation = deferred();
+  room.rpcGate = confirmation;
+  await settle(() => {
+    view.agent.sid = 'PA_agent_reused';
+    room.notify();
+  });
+  assert.equal(room.rpcCalls.length, 2);
+  assert.equal(view.getByRole('textbox').disabled, true);
+  await settle(() =>
+    confirmation.resolve(
+      JSON.stringify({
+        v: 1,
+        instance: 'job-new',
+        revision: 0,
+        reply_id: '',
+        segment_id: '',
+        state: 'closed',
+        style: 'neutral',
+        gesture: 'none',
+      })
+    )
+  );
+  assert.equal(view.getByRole('textbox').disabled, false);
+  assert.equal(room.rpcCalls.length, 2);
+});
+
+/** 完整真实 React 提交连续切换二十次，不能以分析器单测代替会话资源所有权验证。 */
+test('连续二十次开始结束不遗留时钟、SDK 宿主或房间监听', async () => {
+  const view = await app();
+  for (let cycle = 0; cycle < 20; cycle++) {
+    fireEvent.click(view.getByRole('button', { name: '开始聊天' }));
+    await waitFor(() => assert.ok(view.getByRole('button', { name: '结束聊天' })));
+    assert.equal(view.calls.renderers, 1);
+    await settle(() => fireEvent.click(view.getByRole('button', { name: '结束聊天' })));
+    const room = view.rooms[cycle];
+    assert.equal(view.contexts[cycle].closes, 1);
+    assert.equal(view.tracks[cycle].stops, 1);
+    assert.equal(view.calls.renderers, 0);
+    assert.equal(room.listeners.size, 0);
+    for (const event of Object.values(events)) assert.equal(room.listenerCount(event), 0);
+  }
+  assert.equal(view.rooms.length, 20);
+  assert.equal(view.contexts.length, 20);
+  assert.ok(view.getByRole('button', { name: '开始聊天' }));
 });

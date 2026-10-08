@@ -316,42 +316,44 @@ test('WebGL 丢失进入后备并允许恢复，销毁后移除恢复监听', as
   assert.equal(observation.shaderReleases, 1);
 });
 
-/** 缺失与损坏的可选表情不能废弃已加载人物，且不得阻止后续其他表情继续加载。 */
+/** 开心、害羞和惊讶均独立降级，资源损坏不能废弃人物或阻止下一份温柔表情加载。 */
 test('单份表情 404、非法 JSON 或非法参数只降级该表情', async () => {
-  for (const invalid of [
-    null,
-    '{broken-json',
-    {
-      Type: 'Live2D Expression',
-      Parameters: [{ Id: 'ParamMouthOpenY', Value: 1, Blend: 'Overwrite' }],
-    },
-  ]) {
-    const { Runtime, canvas, observation } = fixture({
-      expressions: [
-        { Name: 'happy', File: 'expressions/happy.exp3.json' },
-        { Name: 'gentle', File: 'expressions/gentle.exp3.json' },
-      ],
-      expressionFiles: {
-        'happy.exp3.json': invalid,
-        'gentle.exp3.json': { Type: 'Live2D Expression', Parameters: [] },
+  for (const style of ['happy', 'shy', 'surprised']) {
+    for (const invalid of [
+      null,
+      '{broken-json',
+      {
+        Type: 'Live2D Expression',
+        Parameters: [{ Id: 'ParamMouthOpenY', Value: 1, Blend: 'Overwrite' }],
       },
-    });
-    const runtime = await Runtime.load(
-      canvas,
-      { readLip: readClosedLip },
-      new AbortController().signal
-    );
-    assert.deepEqual(observation.expressionRequests, ['happy.exp3.json', 'gentle.exp3.json']);
-    assert.equal(observation.draws, 1);
-    assert.equal(observation.requested.size, 1);
-    assert.equal(observation.mocs[0].releases, 0);
-    runtime.dispose();
-    assert.equal(observation.mocs[0].releases, 1);
-    assert.equal(observation.renderers[0].releases, 1);
+    ]) {
+      const { Runtime, canvas, observation } = fixture({
+        expressions: [
+          { Name: style, File: `expressions/${style}.exp3.json` },
+          { Name: 'gentle', File: 'expressions/gentle.exp3.json' },
+        ],
+        expressionFiles: {
+          [`${style}.exp3.json`]: invalid,
+          'gentle.exp3.json': { Type: 'Live2D Expression', Parameters: [] },
+        },
+      });
+      const runtime = await Runtime.load(
+        canvas,
+        { readLip: readClosedLip },
+        new AbortController().signal
+      );
+      assert.deepEqual(observation.expressionRequests, [`${style}.exp3.json`, 'gentle.exp3.json']);
+      assert.equal(observation.draws, 1);
+      assert.equal(observation.requested.size, 1);
+      assert.equal(observation.mocs[0].releases, 0);
+      runtime.dispose();
+      assert.equal(observation.mocs[0].releases, 1);
+      assert.equal(observation.renderers[0].releases, 1);
+    }
   }
 });
 
-/** 用户退出不是资源缺失，表情下载中取消必须拒绝整个加载并完整释放半初始化对象。 */
+/** 下载并行且先于 native 分配，用户退出必须拒绝加载并避免创建任何半初始化对象。 */
 test('表情下载中取消不被可选资源降级吞掉', async () => {
   const cancellation = new AbortController();
   const { Runtime, canvas, observation, listeners } = fixture({
@@ -368,10 +370,9 @@ test('表情下载中取消不被可选资源降级吞掉', async () => {
   });
   assert.deepEqual(observation.expressionRequests, ['happy.exp3.json']);
   assert.equal(observation.draws, 0);
-  assert.equal(observation.mocs[0].releases, 1);
-  assert.equal(observation.mocs[0].deletedModels, 1);
-  assert.equal(observation.renderers[0].releases, 1);
-  assert.equal(observation.shaderReleases, 1);
+  assert.equal(observation.mocs.length, 0);
+  assert.equal(observation.renderers.length, 0);
+  assert.equal(observation.shaderReleases, 0);
   assert.equal(observation.requested.size, 0);
   assert.equal(listeners.size, 0);
 });

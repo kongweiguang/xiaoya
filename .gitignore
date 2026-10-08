@@ -28,6 +28,13 @@ mcp.local.json
 # 验收原始数据和历史备份留在本地；公开说明与正式模型单独提交。
 /deployment/evidence/
 
+# 本机验收原始数据、历史文档与未通过的 Editor 候选不随公开源码提交；保留公开状态摘要。
+/assets/avatar/xiaoya/evidence/
+/assets/avatar/xiaoya/stable-5.3/*
+!/assets/avatar/xiaoya/stable-5.3/README.md
+/docs/history/
+/design-qa.md
+
 # Next.js 的临时构建目录不随源码发布。
 .next-*/
 
@@ -39,3 +46,6 @@ mcp.local.json
 *.p12
 *.pfx
 *.class
+
+# 官方 SDK 的 JS 与类型由保留的 TypeScript 源码生成，所有验证入口先执行 sdk:build。
+/web/lib/avatar/vendor/

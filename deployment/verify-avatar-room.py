@@ -17,6 +17,7 @@ import httpx
 import numpy as np
 from dotenv import load_dotenv
 from livekit import api, rtc
+from verification_room import create_verification_resources, verification_cleanup
 
 from xiaoya.infrastructure.settings import Settings, validate_credentials
 
@@ -69,19 +70,10 @@ async def verify(output: Path, environment: Path) -> None:
         api.AccessToken(os.environ["LIVEKIT_API_KEY"], os.environ["LIVEKIT_API_SECRET"])
         .with_identity(identity)
         .with_grants(api.VideoGrants(room_join=True, room=room_name))
-        .with_room_config(
-            api.RoomConfiguration(
-                agents=[api.RoomAgentDispatch(agent_name=settings.agent_name)],
-            )
-        )
         .to_jwt()
     )
-    room = rtc.Room()
-    source = rtc.AudioSource(48000, 1, queue_size_ms=100)
-    control = api.LiveKitAPI(
-        url=os.environ["LIVEKIT_URL"],
-        api_key=os.environ["LIVEKIT_API_KEY"],
-        api_secret=os.environ["LIVEKIT_API_SECRET"],
+    room, source, control = await create_verification_resources(
+        os.environ["LIVEKIT_URL"], os.environ["LIVEKIT_API_KEY"], os.environ["LIVEKIT_API_SECRET"]
     )
     tasks: set[asyncio.Task] = set()
     texts: list[dict] = []
@@ -163,8 +155,16 @@ async def verify(output: Path, environment: Path) -> None:
     }
     room_created = False
     try:
-        await room.connect(os.environ["LIVEKIT_URL"], token)
+        await control.room.create_room(
+            api.CreateRoomRequest(
+                name=room_name,
+                agents=[api.RoomAgentDispatch(agent_name=settings.agent_name)],
+                empty_timeout=35,
+                departure_timeout=35,
+            )
+        )
         room_created = True
+        await room.connect(os.environ["LIVEKIT_URL"], token)
         await room.local_participant.publish_track(
             rtc.LocalAudioTrack.create_audio_track("synthetic-microphone", source),
             rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE),
@@ -182,7 +182,7 @@ async def verify(output: Path, environment: Path) -> None:
             for prompt in prompts:
                 response = await client.post(
                     settings.tts_base_url.rstrip("/") + "/audio/speech",
-                    headers={"Authorization": "Bearer " + (settings.tts_api_key or "not-required")},
+                    headers={"Authorization": "Bearer " + settings.tts_api_key},
                     json={
                         "model": settings.tts_model,
                         "voice": settings.tts_voice,
@@ -284,7 +284,14 @@ async def verify(output: Path, environment: Path) -> None:
             turns=turns,
             audio_activity=audio_activity,
         )
-        try:
+        async with verification_cleanup(
+            room=room,
+            source=source,
+            control=control,
+            room_name=room_name,
+            created=room_created,
+            tasks=tasks,
+        ):
             (output / "room-verification.json").write_text(
                 json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
             )
@@ -295,19 +302,6 @@ async def verify(output: Path, environment: Path) -> None:
                 ),
                 flush=True,
             )
-        finally:
-            try:
-                await room.disconnect()
-            finally:
-                await source.aclose()
-                for task in tasks:
-                    task.cancel()
-                await asyncio.gather(*tasks, return_exceptions=True)
-                try:
-                    if room_created:
-                        await control.room.delete_room(api.DeleteRoomRequest(room=room_name))
-                finally:
-                    await control.aclose()
 
 
 def main() -> None:

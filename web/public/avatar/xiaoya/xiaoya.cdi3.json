@@ -1,6 +1,9 @@
 {
   "Version": 3,
   "Parameters": [
+    { "Id": "ParamEyeSmile", "GroupId": "Face", "Name": "笑眼" },
+    { "Id": "ParamBrowLAngle", "GroupId": "Face", "Name": "左眉倾斜" },
+    { "Id": "ParamBrowRAngle", "GroupId": "Face", "Name": "右眉倾斜" },
     { "Id": "ParamAngleX", "GroupId": "Head", "Name": "转头" },
     { "Id": "ParamAngleY", "GroupId": "Head", "Name": "抬头" },
     { "Id": "ParamAngleZ", "GroupId": "Head", "Name": "侧头" },

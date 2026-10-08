@@ -1,7 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { build } = require('../../../../web/node_modules/esbuild');
-const { chromium } = require('C:/Users/24052/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+// 历史浏览器验收工具由调用环境提供 Playwright，不依赖个人缓存路径，也不自动安装软件。
+const { chromium } = require('playwright');
 
 /** 真实 Runtime/Core/WebGL 的定向验收；请求在浏览器内映射本地文件，不启动服务或连接模型供应商。 */
 async function main() {

@@ -79,20 +79,14 @@ async def test_speech_shutdown_runs_once_even_when_lifespan_body_fails(monkeypat
 
 
 @pytest.mark.parametrize("status", [200, 503])
-@pytest.mark.parametrize("deepseek", [False, True])
-async def test_private_llm_prewarm_propagates_failure(
-    monkeypatch, private_settings, status, deepseek
+@pytest.mark.parametrize("base_url", ["https://api.deepseek.com", "https://api.deepseek.com/v1"])
+async def test_explicit_llm_diagnostic_validates_sse_and_propagates_failure(
+    monkeypatch, private_settings, status, base_url
 ) -> None:
-    """启动检查复用会话的模型选项，私有服务与 DeepSeek 的 HTTP 失败均阻止接单。"""
-    if deepseek:
-        private_settings = replace(
-            private_settings,
-            llm_base_url="https://api.deepseek.com",
-            llm_model="deepseek-flash",
-            llm_api_key="deepseek-test-key",
-        )
-    source = Path(__file__).resolve().parents[1] / "deployment/wsl/prewarm_llm.py"
-    spec = importlib.util.spec_from_file_location("private_llm_prewarm_under_test", source)
+    """显式诊断只复用当前官方 DeepSeek 契约，错误传播但不构成自动启动的付费操作。"""
+    private_settings = replace(private_settings, llm_base_url=base_url)
+    source = Path(__file__).resolve().parents[1] / "deployment/diagnose_llm.py"
+    spec = importlib.util.spec_from_file_location("llm_diagnostic_under_test", source)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     monkeypatch.setattr(module, "load_dotenv", Mock())
@@ -102,21 +96,53 @@ async def test_private_llm_prewarm_propagates_failure(
     def respond(request):
         """用内存传输捕获真实 HTTP 请求，测试不读取本机凭据或连接真实模型。"""
         requests.append(request)
-        return httpx.Response(status, json={"choices": [{"message": {"content": "好"}}]})
+        return httpx.Response(
+            status,
+            headers={"content-type": "text/event-stream"},
+            text='data: {"choices":[{"delta":{"content":"好"}}]}\n\ndata: [DONE]\n\n',
+        )
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
     monkeypatch.setattr(module.httpx, "AsyncClient", Mock(return_value=client))
     if status == 503:
         with pytest.raises(httpx.HTTPStatusError):
-            await module.main()
+            await module.diagnose(Path("unused-test-env"))
     else:
-        await module.main()
+        await module.diagnose(Path("unused-test-env"))
     assert len(requests) == 1
     assert str(requests[0].url) == private_settings.llm_base_url + "/chat/completions"
-    expected_key = "deepseek-test-key" if deepseek else "not-required"
-    assert requests[0].headers["authorization"] == "Bearer " + expected_key
+    assert requests[0].headers["authorization"] == "Bearer deepseek-test-key"
     body = json.loads(requests[0].content)
-    if deepseek:
-        assert body["thinking"] == {"type": "disabled"}
-    else:
-        assert "thinking" not in body
+    assert body["stream"] is True
+    assert body["model"] == "deepseek-flash"
+    assert body["thinking"] == {"type": "disabled"}
+
+
+@pytest.mark.parametrize("failure", ["not-sse", "no-content", "no-finish"])
+async def test_explicit_llm_diagnostic_rejects_incomplete_response(
+    monkeypatch, private_settings, failure
+) -> None:
+    """HTTP 200 不能代表语音模型可用，诊断要求正文、SSE 格式与结束帧同时存在。"""
+    source = Path(__file__).resolve().parents[1] / "deployment/diagnose_llm.py"
+    spec = importlib.util.spec_from_file_location("llm_incomplete_diagnostic_under_test", source)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(module, "load_dotenv", Mock())
+    monkeypatch.setattr(module.Settings, "from_environment", Mock(return_value=private_settings))
+
+    def respond(request):
+        """缺一项仍返回成功状态，让测试直接验证契约而不是重测 raise_for_status。"""
+        content = 'data: {"choices":[{"delta":{"content":"好"}}]}\n\n'
+        return httpx.Response(
+            200,
+            headers={
+                "content-type": "application/json" if failure == "not-sse" else "text/event-stream"
+            },
+            text=("" if failure == "no-content" else content)
+            + ("" if failure == "no-finish" else "data: [DONE]\n\n"),
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    monkeypatch.setattr(module.httpx, "AsyncClient", Mock(return_value=client))
+    with pytest.raises(RuntimeError, match="SSE"):
+        await module.diagnose(Path("unused-test-env"))

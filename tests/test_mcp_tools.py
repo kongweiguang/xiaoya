@@ -18,7 +18,7 @@ def config_file(tmp_path: Path, *, allowed: list[str] | None = None) -> str:
         "id": "demo",
         "transport": "stdio",
         "command": "python",
-        "args": ["-m", "xiaoya.interfaces.mcp_demo"],
+        "args": [str(Path(__file__).resolve().parents[1] / "examples/mcp-demo/main.py")],
         "timeout_seconds": 10,
     }
     if allowed is not None:

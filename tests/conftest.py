@@ -1,4 +1,4 @@
-"""共享私有服务的明确配置，测试不依赖开发者的环境变量或真实服务。"""
+"""共享当前唯一模型链的假配置，测试不读取开发者凭据或访问真实服务。"""
 
 import pytest
 
@@ -7,16 +7,18 @@ from xiaoya.infrastructure.settings import Settings
 
 @pytest.fixture
 def private_environment() -> dict[str, str]:
-    """不同地址使测试能发现三个模型意外共用网关或回退到默认地址。"""
+    """语音使用独立模拟服务，DeepSeek 保留生产地址但仅用假密钥及内存传输验证协议。"""
     return {
         "VOICE_AGENT_STT_BASE_URL": "http://stt.internal:8001/v1",
-        "VOICE_AGENT_STT_MODEL": "whisper-1",
-        "VOICE_AGENT_LLM_BASE_URL": "http://llm.internal:8002/v1",
-        "VOICE_AGENT_LLM_MODEL": "qwen3",
+        "VOICE_AGENT_STT_MODEL": "paraformer-streaming",
+        "VOICE_AGENT_LLM_BASE_URL": "https://api.deepseek.com",
+        "VOICE_AGENT_LLM_MODEL": "deepseek-flash",
         "VOICE_AGENT_TTS_BASE_URL": "http://tts.internal:8003/v1",
-        "VOICE_AGENT_TTS_MODEL": "tts-1",
-        "VOICE_AGENT_TTS_VOICE": "private-voice",
-        "VOICE_AGENT_EXPRESSIVE_ENABLED": "false",
+        "VOICE_AGENT_TTS_MODEL": "cosyvoice3-0.5b",
+        "VOICE_AGENT_TTS_VOICE": "default",
+        "VOICE_AGENT_STT_API_KEY": "not-required",
+        "VOICE_AGENT_LLM_API_KEY": "deepseek-test-key",
+        "VOICE_AGENT_TTS_API_KEY": "not-required",
     }
 
 

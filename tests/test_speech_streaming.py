@@ -1,6 +1,5 @@
 """离线验证增量音频边界、中文切分与取消行为，禁止加载真实语音权重。"""
 
-import asyncio
 import importlib.util
 import json
 import sys
@@ -13,25 +12,32 @@ import pytest
 from fastapi.testclient import TestClient
 from livekit.agents import stt, utils, vad
 
-from xiaoya.infrastructure.speech_tokenizer import SpeechSentenceTokenizer
 from xiaoya.infrastructure.streaming_stt import LocalRecognitionStream, LocalStreamingSTT
 
 
 @pytest.mark.parametrize("speed", [0, 1.2, float("nan")])
-def test_cosyvoice_speed_is_rejected_before_creating_audio(monkeypatch, speed) -> None:
+async def test_cosyvoice_speed_is_rejected_before_creating_audio(monkeypatch, speed) -> None:
     """上游仅支持原始语速，不能已经发送成功响应后才触发模型断言。"""
     root = Path(__file__).resolve().parents[1] / "services/speech/src"
     monkeypatch.syspath_prepend(str(root))
-    from local_speech.application import SpeechService
+    bootstrap = ModuleType("local_speech.bootstrap")
+    bootstrap.create_service = Mock()
+    monkeypatch.setitem(sys.modules, "local_speech.bootstrap", bootstrap)
+    spec = importlib.util.spec_from_file_location(
+        "speech_speed_under_test", root / "local_speech/api.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.app.state.service = Mock()
+    from fastapi import HTTPException
 
-    models = Mock()
-    service = SpeechService(models)
-    with pytest.raises(ValueError, match="speed=1.0"):
-        service.synthesize_stream("你好", speed)
-    with pytest.raises(ValueError, match="speed=1.0"):
-        service.synthesize("你好", speed)
-    models.synthesize_stream.assert_not_called()
-    models.synthesize.assert_not_called()
+    with pytest.raises(HTTPException, match="speed=1.0"):
+        await module.synthesize(
+            module.SpeechRequest(
+                model="cosyvoice3-0.5b", voice="default", input="你好", speed=speed
+            )
+        )
+    module.app.state.service.synthesize_stream.assert_not_called()
 
 
 async def test_pcm_cancel_closes_model_iterator_in_thread(monkeypatch) -> None:
@@ -60,49 +66,6 @@ async def test_pcm_cancel_closes_model_iterator_in_thread(monkeypatch) -> None:
     assert len(await anext(body)) == 4800
     await body.aclose()
     assert released == [True]
-
-
-@pytest.mark.parametrize(
-    "text,expected",
-    [
-        ("你好。有什么可以帮你？", ["你好。", "有什么可以帮你？"]),
-        (
-            "1. 温度是3.5度，先检查设备。2. 再重启。",
-            ["1. 温度是3.5度，先检查设备。", "2. 再重启。"],
-        ),
-        ("先检查麦克风，再检查网络。", ["先检查麦克风，再检查网络。"]),
-        ("答案是“北京。”", ["答案是“北京。"]),
-        ("北京。😊！", ["北京。"]),
-    ],
-)
-async def test_chinese_stream_preserves_numbers_and_clauses(text, expected) -> None:
-    """逐字到达也不能拆开小数、列表序号与正常逗号，末尾没有标点也应保留。"""
-    tokenizer = SpeechSentenceTokenizer()
-    stream = tokenizer.stream()
-    for character in text:
-        stream.push_text(character)
-    stream.end_input()
-    assert [event.token async for event in stream] == expected
-    assert tokenizer.tokenize(text) == expected
-
-
-async def test_sentence_stream_emits_short_sentence_before_llm_finishes() -> None:
-    """短句立即可用而无需等到默认二十字门槛；打断不能提交尚未说出的半句。"""
-    stream = SpeechSentenceTokenizer().stream()
-    stream.push_text("北京。还有")
-    assert (await asyncio.wait_for(anext(stream), 0.1)).token == "北京。"
-    await stream.aclose()
-    assert [event async for event in stream] == []
-
-
-async def test_quote_after_sentence_does_not_create_a_punctuation_only_request() -> None:
-    """LLM 会把闭引号放入后一个 token，不能为它单独生成一条空音频请求。"""
-    stream = SpeechSentenceTokenizer().stream()
-    stream.push_text("答案是“北京。")
-    assert (await anext(stream)).token == "答案是“北京。"
-    stream.push_text("”")
-    stream.end_input()
-    assert [event async for event in stream] == []
 
 
 async def test_asr_sends_incremental_frames_without_duplicating_end_buffer() -> None:

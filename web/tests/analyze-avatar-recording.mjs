@@ -348,7 +348,7 @@ export function measureTrial(trial, activity, video) {
   };
 }
 
-/** 模型、官方源码及编译产物分别指纹，审查者能确认录制对应的实际资源和调度实现。 */
+/** 模型、官方源码及当前控制器分别指纹，删除退役包装后仍能复核录制对应的资源所有权。 */
 async function captureSourceFingerprints() {
   /** 按路径排序，不依赖 Windows 目录枚举顺序，聚合哈希可在下一次测量时逐项复核。 */
   async function listFiles(path) {
@@ -378,12 +378,15 @@ async function captureSourceFingerprints() {
       ...[
         'audio-bridge.ts',
         'behavior.ts',
+        'delivery.ts',
         'lip-sync.ts',
         'live2d-runtime.ts',
         'motion-sync.ts',
+        'presentation.ts',
         'sdk-loader.ts',
-        'session-audio.tsx',
       ].map((name) => resolve(root, 'web/lib/avatar', name)),
+      resolve(root, 'web/lib/conversation-controller.ts'),
+      resolve(root, 'web/lib/delivery-channel.ts'),
       resolve(root, 'web/public/avatar/pcm-worklet.js'),
       resolve(root, 'web/components/app/avatar-stage.tsx'),
       resolve(root, 'web/tests/browser-avatar-harness.ts'),

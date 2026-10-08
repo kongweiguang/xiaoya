@@ -13,7 +13,7 @@ class SpeechStyle(StrEnum):
 
     @classmethod
     def from_instructions(cls, instructions: str | None) -> "SpeechStyle":
-        """旧客户端省略指令时保持自然音色，未知模板必须在生成音频前明确拒绝。"""
+        """诊断请求可使用自然音色，未知模板必须在生成音频前明确拒绝。"""
         if instructions is None or instructions == "":
             return cls.NEUTRAL
         templates = {
@@ -34,11 +34,3 @@ class Transcription:
     text: str
     language: str
     duration: float
-
-
-@dataclass(frozen=True, slots=True)
-class SpeechAudio:
-    """音频携带格式信息，协议层不需要了解采样率和模型细节。"""
-
-    content: bytes
-    media_type: str = "audio/wav"

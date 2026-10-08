@@ -67,7 +67,7 @@ def _environment_values(value: object, source: Mapping[str, str]) -> dict[str, s
 
 
 def _parse_server(item: object, base: Path, source: Mapping[str, str]) -> MCPSettings:
-    """显式选择协议且严格检查拼写，避免配置写错后 SDK 自动猜测另一种传输。"""
+    """协议、端口和鉴权位置提前校验，避免 SDK 猜测传输或从 URL 继承凭据。"""
     if not isinstance(item, dict):
         raise ValueError("MCP servers 条目必须是对象")
     common = {"id", "transport", "timeout_seconds", "allowed_tools"}
@@ -123,7 +123,14 @@ def _parse_server(item: object, base: Path, source: Mapping[str, str]) -> MCPSet
     address = item.get("url", "")
     try:
         url = urlsplit(address) if isinstance(address, str) else None
-        valid = url and url.scheme in {"http", "https"} and url.hostname and not url.username
+        valid = (
+            url
+            and url.scheme in {"http", "https"}
+            and url.hostname
+            and url.username is None
+            and url.password is None
+            and (url.port is None or 1 <= url.port <= 65535)
+        )
     except ValueError:
         valid = False
     if not valid:

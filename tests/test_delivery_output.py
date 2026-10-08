@@ -6,6 +6,7 @@ import time
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 from livekit import rtc
@@ -17,6 +18,8 @@ from xiaoya.infrastructure.delivery_output import (
     DELIVERY_SNAPSHOT_RPC,
     DELIVERY_TOPIC,
     TRANSCRIPTION_TOPIC,
+    DeliverySnapshotEndpoint,
+    DeliveryState,
     DeliveryTextOutput,
 )
 
@@ -50,27 +53,37 @@ class FakeParticipant:
     def __init__(self) -> None:
         """显式记录尝试和成功，区别网络不确定性与本地权威版本。"""
         self.handlers: dict[str, Any] = {}
+        self.registered: list[str] = []
         self.unregistered: list[str] = []
+        self.last_handler: Any = None
         self.packets: list[dict[str, Any]] = []
         self.attempts: list[dict[str, Any]] = []
         self.streams: list[tuple[dict[str, str], FakeWriter]] = []
         self.publish_failures = 0
         self.stream_failures = 0
         self.register_error = False
+        self.register_after_install_error = False
+        self.unregister_error = False
         self.publish_gate: asyncio.Event | None = None
         self.publish_started = asyncio.Event()
         self.stream_started = asyncio.Event()
 
     def register_rpc_method(self, name: str, handler: Any) -> None:
-        """保存真实回调，让权限测试经过与生产相同的入口。"""
+        """记录唯一注册及部分失败，让共享所有权和迟到回调经过生产入口验证。"""
+        self.registered.append(name)
         if self.register_error:
             raise ConnectionError("模拟 RPC 注册失败")
         self.handlers[name] = handler
+        self.last_handler = handler
+        if self.register_after_install_error:
+            raise ConnectionError("模拟保存回调后的注册失败")
 
     def unregister_rpc_method(self, name: str) -> None:
-        """记录幂等关闭是否重复撤销房间方法。"""
+        """即使注销失败仍可捕获旧回调，不能以方法已移除代替应用层撤销授权。"""
         self.unregistered.append(name)
-        self.handlers.pop(name)
+        if self.unregister_error:
+            raise ConnectionError("模拟注销失败")
+        self.handlers.pop(name, None)
 
     async def publish_data(self, payload: str, *, reliable: bool, topic: str) -> None:
         """可控阻塞把取消精确放到网络 await 中间，而不需要真实计时或服务。"""
@@ -127,9 +140,199 @@ async def delivery() -> AsyncIterator[tuple[DeliveryTextOutput, FakeParticipant,
         local_participant=participant,
         remote_participants={"human": SimpleNamespace(identity="human")},
     )
-    output = DeliveryTextOutput(room, instance="test-instance", io_timeout=0.02)
-    yield output, participant, room
-    await output.aclose()
+    endpoint = DeliverySnapshotEndpoint(
+        room, ready=lambda _identity: True, state=lambda: output.snapshot, instance="test-instance"
+    )
+    output = DeliveryTextOutput(room, snapshot_endpoint=endpoint, io_timeout=0.02)
+    try:
+        yield output, participant, room
+    finally:
+        await output.aclose()
+        await endpoint.aclose()
+
+
+def snapshot_room() -> tuple[FakeParticipant, SimpleNamespace]:
+    """共享就绪测试只替换公开房间边界，当前参与者表仍是鉴权的必要证据。"""
+    participant = FakeParticipant()
+    room = SimpleNamespace(
+        local_participant=participant,
+        remote_participants={"human": SimpleNamespace(identity="human")},
+    )
+    return participant, room
+
+
+async def test_shared_endpoint_before_output_returns_stable_neutral() -> None:
+    """关闭表现时不构造字幕输出或发送动作，成功快照仍能证明稳定的当前会话就绪。"""
+    participant, room = snapshot_room()
+    provider = Mock(return_value=None)
+    endpoint = DeliverySnapshotEndpoint(room, ready=Mock(return_value=True), state=provider)
+    try:
+        handler = participant.handlers[DELIVERY_SNAPSHOT_RPC]
+        first = json.loads(await handler(SimpleNamespace(caller_identity="human", payload="")))
+        second = json.loads(await handler(SimpleNamespace(caller_identity="human", payload="")))
+        assert first == second == json.loads(DeliveryState(instance=endpoint.instance).to_json())
+        assert endpoint.registered
+        assert participant.registered == [DELIVERY_SNAPSHOT_RPC]
+        assert participant.packets == participant.streams == []
+    finally:
+        await endpoint.aclose()
+
+
+async def test_shared_endpoint_not_ready_never_reads_expression_state() -> None:
+    """状态提供者只在业务和房内身份都通过后访问，提前注册不等于提前成功。"""
+    participant, room = snapshot_room()
+    ready, provider = Mock(return_value=False), Mock(return_value=None)
+    endpoint = DeliverySnapshotEndpoint(room, ready=ready, state=provider)
+    try:
+        handler = participant.handlers[DELIVERY_SNAPSHOT_RPC]
+        with pytest.raises(rtc.RpcError) as rejected:
+            await handler(SimpleNamespace(caller_identity="human", payload=""))
+        assert rejected.value.code == 2001
+        provider.assert_not_called()
+        ready.assert_called_once_with("human")
+        ready.return_value = True
+        assert (
+            json.loads(await handler(SimpleNamespace(caller_identity="human", payload="")))["state"]
+            == "closed"
+        )
+        provider.assert_called_once_with()
+    finally:
+        await endpoint.aclose()
+
+
+@pytest.mark.parametrize("caller", ["", "outsider"])
+async def test_shared_endpoint_rejects_payload_identity_before_ready(caller: str) -> None:
+    """传输身份缺失或房内不可见时，正文声称已绑定用户也不能触发就绪或状态读取。"""
+    participant, room = snapshot_room()
+    ready, provider = Mock(return_value=True), Mock(return_value=None)
+    endpoint = DeliverySnapshotEndpoint(room, ready=ready, state=provider)
+    try:
+        with pytest.raises(rtc.RpcError) as rejected:
+            await participant.handlers[DELIVERY_SNAPSHOT_RPC](
+                SimpleNamespace(caller_identity=caller, payload='{"identity":"human"}')
+            )
+        assert rejected.value.code == 2001
+        ready.assert_not_called()
+        provider.assert_not_called()
+    finally:
+        await endpoint.aclose()
+
+
+async def test_shared_endpoint_provider_failure_keeps_readiness_neutral(caplog) -> None:
+    """已授权会话不因装饰状态故障失去就绪，日志也不能复制异常中的正文。"""
+    participant, room = snapshot_room()
+    provider = Mock(side_effect=RuntimeError("禁止复制的模拟正文"))
+    endpoint = DeliverySnapshotEndpoint(room, ready=Mock(return_value=True), state=provider)
+    try:
+        handler = participant.handlers[DELIVERY_SNAPSHOT_RPC]
+        failed = json.loads(await handler(SimpleNamespace(caller_identity="human", payload="")))
+        assert failed == json.loads(DeliveryState(instance=endpoint.instance).to_json())
+        assert "禁止复制的模拟正文" not in caplog.text
+        provider.side_effect = None
+        provider.return_value = DeliveryState(instance="other-job", state="active")
+        assert (
+            json.loads(await handler(SimpleNamespace(caller_identity="human", payload="")))
+            == failed
+        )
+        assert endpoint.registered
+    finally:
+        await endpoint.aclose()
+
+
+@pytest.mark.parametrize("partial", [False, True])
+async def test_shared_endpoint_registration_failure_propagates_and_revokes(partial: bool) -> None:
+    """共享入口属于启动门；注册完全或部分失败都必须上抛且撤销已捕获的回调。"""
+    participant, room = snapshot_room()
+    participant.register_error = not partial
+    participant.register_after_install_error = partial
+    provider = Mock(return_value=None)
+    with pytest.raises(ConnectionError):
+        DeliverySnapshotEndpoint(room, ready=Mock(return_value=True), state=provider)
+    assert participant.handlers == {}
+    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
+    if partial:
+        with pytest.raises(rtc.RpcError):
+            await participant.last_handler(SimpleNamespace(caller_identity="human", payload=""))
+    provider.assert_not_called()
+
+
+@pytest.mark.parametrize("unregister_error", [False, True])
+async def test_shared_endpoint_close_is_single_owner_and_late_calls_fail(
+    unregister_error: bool,
+) -> None:
+    """先关闭本地授权再注销，重复关闭或公开注销失败都不能恢复旧回调权限。"""
+    participant, room = snapshot_room()
+    provider = Mock(return_value=None)
+    endpoint = DeliverySnapshotEndpoint(room, ready=Mock(return_value=True), state=provider)
+    handler = participant.handlers[DELIVERY_SNAPSHOT_RPC]
+    participant.unregister_error = unregister_error
+    await asyncio.gather(endpoint.aclose(), endpoint.aclose())
+    assert not endpoint.registered
+    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
+    with pytest.raises(rtc.RpcError):
+        await handler(SimpleNamespace(caller_identity="human", payload=""))
+    provider.assert_not_called()
+
+
+async def test_shared_output_borrows_endpoint_and_network_failure_keeps_readiness() -> None:
+    """输出只共享实例和状态，表达网络失败以及输出关闭都不能注销会话就绪入口。"""
+    participant, room = snapshot_room()
+
+    def read_state() -> DeliveryState:
+        """入口读取输出当前的不可变对象，测试不手工复制版本制造一致性。"""
+        return output.snapshot
+
+    endpoint = DeliverySnapshotEndpoint(room, ready=Mock(return_value=True), state=read_state)
+    output = DeliveryTextOutput(room, snapshot_endpoint=endpoint)
+    try:
+        assert output.snapshot.instance == endpoint.instance
+        assert participant.registered == [DELIVERY_SNAPSHOT_RPC]
+        await output.bind_segment("shared-reply", DeliveryIntent("happy", "nod"))
+        await output.capture_text("共享状态。")
+        await output.drain()
+        header = json.loads(participant.streams[0][0][DELIVERY_TOPIC])
+        handler = participant.handlers[DELIVERY_SNAPSHOT_RPC]
+        assert header == json.loads(await handler(SimpleNamespace(caller_identity="human")))
+        output.flush()
+        await output.drain()
+        participant.publish_failures = 1
+        await output.bind_segment("failed-expression", DeliveryIntent("happy", "nod"))
+        await output.capture_text("网络失败仍有正文。")
+        await output.drain()
+        assert output.snapshot.state == "closed"
+        assert (
+            json.loads(await handler(SimpleNamespace(caller_identity="human")))["state"] == "closed"
+        )
+        await output.aclose()
+        assert endpoint.registered and participant.unregistered == []
+        assert (
+            json.loads(await handler(SimpleNamespace(caller_identity="human")))["state"] == "closed"
+        )
+    finally:
+        await output.aclose()
+        await endpoint.aclose()
+    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
+
+
+async def test_closed_shared_endpoint_disables_new_expression_not_plain_text() -> None:
+    """共享入口被会话撤销后，晚来的装饰输出只能保留纯字幕，不能重新注册或发 active。"""
+    participant, room = snapshot_room()
+    endpoint = DeliverySnapshotEndpoint(
+        room, ready=Mock(return_value=True), state=Mock(return_value=None)
+    )
+    output = DeliveryTextOutput(room, snapshot_endpoint=endpoint)
+    await endpoint.aclose()
+    try:
+        await output.bind_segment("late", DeliveryIntent("happy", "wave"))
+        await output.capture_text("仅保留正文。")
+        await output.drain()
+        assert DELIVERY_TOPIC not in participant.streams[0][0]
+        assert participant.streams[0][1].chunks == ["仅保留正文。"]
+        assert participant.packets == []
+        assert participant.registered == [DELIVERY_SNAPSHOT_RPC]
+    finally:
+        await output.aclose()
+    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
 
 
 async def test_binding_and_empty_segment_never_grant_playback(delivery: tuple) -> None:
@@ -166,7 +369,7 @@ async def test_first_text_headers_and_state_share_one_revision(delivery: tuple) 
         "style": "happy",
         "gesture": "nod",
     }
-    assert json.loads(attributes["lk.expression"]) == {"expression": "happy", "mood": "happy"}
+    assert "lk.expression" not in attributes
     assert "".join(writer.chunks) == "太好了，我们继续。"
     output.flush()
     await output.drain()
@@ -251,7 +454,7 @@ async def test_state_publish_failure_keeps_plain_subtitles(delivery: tuple) -> N
     attributes, writer = participant.streams[0]
     assert writer.chunks == ["正文仍然可见。"]
     assert json.loads(attributes[DELIVERY_TOPIC])["state"] == "closed"
-    assert json.loads(attributes["lk.expression"])["expression"] == "neutral"
+    assert "lk.expression" not in attributes
     assert output.snapshot.state == "closed"
 
 
@@ -329,8 +532,8 @@ async def test_close_is_idempotent_and_discards_queued_output(delivery: tuple) -
     await output.cancel_reply("reply-1")
     output.flush()
     await output.drain()
-    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
-    assert participant.handlers == {}
+    assert participant.unregistered == []
+    assert DELIVERY_SNAPSHOT_RPC in participant.handlers
     assert participant.streams[0][1].chunks == ["已发正文。"]
     assert len(participant.streams[0][1].close_attributes) == 1
     assert output.snapshot.state == "closed"
@@ -350,24 +553,6 @@ async def test_missing_binding_preserves_plain_subtitles_without_expression(
     assert participant.packets == []
 
 
-async def test_rpc_registration_failure_disables_expression_not_subtitles() -> None:
-    """无法提供重连快照时不授予无法追溯的 active，通话正文仍尽力输出。"""
-    participant = FakeParticipant()
-    participant.register_error = True
-    room = SimpleNamespace(local_participant=participant, remote_participants={})
-    output = DeliveryTextOutput(room)
-    try:
-        await output.bind_segment("reply-1", DeliveryIntent("happy", "wave"))
-        await output.capture_text("普通回复。")
-        output.flush()
-        await output.drain()
-        assert participant.packets == []
-        assert participant.streams[0][1].chunks == ["普通回复。"]
-        assert output.snapshot.state == "closed"
-    finally:
-        await output.aclose()
-
-
 async def test_shutdown_cancels_a_stalled_publish_and_drains_pending_operations(
     delivery: tuple,
 ) -> None:
@@ -384,7 +569,7 @@ async def test_shutdown_cancels_a_stalled_publish_and_drains_pending_operations(
     await asyncio.wait_for(output.drain(), timeout=0.5)
     assert output.snapshot.state == "closed"
     assert participant.streams == []
-    assert participant.handlers == {}
+    assert DELIVERY_SNAPSHOT_RPC in participant.handlers
 
 
 async def test_shutdown_during_flush_still_closes_the_owned_writer(delivery: tuple) -> None:

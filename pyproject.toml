@@ -20,7 +20,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/xiaoya"]
-exclude = ["src/xiaoya/infrastructure/avatar_assets"]
 
 [tool.ruff]
 target-version = "py312"

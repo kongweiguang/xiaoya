@@ -1,8 +1,8 @@
 {
   "Version": 3,
   "FileReferences": {
-    "Moc": "xiaoya.moc3",
-    "Textures": ["textures/texture_00.png"],
+    "Moc": "concept-v1/xiaoya.moc3",
+    "Textures": ["concept-v1/texture.png"],
     "Physics": "xiaoya.physics3.json",
     "DisplayInfo": "xiaoya.cdi3.json",
     "MotionSync": "xiaoya.motionsync3.json",
@@ -12,7 +12,9 @@
       { "Name": "happy", "File": "expressions/happy.exp3.json" },
       { "Name": "concerned", "File": "expressions/concerned.exp3.json" },
       { "Name": "gentle", "File": "expressions/gentle.exp3.json" },
-      { "Name": "curious", "File": "expressions/curious.exp3.json" }
+      { "Name": "curious", "File": "expressions/curious.exp3.json" },
+      { "Name": "shy", "File": "expressions/shy.exp3.json" },
+      { "Name": "surprised", "File": "expressions/surprised.exp3.json" }
     ],
     "Motions": {
       "Idle": [{ "File": "motions/idle.motion3.json", "FadeInTime": 0.6, "FadeOutTime": 0.6 }],

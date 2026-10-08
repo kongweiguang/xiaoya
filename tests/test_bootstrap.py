@@ -8,6 +8,36 @@ from xiaoya import bootstrap
 from xiaoya.infrastructure.settings import Settings
 
 
+def test_worker_capacity_is_configured_before_small_prewarm_pool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """预算纠正不能意外创建几十个预热进程，也不能改变 SDK 的过载保护。"""
+    calls: list[str] = []
+
+    def configure() -> None:
+        """记录装配顺序，避免首次 SDK 采样仍使用旧的 CPU 预算。"""
+        calls.append("cpu")
+
+    def construct(**kwargs):
+        """仅检查公开构造参数，不依赖框架内部字段或运行真实进程。"""
+        calls.append("server")
+        assert kwargs["setup_fnc"] is bootstrap.prewarm
+        assert kwargs["host"] == "127.0.0.1"
+        idle = kwargs["num_idle_processes"]
+        assert idle.dev_default == 0
+        assert idle.prod_default == 2
+        assert "load_fnc" not in kwargs
+        assert "load_threshold" not in kwargs
+        return sentinel
+
+    sentinel = Mock()
+    monkeypatch.setattr(bootstrap, "configure_worker_cpu_budget", configure)
+    monkeypatch.setattr(bootstrap, "AgentServer", construct)
+    assert bootstrap.prepare_server() is sentinel
+    assert calls == ["cpu", "server"]
+    sentinel.on.assert_called_once_with("worker_registered", bootstrap.notify_worker_registered)
+
+
 async def test_each_job_gets_its_own_conversation(
     monkeypatch: pytest.MonkeyPatch, private_settings: Settings
 ) -> None:
@@ -23,6 +53,7 @@ async def test_each_job_gets_its_own_conversation(
 
     assert first.conversation is not second.conversation
     assert factory.call_args.kwargs["vad"] is context.proc.userdata["vad"]
+    assert factory.call_args.kwargs["on_terminal"] is context.shutdown
     assert "avatar" not in factory.call_args.kwargs
     context.room.local_participant.publish_track.assert_not_called()
     assert context.add_shutdown_callback.call_count == 2

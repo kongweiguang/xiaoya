@@ -25,7 +25,7 @@ def enable_vllm(model: Any, model_dir: str) -> None:
         model=export_dir,
         skip_tokenizer_init=True,
         enable_prompt_embeds=True,
-        # 同卡还运行声学模型与对话 Qwen，不按剩余显存自动扩张 KV 缓存。
+        # 同卡还运行声学模型，不按剩余显存自动扩张 KV 缓存。
         gpu_memory_utilization=0.20,
         kv_cache_memory_bytes=512 * 2**20,
         max_model_len=model.llm.llm.model.config.max_position_embeddings,

@@ -43,7 +43,10 @@ WSL 部署见 `deployment/README.md`。运行时文件放入 `/opt/xiaoya`，不
 - `openai` 插件在本项目仅表示接口协议；不得使用公共 OpenAI 地址、供应商快捷工厂或从 `OPENAI_API_KEY` 继承密钥。没有鉴权的私有服务使用明确的 `not-required` 占位值。
 - DeepSeek 使用 `https://api.deepseek.com` 的 Chat Completions SSE，语音模式显式发送 `thinking.type=disabled`，密钥只放入被忽略的 `.env.local`。WSL 的 `xiaoya-ollama` 已退出现行部署，启动和部署脚本不得自动拉起它。
 - 轮次结束使用本地 Silero VAD 配合显式固定的 `inference.TurnDetector(version="v1-mini")`，打断检测使用本地 VAD；不得启用 SDK 默认的云端 TurnDetector、自适应打断检测或 Cloud 噪声处理。本地轮次模型在工作进程预热，初始化失败必须向上传播。
-- 私有接口当前契约为 HTTP 转写、Chat Completions SSE、HTTP 音频合成。不同协议只在基础设施层扩展适配器，保持领域和应用端口不变。
+- 主 Agent 固定 WebSocket Paraformer 转写、Chat Completions SSE、HTTP 音频合成；speech 的 HTTP 转写仅为独立诊断，不作为自动回退。不同协议只在基础设施层适配，保持领域和应用端口不变。
+- 仅维护 ExpressiveAgent，内部控制头唯一为 `[xiaoya:<style>|<gesture>]`；旧头按普通正文处理，不增加双版本兼容。会话唯一拥有 SDK 客户端与表现快照，中途启动失败逐项回收。
+- WSL 常驻后端统一由本项目三个 systemd 单元管理。speech 前置等待 300 秒、Agent 启动预算 330 秒；只有公开 `worker_registered` 事件可以报告 READY，Windows 启动器不得另起前台 Agent或自动调用付费 LLM。
+- 新模型仅用官方稳定版 Cubism Editor 5.3.04 重建，19 普通参数、0 BlendShape。组合样机、真实工程往返及兼容导出通过前不替换旧运行包；禁止版本头修补或第三方序列化冒充官方验收。
 - 启动使用官方独立 LiveKit CLI 的 `lk agent console/dev/start`，由 `xiaoya` 入口加载配置并转发；禁止新增已弃用的 `cli.run_app` 调用。服务器或容器可用 SDK 的 `python -m livekit.agents start <entrypoint>`。
 - 房间模式调用 CLI 前必须检查完整的私有 LiveKit 凭据，避免从 CLI 的默认项目配置继承云服务。帮助、设备列表和模型下载不要求模型配置；本机 console 不要求 LiveKit 凭据。
 

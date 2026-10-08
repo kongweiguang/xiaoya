@@ -56,9 +56,10 @@ function modelResource(base: URL, name: string): URL {
   return url;
 }
 
-/** 所有下载受同一取消信号约束，网络和文件错误向舞台传播以显示可重试的静态后备。 */
+/** 下载重新核对 ETag，原画更新后不能继续用旧模型；失败和取消仍传播到可重试的静态后备。 */
 async function readResource(url: URL, signal: AbortSignal): Promise<ArrayBuffer> {
-  const response = await fetch(url, { signal });
+  signal.throwIfAborted();
+  const response = await fetch(url, { signal, cache: 'no-cache' });
   if (!response.ok) throw new Error('人物资源加载失败');
   return response.arrayBuffer();
 }
@@ -93,7 +94,35 @@ export class Live2DRuntime {
     const manifest = JSON.parse(
       new TextDecoder().decode(await readResource(new URL('xiaoya.model3.json', base), signal))
     ) as ModelManifest;
-    const mocBuffer = await readResource(modelResource(base, manifest.FileReferences.Moc), signal);
+    // 下载相互独立的资源时不占用 native/GPU 所有权，取消或网络失败无需回收半初始化模型。
+    const [mocBuffer, textureBuffers, physicsBuffer, sync, expressionBuffers] = await Promise.all([
+      readResource(modelResource(base, manifest.FileReferences.Moc), signal),
+      Promise.all(
+        manifest.FileReferences.Textures.map((name) =>
+          readResource(modelResource(base, name), signal)
+        )
+      ),
+      manifest.FileReferences.Physics
+        ? readResource(modelResource(base, manifest.FileReferences.Physics), signal)
+        : undefined,
+      manifest.FileReferences.MotionSync
+        ? readResource(modelResource(base, manifest.FileReferences.MotionSync), signal)
+        : undefined,
+      Promise.all(
+        (manifest.FileReferences.Expressions ?? []).map(async (expression) => {
+          try {
+            return {
+              name: expression.Name,
+              buffer: await readResource(modelResource(base, expression.File), signal),
+            };
+          } catch {
+            signal.throwIfAborted();
+            return null;
+          }
+        })
+      ),
+    ]);
+    signal.throwIfAborted();
     const moc = CubismMoc.create(mocBuffer, true);
     if (!moc) throw new Error('人物模型校验失败');
     const model = moc.createModel();
@@ -119,16 +148,12 @@ export class Live2DRuntime {
         antialias: true,
       });
       if (!gl || gl.isContextLost()) throw new Error('当前设备无法显示动画');
-      const sync = manifest.FileReferences.MotionSync
-        ? await readResource(modelResource(base, manifest.FileReferences.MotionSync), signal)
-        : undefined;
       runtime = new Live2DRuntime(canvas, gl, moc, model, sync, options);
       // 先建立资源所有者再调用可能抛错的 SDK，半初始化的 renderer 也进入统一释放路径。
       runtime.renderer.initialize(model);
       runtime.renderer.startUp(gl);
       runtime.renderer.setIsPremultipliedAlpha(true);
-      for (const [index, name] of manifest.FileReferences.Textures.entries()) {
-        const bytes = await readResource(modelResource(base, name), signal);
+      for (const [index, bytes] of textureBuffers.entries()) {
         const bitmap = await createImageBitmap(new Blob([bytes]), {
           premultiplyAlpha: 'premultiply',
         });
@@ -139,21 +164,16 @@ export class Live2DRuntime {
           bitmap.close();
         }
       }
-      if (manifest.FileReferences.Physics) {
-        const buffer = await readResource(
-          modelResource(base, manifest.FileReferences.Physics),
-          signal
-        );
-        runtime.physics = CubismPhysics.create(buffer, buffer.byteLength);
+      if (physicsBuffer) {
+        runtime.physics = CubismPhysics.create(physicsBuffer, physicsBuffer.byteLength);
       }
       const expressions: AvatarExpressions = {};
-      for (const expression of manifest.FileReferences.Expressions ?? []) {
-        if (!isAvatarExpressionName(expression.Name)) continue;
+      for (const expression of expressionBuffers) {
+        if (!expression || !isAvatarExpressionName(expression.name)) continue;
         try {
-          if (expressions[expression.Name]) throw new Error('人物表情名称重复');
-          const bytes = await readResource(modelResource(base, expression.File), signal);
-          expressions[expression.Name] = parseAvatarExpression(
-            JSON.parse(new TextDecoder().decode(bytes))
+          if (expressions[expression.name]) throw new Error('人物表情名称重复');
+          expressions[expression.name] = parseAvatarExpression(
+            JSON.parse(new TextDecoder().decode(expression.buffer))
           );
         } catch {
           // 表情是可选装饰：单份缺失或损坏只保留该风格的基线，不废弃可用模型。
@@ -264,7 +284,7 @@ export class Live2DRuntime {
     }
   };
 
-  /** 单一合成器拥有表情与动作；物理仅追加叶片反馈，真实音频口型始终最后独占写入。 */
+  /** 合成器统一动作、音频独占嘴部；沿原画留白投影，避免动画与同款后备图切换时跳动。 */
   private draw(time: number) {
     const seconds = time / 1000;
     const dt = this.previous ? (time - this.previous) / 1000 : 1 / 60;
@@ -302,8 +322,7 @@ export class Live2DRuntime {
     gl.clear(gl.COLOR_BUFFER_BIT);
     const matrix = new CubismMatrix44();
     const aspect = this.canvas.width / this.canvas.height;
-    const scale =
-      1.86 / Math.max(this.model.getCanvasHeight(), this.model.getCanvasWidth() / aspect);
+    const scale = 2 / Math.max(this.model.getCanvasHeight(), this.model.getCanvasWidth() / aspect);
     matrix.scale(scale / aspect, scale);
     this.renderer.setMvpMatrix(matrix);
     this.renderer.setRenderState(gl.getParameter(gl.FRAMEBUFFER_BINDING), [

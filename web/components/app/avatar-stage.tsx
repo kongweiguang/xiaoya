@@ -2,21 +2,24 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { RemoteAudioTrack, RoomEvent } from 'livekit-client';
-import { useSessionContext, useVoiceAssistant } from '@livekit/components-react';
+import { RemoteAudioTrack, type Room, RoomEvent } from 'livekit-client';
 import { Button } from '@/components/ui/button';
 import { useAvatarDelivery } from '@/hooks/use-avatar-delivery';
 import { useReducedMotionPreference } from '@/hooks/use-reduced-motion-preference';
-import { AvatarAudioBridge } from '@/lib/avatar/audio-bridge';
+import { AvatarAudioBridge, type SessionAudio } from '@/lib/avatar/audio-bridge';
 import { selectBehavior } from '@/lib/avatar/behavior';
-import type { DeliveryMessage } from '@/lib/avatar/delivery';
+import type { DeliveryGate, DeliveryMessage } from '@/lib/avatar/delivery';
 import { LipSyncTimeline, getAudibleAudioTime } from '@/lib/avatar/lip-sync';
 import type { AvatarFrame, Live2DRuntime } from '@/lib/avatar/live2d-runtime';
 import type { MotionSyncAnalyzer } from '@/lib/avatar/motion-sync';
-import { useSessionAudio } from '@/lib/avatar/session-audio';
-import avatarPoster from '@/public/avatar/xiaoya/poster.png';
+import type { ConversationPeer } from '@/lib/conversation-controller';
+import avatarPoster from '@/public/avatar/xiaoya/concept-v1/poster.png';
 
 interface AvatarStageProps {
+  room?: Room;
+  audio: SessionAudio | null;
+  peer: ConversationPeer;
+  delivery: { current: DeliveryGate };
   connected: boolean;
   reconnecting: boolean;
   status: string;
@@ -25,53 +28,60 @@ interface AvatarStageProps {
 }
 const EMPTY_MESSAGES: readonly DeliveryMessage[] = [];
 
-/** React 只管理加载和恢复；静态图随内容生成地址，修图后不沿用旧缓存，动画故障不影响聊天。 */
+/** React 只管理加载和恢复；后备图取自同一原画模型的静音帧，加载与降级不切换角色长相。 */
 export function AvatarStage({
+  room,
+  audio,
+  peer,
+  delivery: deliveryGate,
   connected,
   reconnecting,
   status,
   error = false,
   messages = EMPTY_MESSAGES,
 }: AvatarStageProps) {
-  const { audioTrack, state } = useVoiceAssistant();
-  const { room } = useSessionContext();
-  const audio = useSessionAudio();
+  const { state, agent, track } = peer;
   const reducedMotion = useReducedMotionPreference();
-  const delivery = useAvatarDelivery(messages, connected, reconnecting);
+  const previousReducedMotion = useRef(reducedMotion);
+  const delivery = useAvatarDelivery(deliveryGate, messages, agent?.identity, state, track);
   const canvas = useRef<HTMLCanvasElement>(null);
   const runtime = useRef<Live2DRuntime | null>(null);
   const [timeline] = useState(() => new LipSyncTimeline());
   const latest = useRef({
     audio,
+    room,
     connected,
     reconnecting,
     state,
     error,
     reducedMotion,
-    track: audioTrack?.publication.track,
+    track,
   });
   latest.current = {
     audio,
+    room,
     connected,
     reconnecting,
     state,
     error,
     reducedMotion,
-    track: audioTrack?.publication.track,
+    track,
   };
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [analysisMode, setAnalysisMode] = useState('loading');
   const [retry, setRetry] = useState(0);
   const behavior = selectBehavior({ connected, reconnecting, error, agent: state });
-  const track = audioTrack?.publication.track;
 
   useEffect(() => {
+    // 静态期间的新回复也已错过动作时机；恢复时取消它，但首次正常加载不取消开场。
+    const returningFromStatic = previousReducedMotion.current && !reducedMotion;
+    previousReducedMotion.current = reducedMotion;
     setReady(false);
     setFailed(false);
     timeline.clear();
+    if (reducedMotion || returningFromStatic) delivery.current.interrupt();
     if (reducedMotion) {
-      delivery.current.interrupt();
       return;
     }
     if (!canvas.current) return;
@@ -123,7 +133,7 @@ export function AvatarStage({
                   !current.reducedMotion &&
                   current.state === 'speaking' &&
                   !document.hidden &&
-                  room.canPlaybackAudio &&
+                  current.room?.canPlaybackAudio &&
                   current.audio?.context.state === 'running' &&
                   current.track &&
                   !current.track.isMuted
@@ -176,6 +186,7 @@ export function AvatarStage({
       } catch {
         // 超时仍提示恢复，但被重试或卸载替代的加载不能再覆盖新舞台。
         if (active && (!controller.signal.aborted || timedOut)) setFailed(true);
+        controller.abort();
       } finally {
         clearTimeout(timeout);
       }
@@ -190,7 +201,7 @@ export function AvatarStage({
       if (runtime.current === instance) runtime.current = null;
       timeline.clear();
     };
-  }, [reducedMotion, retry, timeline, room, delivery]);
+  }, [reducedMotion, retry, timeline, delivery]);
 
   useEffect(() => {
     runtime.current?.setBehavior(behavior);
@@ -203,18 +214,21 @@ export function AvatarStage({
       reconnecting ||
       !ready ||
       !audio ||
+      !room ||
       !(track instanceof RemoteAudioTrack) ||
       !runtime.current
     )
       return;
     const controller = new AbortController();
     const instance = runtime.current;
+    const boundRoom = room;
     const boundTrack = track;
     let bridge: AvatarAudioBridge | undefined;
     let analyzer: MotionSyncAnalyzer | undefined;
+    let wasPlaybackUnavailable = false;
     /** 实际播放许可变化立即门控采样，受阻时不张嘴、不增加第二路声音。 */
     function playback() {
-      bridge?.setPlaybackAvailable(room.canPlaybackAudio);
+      bridge?.setPlaybackAvailable(boundRoom.canPlaybackAudio);
     }
     /** 每个音轨独立隔离分析代次，换轨和旧会话不能写入新的时间线。 */
     async function attach() {
@@ -248,18 +262,20 @@ export function AvatarStage({
             if (!controller.signal.aborted)
               for (const frame of analyzer!.sample(samples, rate, at)) timeline.push(frame);
           },
-          /** 静音、受阻、换轨和结束都清除缓存，防止残留张嘴。 */
+          /** 真实能力丢失与恢复都取消当下回复；首次正常清嘴和重复事件不消耗开场许可。 */
           onSilent() {
+            if (controller.signal.aborted) return;
             timeline.clear();
             analyzer?.reset();
-            // 初始化分析也会清嘴，只有真实播放能力丢失才取消当前回复的表现。
-            if (
+            const unavailable =
               audio!.context.state !== 'running' ||
-              !room.canPlaybackAudio ||
+              !boundRoom.canPlaybackAudio ||
               boundTrack.isMuted ||
-              boundTrack.mediaStreamTrack.readyState === 'ended'
-            )
-              delivery.current.interrupt();
+              boundTrack.mediaStreamTrack.readyState === 'ended';
+            if (unavailable === wasPlaybackUnavailable) return;
+            wasPlaybackUnavailable = unavailable;
+            if (unavailable) delivery.current.invalidatePresentation();
+            else delivery.current.interrupt();
           },
           /** 分析故障只停止口型并提供重试，不结束当前语音会话。 */
           onError() {
@@ -269,7 +285,7 @@ export function AvatarStage({
           },
         });
         playback();
-        room.on(RoomEvent.AudioPlaybackStatusChanged, playback);
+        boundRoom.on(RoomEvent.AudioPlaybackStatusChanged, playback);
         await bridge.attach(track as RemoteAudioTrack, controller.signal);
       } catch {
         if (!controller.signal.aborted) {
@@ -281,7 +297,7 @@ export function AvatarStage({
     void attach();
     return () => {
       controller.abort();
-      room.off(RoomEvent.AudioPlaybackStatusChanged, playback);
+      boundRoom.off(RoomEvent.AudioPlaybackStatusChanged, playback);
       bridge?.dispose();
       analyzer?.dispose();
       timeline.clear();
@@ -306,8 +322,8 @@ export function AvatarStage({
         <Image
           src={avatarPoster}
           alt="奶白色身体、薄荷绿芽叶的机器人小芽"
-          width={1280}
-          height={1280}
+          width={1254}
+          height={1254}
           priority
           className={animated ? 'avatar-poster invisible' : 'avatar-poster'}
         />

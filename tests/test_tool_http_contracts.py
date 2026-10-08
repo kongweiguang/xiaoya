@@ -15,17 +15,18 @@ from xiaoya.application.assistant_tools import AssistantTools
 from xiaoya.domain.assistant import AssistantProfile
 from xiaoya.infrastructure.assistant_tools import AssistantToolAdapter
 from xiaoya.infrastructure.mcp_tools import MCPTools
+from xiaoya.infrastructure.settings import Settings
 
 
 def sse_response(deltas: list[dict], finish_reason: str) -> httpx.Response:
-    """模拟分片参数而非完整一次性 JSON，覆盖模型 SSE 解码与工具调用组装。"""
+    """当前固定模型仍使用真实 SSE 分片参数，工具闭环不依赖历史私有 LLM 入口。"""
     chunks = []
     for delta in [*deltas, {}]:
         chunk = {
             "id": "private-tools",
             "object": "chat.completion.chunk",
             "created": 0,
-            "model": "private-model",
+            "model": "deepseek-flash",
             "choices": [
                 {"index": 0, "delta": delta, "finish_reason": finish_reason if not delta else None}
             ],
@@ -38,18 +39,20 @@ def sse_response(deltas: list[dict], finish_reason: str) -> httpx.Response:
     )
 
 
-async def test_private_llm_executes_tool_and_resumes_reply() -> None:
-    """真实 AgentSession 执行工具并回传 tool 消息，避免接入仅停留在请求含 tools 字段。"""
+async def test_deepseek_executes_tool_and_resumes_reply(private_settings: Settings) -> None:
+    """当前固定 DeepSeek 的真实 AgentSession 执行工具并回传结果，假密钥仅送入内存传输。"""
     requests = []
 
     def respond(request: httpx.Request) -> httpx.Response:
-        """第二轮必须拿到第一轮计算结果，错误路由暴露意外公共 API 或缺失闭环。"""
-        assert request.url.host == "llm.internal"
-        assert request.headers["authorization"] == "Bearer private-key"
-        if request.method == "GET" and request.url.path == "/v1/models":
+        """每轮都核对官方路由和关闭思考，第二轮必须拿到第一轮工具结果而不是仅模拟成功。"""
+        assert request.url.host == "api.deepseek.com"
+        assert request.headers["authorization"] == "Bearer deepseek-test-key"
+        if request.method == "GET" and request.url.path == "/models":
             return httpx.Response(200, json={"data": []})
-        assert request.url.path == "/v1/chat/completions"
+        assert request.url.path == "/chat/completions"
         body = json.loads(request.content)
+        assert body["model"] == "deepseek-flash"
+        assert body["thinking"] == {"type": "disabled"}
         requests.append(body)
         if len(requests) == 1:
             return sse_response(
@@ -80,11 +83,14 @@ async def test_private_llm_executes_tool_and_resumes_reply() -> None:
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(respond), trust_env=False)
     model = openai.LLM(
-        model="private-model",
-        base_url="http://llm.internal/v1",
-        api_key="private-key",
+        model=private_settings.llm_model,
+        base_url=private_settings.llm_base_url,
+        api_key=private_settings.llm_api_key,
+        extra_body=private_settings.llm_extra_body,
         client=AsyncOpenAI(
-            base_url="http://llm.internal/v1", api_key="private-key", http_client=client
+            base_url=private_settings.llm_base_url,
+            api_key=private_settings.llm_api_key,
+            http_client=client,
         ),
     )
     session = AgentSession(llm=model)

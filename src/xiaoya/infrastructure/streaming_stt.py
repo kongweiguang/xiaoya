@@ -3,6 +3,7 @@
 import asyncio
 import json
 import time
+from contextlib import AsyncExitStack
 from urllib.parse import urlsplit, urlunsplit
 
 import aiohttp
@@ -48,7 +49,7 @@ class LocalStreamingSTT(stt.STT):
         return "local-funasr"
 
     async def _recognize_impl(self, buffer, *, language, conn_options):
-        """该实例只消费流，批量 HTTP 协议由独立配置的兼容客户端处理。"""
+        """Agent 唯一入口只消费流，批量 HTTP 转写保留在独立 speech 诊断接口。"""
         raise NotImplementedError("流式实例只支持 stream()")
 
     def stream(
@@ -75,27 +76,31 @@ class LocalRecognitionStream(stt.RecognizeStream):
         self._speech_end_time: float | None = None
 
     async def _run(self) -> None:
-        """发送、接收与 VAD 并行，任一路失败立即取消其他任务并关闭连接。"""
+        """握手共用连接预算，持续收音不设总时限；失败或取消均回收已登记资源。"""
         detector = self._recognizer.vad.stream()
         try:
             async with aiohttp.ClientSession() as client:
-                async with client.ws_connect(
-                    self._recognizer.url,
-                    headers={"Authorization": f"Bearer {self._recognizer.api_key}"},
-                    timeout=aiohttp.ClientWSTimeout(ws_close=self._conn_options.timeout),
-                ) as socket:
-                    await socket.send_json(
-                        {
-                            "model": self._recognizer.model,
-                            "language": str(self._language),
-                            "sample_rate": 16000,
-                        }
-                    )
-                    ready = await asyncio.wait_for(
-                        socket.receive_json(), self._conn_options.timeout
-                    )
-                    if ready.get("type") != "ready":
-                        raise RuntimeError("私有流式识别服务未就绪")
+                async with AsyncExitStack() as cleanup:
+                    async with asyncio.timeout(self._conn_options.timeout):
+                        socket = await cleanup.enter_async_context(
+                            client.ws_connect(
+                                self._recognizer.url,
+                                headers={"Authorization": f"Bearer {self._recognizer.api_key}"},
+                                timeout=aiohttp.ClientWSTimeout(
+                                    ws_close=self._conn_options.timeout
+                                ),
+                            )
+                        )
+                        await socket.send_json(
+                            {
+                                "model": self._recognizer.model,
+                                "language": str(self._language),
+                                "sample_rate": 16000,
+                            }
+                        )
+                        ready = await socket.receive_json()
+                        if ready.get("type") != "ready":
+                            raise RuntimeError("私有流式识别服务未就绪")
                     tasks = [
                         asyncio.create_task(self._feed_vad(detector)),
                         asyncio.create_task(self._send_audio(detector, socket)),

@@ -1,10 +1,11 @@
-"""用合成音频和固定文字验收已部署 Agent 的七项工具与真实私有房间链路。"""
+"""用合成音频和固定文字验收内置工具，演示 MCP 仅在显式选择后执行。"""
 
 import argparse
 import asyncio
 import io
 import json
 import os
+import sys
 import time
 import uuid
 import wave
@@ -15,6 +16,7 @@ import numpy as np
 from dotenv import load_dotenv
 from livekit import api, rtc
 from livekit.agents.voice.remote_session import RemoteSession
+from verification_room import create_verification_resources, verification_cleanup
 
 from xiaoya.infrastructure.settings import Settings, validate_credentials
 
@@ -53,7 +55,7 @@ async def publish_wav(source: rtc.AudioSource, content: bytes) -> int:
     return count
 
 
-async def verify(environment: Path, output: Path) -> None:
+async def verify(environment: Path, output: Path, *, demo: bool = False) -> None:
     """只读取专属合成验收房间，使用 SDK 远程事件证明工具确实执行，避免把模型猜测当成功。"""
     load_dotenv(environment, override=False)
     settings = Settings.from_environment()
@@ -64,17 +66,10 @@ async def verify(environment: Path, output: Path) -> None:
         api.AccessToken(os.environ["LIVEKIT_API_KEY"], os.environ["LIVEKIT_API_SECRET"])
         .with_identity(identity)
         .with_grants(api.VideoGrants(room_join=True, room=room_name))
-        .with_room_config(
-            api.RoomConfiguration(agents=[api.RoomAgentDispatch(agent_name=settings.agent_name)])
-        )
         .to_jwt()
     )
-    room = rtc.Room()
-    source = rtc.AudioSource(48000, 1, queue_size_ms=100)
-    control = api.LiveKitAPI(
-        url=os.environ["LIVEKIT_URL"],
-        api_key=os.environ["LIVEKIT_API_KEY"],
-        api_secret=os.environ["LIVEKIT_API_SECRET"],
+    room, source, control = await create_verification_resources(
+        os.environ["LIVEKIT_URL"], os.environ["LIVEKIT_API_KEY"], os.environ["LIVEKIT_API_SECRET"]
     )
     remote = None
     tasks = set()
@@ -144,10 +139,18 @@ async def verify(environment: Path, output: Path) -> None:
     )
     room.on("track_subscribed", on_track)
     room.on("participant_attributes_changed", on_attributes)
-    connected = False
+    room_created = False
     try:
+        await control.room.create_room(
+            api.CreateRoomRequest(
+                name=room_name,
+                agents=[api.RoomAgentDispatch(agent_name=settings.agent_name)],
+                empty_timeout=35,
+                departure_timeout=35,
+            )
+        )
+        room_created = True
         await room.connect(os.environ["LIVEKIT_URL"], token)
-        connected = True
         await room.local_participant.publish_track(
             rtc.LocalAudioTrack.create_audio_track("synthetic-tools-microphone", source),
             rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE),
@@ -175,11 +178,19 @@ async def verify(environment: Path, output: Path) -> None:
                 "耳机",
             ),
             ("voice", "list_notes", "请调用便签工具，查一下我本次通话记了什么。", "充电器"),
-            ("voice", "demo__search_knowledge", "请用知识库工具查询便签能否永久保存。", "通话"),
             ("text", "current_time", "请查询实际的北京时间和日期。", "Asia/Shanghai"),
-            ("text", "demo__get_demo_ticket", "请调用工单工具查询演示工单 DEMO-001。", "已受理"),
             ("text", "delete_note", "请删除标题为出门准备的便签。", "True"),
         )
+        if demo:
+            cases += (
+                ("voice", "demo__search_knowledge", "请用知识库工具查询便签能否永久保存。", "通话"),
+                (
+                    "text",
+                    "demo__get_demo_ticket",
+                    "请调用工单工具查询演示工单 DEMO-001。",
+                    "已受理",
+                ),
+            )
         assert {case[1] for case in cases} <= set(info.tools), "部署后的 Agent 缺少工具"
         async with httpx.AsyncClient(timeout=90) as client:
             for mode, expected, prompt, marker in cases:
@@ -188,9 +199,7 @@ async def verify(environment: Path, output: Path) -> None:
                 if mode == "voice":
                     response = await client.post(
                         settings.tts_base_url.rstrip("/") + "/audio/speech",
-                        headers={
-                            "Authorization": "Bearer " + (settings.tts_api_key or "not-required")
-                        },
+                        headers={"Authorization": "Bearer " + settings.tts_api_key},
                         json={
                             "model": settings.tts_model,
                             "voice": settings.tts_voice,
@@ -242,29 +251,30 @@ async def verify(environment: Path, output: Path) -> None:
         raise
     finally:
         result.update(metrics=metrics, tool_calls=calls)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-        if remote is not None:
-            await remote.aclose()
-        await room.disconnect()
-        await source.aclose()
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        if connected:
-            await control.room.delete_room(api.DeleteRoomRequest(room=room_name))
-        await control.aclose()
+        async with verification_cleanup(
+            room=room,
+            source=source,
+            control=control,
+            room_name=room_name,
+            created=room_created,
+            tasks=tasks,
+            remote=remote,
+        ):
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def main() -> None:
-    """真实接口验收须显式执行，默认 pytest 保持离线；输出不包含密钥和原始音频。"""
+    """显式连接真实服务并固定 UTF-8，避免 Windows 控制台编码导致验收输出失败。"""
+    sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", type=Path, default=Path(".env.local"))
+    parser.add_argument("--demo", action="store_true", help="额外验收显式配置的演示 MCP")
     parser.add_argument(
         "--output", type=Path, default=Path(".tools/logs/mcp-room-verification.json")
     )
     args = parser.parse_args()
-    asyncio.run(verify(args.env, args.output))
+    asyncio.run(verify(args.env, args.output, demo=args.demo))
 
 
 if __name__ == "__main__":

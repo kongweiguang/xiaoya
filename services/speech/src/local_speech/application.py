@@ -2,28 +2,23 @@
 
 from collections.abc import Iterator
 from threading import Event
-from typing import Protocol
+from typing import BinaryIO, Protocol
 
-from local_speech.domain import SpeechAudio, SpeechStyle, Transcription
+from local_speech.domain import SpeechStyle, Transcription
 
 
 class SpeechModels(Protocol):
     """应用层只依赖音频和文本契约，允许替换实际模型实现。"""
 
-    def transcribe(self, audio: bytes, language: str | None) -> Transcription:
-        """音频解码与识别策略由实现负责，空识别结果必须保留。"""
-        ...
-
-    def synthesize(
-        self, text: str, speed: float, *, style: SpeechStyle = SpeechStyle.NEUTRAL
-    ) -> SpeechAudio:
-        """语气使用领域枚举而非供应商提示，完整音频仍须携带可解码容器。"""
+    def transcribe(
+        self, audio: BinaryIO, language: str | None, *, cancelled: Event
+    ) -> Transcription:
+        """暂存文件按帧解码而非复制整段上传，取消在模型块边界生效。"""
         ...
 
     def synthesize_stream(
         self,
         text: str,
-        speed: float,
         *,
         style: SpeechStyle = SpeechStyle.NEUTRAL,
         cancelled: Event | None = None,
@@ -55,44 +50,33 @@ class StreamingRecognizer(Protocol):
 class SpeechService:
     """将业务参数约束放在用例附近，模型端口负责执行推理。"""
 
-    def __init__(
-        self, models: SpeechModels, streaming_recognizer: StreamingRecognizer | None = None
-    ) -> None:
-        """流式模型显式注入，未部署时拒绝该协议而不偷偷重算整段音频。"""
+    def __init__(self, models: SpeechModels, streaming_recognizer: StreamingRecognizer) -> None:
+        """流式识别是当前部署的必需能力，缺失应在装配时暴露。"""
         self._models = models
         self._streaming_recognizer = streaming_recognizer
 
     def create_recognition_stream(self) -> RecognitionStream:
-        """一次发声一份缓存；缺模型属于部署错误，不能报告流式接口可用。"""
-        if self._streaming_recognizer is None:
-            raise ValueError("未部署流式识别模型")
+        """一次发声一份缓存，权重共享但不得复用说话者的解码状态。"""
         return self._streaming_recognizer.create_stream()
 
     def close(self) -> None:
         """生命周期结束后统一委托模型释放资源，应用层不认识 CUDA 或引擎对象。"""
         self._models.close()
 
-    def transcribe(self, audio: bytes, language: str | None) -> Transcription:
-        """拒绝空上传；语言可由识别模型自动检测，不强行限制部署场景。"""
-        if not audio:
+    def transcribe(
+        self, audio: BinaryIO, language: str | None, *, cancelled: Event
+    ) -> Transcription:
+        """只探测首字节并恢复文件位置，保持空上传校验而不复制整段音频。"""
+        position = audio.tell()
+        nonempty = audio.read(1)
+        audio.seek(position)
+        if not nonempty:
             raise ValueError("音频不能为空")
-        return self._models.transcribe(audio, language)
-
-    def synthesize(
-        self, text: str, speed: float, *, instructions: str | None = None
-    ) -> SpeechAudio:
-        """固定模板独立于数值语速；先完成校验，避免未知语气被静默忽略。"""
-        if not text.strip():
-            raise ValueError("合成文本不能为空")
-        if speed != 1.0:
-            raise ValueError("当前 CosyVoice 流式部署仅支持 speed=1.0")
-        style = SpeechStyle.from_instructions(instructions)
-        return self._models.synthesize(text, speed, style=style)
+        return self._models.transcribe(audio, language, cancelled=cancelled)
 
     def synthesize_stream(
         self,
         text: str,
-        speed: float,
         *,
         instructions: str | None = None,
         cancelled: Event | None = None,
@@ -100,7 +84,5 @@ class SpeechService:
         """参数先校验，取消只透传标准库信号，不让应用层依赖 HTTP 或工作线程实现。"""
         if not text.strip():
             raise ValueError("合成文本不能为空")
-        if speed != 1.0:
-            raise ValueError("当前 CosyVoice 流式部署仅支持 speed=1.0")
         style = SpeechStyle.from_instructions(instructions)
-        return self._models.synthesize_stream(text, speed, style=style, cancelled=cancelled)
+        return self._models.synthesize_stream(text, style=style, cancelled=cancelled)

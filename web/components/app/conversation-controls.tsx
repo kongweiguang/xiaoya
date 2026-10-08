@@ -1,17 +1,35 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { type LocalAudioTrack, Track, TrackEvent, createLocalAudioTrack } from 'livekit-client';
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import {
+  type LocalAudioTrack,
+  type Room,
+  Track,
+  TrackEvent,
+  createLocalAudioTrack,
+} from 'livekit-client';
 import { ChevronDown, LoaderCircle, Mic, MicOff, PhoneOff, Send } from 'lucide-react';
-import { useMediaDeviceSelect, useSessionContext, useTrackToggle } from '@livekit/components-react';
+import { useMediaDeviceSelect, useTrackToggle } from '@livekit/components-react';
 import { Button } from '@/components/ui/button';
 import { microphoneError } from '@/hooks/use-conversation';
 
 interface ConversationControlsProps {
+  room: Room;
+  draft: string;
+  setDraft: Dispatch<SetStateAction<string>>;
   ready: boolean;
   sending: boolean;
   send: (message: string) => Promise<unknown>;
   end: () => Promise<void>;
+  onMicrophoneChange: (capturing: boolean) => void;
 }
 
 /** Publication 未静音不代表仍在采集；设备切换失败可能留下 ended 轨道。 */
@@ -24,26 +42,55 @@ function microphoneCapturing(track?: LocalAudioTrack): boolean {
   );
 }
 
-/** 草稿仅在发送成功后清空；真实麦克风状态、设备切换与错误恢复共用一个控制区。 */
-export function ConversationControls({ ready, sending, send, end }: ConversationControlsProps) {
-  const [draft, setDraft] = useState('');
+/** 页面持有草稿以跨故障重试保留；尺寸只写 DOM，发送与采集所有权不因布局变化重建。 */
+export function ConversationControls({
+  room,
+  draft,
+  setDraft,
+  ready,
+  sending,
+  send,
+  end,
+  onMicrophoneChange,
+}: ConversationControlsProps) {
   const [error, setError] = useState('');
   const [deviceError, setDeviceError] = useState('');
   const inFlight = useRef(false);
   const composing = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
-  const { room } = useSessionContext();
   const mounted = useRef(true);
   const deviceOperation = useRef(false);
   const [acquiring, setAcquiring] = useState(false);
   const [captureRevision, setCaptureRevision] = useState(0);
+  /** 输入高度禁用过渡以即时测量；先回单行才能收缩，长草稿保留滚动而不挤占页面。 */
+  const resizeInput = useCallback(() => {
+    if (!input.current) return;
+    input.current.style.height = '38px';
+    input.current.style.height = `${Math.min(100, input.current.scrollHeight)}px`;
+  }, []);
+  // 内容提交后即测量，不把临时 DOM 尺寸放进 React 状态或重建会话资源。
+  useLayoutEffect(resizeInput, [draft, resizeInput]);
+  /** 宽度由局部观察器持有；自身高度变化的通知不测量，避免回环和重复订阅。 */
   useEffect(() => {
-    // 多行草稿必须可见；先回到单行高度测量，删除内容后也能收回占用空间。
-    if (input.current) {
-      input.current.style.height = '38px';
-      input.current.style.height = `${Math.min(100, input.current.scrollHeight)}px`;
-    }
-  }, [draft]);
+    const element = input.current;
+    if (!element) return;
+    let previousWidth = element.clientWidth;
+    let frame = 0;
+    /** 宽度事件先完成原生换行排版再测量；高度通知不排帧，连续变宽只保留最后一帧。 */
+    const observer = new ResizeObserver(() => {
+      const width = element.clientWidth;
+      if (width === previousWidth) return;
+      previousWidth = width;
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(resizeInput);
+    });
+    observer.observe(element);
+    /** 观察器与待测量帧均随控件释放，旧连接不能在结束后再次写入输入元素。 */
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, [resizeInput]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -54,14 +101,23 @@ export function ConversationControls({ ready, sending, send, end }: Conversation
   const reportDeviceError = useCallback((failure: Error) => {
     if (mounted.current) setDeviceError(microphoneError(failure));
   }, []);
-  const mic = useTrackToggle({ source: Track.Source.Microphone, onDeviceError: reportDeviceError });
+  const mic = useTrackToggle({
+    room,
+    source: Track.Source.Microphone,
+    onDeviceError: reportDeviceError,
+  });
   const devices = useMediaDeviceSelect({
+    room,
     kind: 'audioinput',
     requestPermissions: false,
     onError: reportDeviceError,
   });
   const captureTrack = mic.track?.audioTrack;
   const microphoneEnabled = microphoneCapturing(captureTrack);
+  /** 按钮与页面使用同一真实采集判定；提交前同步派生值，不另存用户想要的开关状态。 */
+  useLayoutEffect(() => {
+    onMicrophoneChange(microphoneEnabled);
+  }, [microphoneEnabled, onMicrophoneChange]);
   /** 每个异步边界重新读取 SDK 可变房间状态，不能把点击时的 connected 当成持续保证。 */
   const sessionConnected = () => mounted.current && room.state === 'connected';
   useEffect(() => {
@@ -259,8 +315,10 @@ export function ConversationControls({ ready, sending, send, end }: Conversation
         >
           <textarea
             ref={input}
+            // 全局减少动效的极短 duration 仍会插值高度；自动输入尺寸必须即时生效。
+            style={{ transitionProperty: 'none' }}
             aria-label="聊天内容"
-            placeholder="想说什么，也可以打字…"
+            placeholder={microphoneEnabled ? '想说什么，也可以打字…' : '想聊什么，打字告诉我…'}
             rows={1}
             value={draft}
             disabled={!ready}

@@ -96,3 +96,40 @@ def test_duplicate_ids_and_broken_documents_are_rejected(tmp_path: Path) -> None
         load_mcp_settings(str(path))
     assert "secret-data" not in str(error.value)
     assert load_mcp_settings("") == ()
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "http://127.0.0.1:0/mcp",
+        "http://127.0.0.1:65536/mcp",
+        "http://127.0.0.1:-1/mcp",
+        "http://127.0.0.1:invalid-port/mcp",
+        "http://private-user:private-secret@127.0.0.1/mcp",
+        "http://:private-secret@127.0.0.1/mcp",
+        "http://@127.0.0.1/mcp",
+    ],
+)
+def test_http_mcp_rejects_invalid_ports_and_embedded_credentials(
+    tmp_path: Path, address: str
+) -> None:
+    """空用户名仍是内嵌鉴权，所有非法地址在配置阶段拒绝且错误不回显凭据。"""
+    filename = write_config(
+        tmp_path / "mcp.json",
+        [{"id": "private", "transport": "streamable_http", "url": address}],
+    )
+    with pytest.raises(ValueError, match="MCP url") as error:
+        load_mcp_settings(filename, {})
+    assert address not in str(error.value)
+    assert "private-secret" not in str(error.value)
+
+
+@pytest.mark.parametrize("port", [None, 1, 65535])
+def test_http_mcp_accepts_implicit_and_boundary_ports(tmp_path: Path, port: int | None) -> None:
+    """校验只拒绝非法端口，不为私有网关添加任意端口范围限制。"""
+    address = "http://127.0.0.1" + (f":{port}" if port is not None else "") + "/mcp"
+    filename = write_config(
+        tmp_path / "mcp.json",
+        [{"id": "private", "transport": "streamable_http", "url": address}],
+    )
+    assert load_mcp_settings(filename, {})[0].url == address

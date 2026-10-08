@@ -5,7 +5,10 @@
   "Parameters": [
     { "Id": "ParamBrowLY", "Value": 0.08, "Blend": "Add" },
     { "Id": "ParamBrowRY", "Value": 0.08, "Blend": "Add" },
-    { "Id": "ParamEyeLOpen", "Value": 0.88, "Blend": "Multiply" },
-    { "Id": "ParamEyeROpen", "Value": 0.88, "Blend": "Multiply" }
+    { "Id": "ParamBrowLAngle", "Value": -0.1, "Blend": "Add" },
+    { "Id": "ParamBrowRAngle", "Value": 0.1, "Blend": "Add" },
+    { "Id": "ParamEyeSmile", "Value": 0.16, "Blend": "Add" },
+    { "Id": "ParamEyeLOpen", "Value": 0.95, "Blend": "Multiply" },
+    { "Id": "ParamEyeROpen", "Value": 0.95, "Blend": "Multiply" }
   ]
 }

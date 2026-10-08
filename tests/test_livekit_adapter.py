@@ -1,231 +1,289 @@
-"""替换 SDK 外部边界，验证业务文案与关闭语义确实传给适配器。"""
+"""外部 SDK 边界保持内存实现，验证唯一链路、启动失败和 Job 所有权。"""
 
 import asyncio
+import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, PropertyMock
 
 import pytest
+from livekit import rtc
 
-from xiaoya.application.assistant_tools import AssistantTools
-from xiaoya.domain.assistant import AssistantProfile
+from xiaoya.domain.assistant import AssistantEnvironment, AssistantProfile
 from xiaoya.infrastructure import livekit_conversation
-from xiaoya.infrastructure.assistant_tools import AssistantToolAdapter, SystemClock
+from xiaoya.infrastructure.delivery_output import DeliveryState
 from xiaoya.infrastructure.settings import Settings
 
 
-async def test_adapter_passes_rules_and_releases_session(
-    monkeypatch: pytest.MonkeyPatch, private_settings: Settings
-) -> None:
-    """显式模型参数不继承公共配置；提前合成仍遵守轮次、打断及资源释放边界。"""
+class MemoryAgent:
+    """只替换外部会话连接，保留环境确认和共享状态的实际生命周期约束。"""
+
+    def __init__(self, **kwargs) -> None:
+        """记录装配事实，不能以 Mock 的任意属性真值伪造环境能力。"""
+        self.environment = kwargs["environment"]
+        self.instructions = kwargs["instructions"]
+        self.delivery_snapshot = None
+        self.enable_delivery = AsyncMock(side_effect=self.install)
+        self.aclose = AsyncMock()
+
+    async def install(self, endpoint) -> None:
+        """状态实例必须来自会话所有者，测试也不能另外生成一套表现身份。"""
+        self.delivery_snapshot = DeliveryState(instance=endpoint.instance, revision=3)
+
+    def set_environment(self, environment: AssistantEnvironment) -> None:
+        """每次替换完整事实快照，以检测装配是否在真实启动完成后确认渠道。"""
+        self.environment = environment
+
+
+@pytest.fixture
+def boundary(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    """不连接模型或房间，只替换公开构造器和 IO，资源计数仍逐实例记录。"""
     session = Mock(start=AsyncMock(), say=AsyncMock(), aclose=AsyncMock())
+    connection = Mock(bind=AsyncMock(), aclose=AsyncMock(), is_owner=Mock(return_value=True))
     session_factory = Mock(return_value=session)
+    stt = Mock(aclose=AsyncMock())
+    llm = Mock(aclose=AsyncMock())
+    voices = [Mock(aclose=AsyncMock()) for _ in range(3)]
+    stt_factory = Mock(return_value=stt)
+    llm_factory = Mock(return_value=llm)
+    tts_factory = Mock(side_effect=voices)
+    detector_factory = Mock()
+    agent_factory = Mock(side_effect=lambda **kwargs: MemoryAgent(**kwargs))
     monkeypatch.setattr(livekit_conversation, "AgentSession", session_factory)
-    detector = Mock()
-    detector_factory = Mock(return_value=detector)
+    monkeypatch.setattr(livekit_conversation, "LocalStreamingSTT", stt_factory)
+    monkeypatch.setattr(livekit_conversation.openai, "LLM", llm_factory)
+    monkeypatch.setattr(livekit_conversation.openai, "TTS", tts_factory)
     monkeypatch.setattr(livekit_conversation.inference, "TurnDetector", detector_factory)
-    models = [Mock(aclose=AsyncMock()) for _ in range(3)]
-    for name, model in zip(("STT", "LLM", "TTS"), models, strict=True):
-        monkeypatch.setattr(livekit_conversation.openai, name, Mock(return_value=model))
-    room = Mock()
-    vad = Mock()
-    profile = AssistantProfile()
-    adapter = livekit_conversation.LiveKitVoiceConversation(
-        room=room, settings=private_settings, vad=vad
+    monkeypatch.setattr(livekit_conversation, "ExpressiveAgent", agent_factory)
+    monkeypatch.setattr(
+        livekit_conversation, "ConversationConnection", Mock(return_value=connection)
+    )
+    room = Mock(metadata='{"xiaoya":{"v":1,"client":"web"}}')
+    room.remote_participants = {"owner": SimpleNamespace(identity="owner", sid="PA_owner")}
+    return SimpleNamespace(
+        session=session,
+        connection=connection,
+        room=room,
+        stt=stt,
+        llm=llm,
+        voices=voices,
+        models=[stt, llm, *voices],
+        session_factory=session_factory,
+        stt_factory=stt_factory,
+        llm_factory=llm_factory,
+        tts_factory=tts_factory,
+        detector_factory=detector_factory,
+        agent_factory=agent_factory,
     )
 
-    await adapter.start(profile)
-    await adapter.say(profile.greeting)
-    await adapter.close()
 
-    session_factory.assert_called_once()
-    assert session_factory.call_args.kwargs["vad"] is vad
-    assert session_factory.call_args.kwargs["turn_handling"] == {
-        "turn_detection": detector,
-        "endpointing": {"min_delay": 0.90, "max_delay": 1.10},
-        "preemptive_generation": {"enabled": True, "preemptive_tts": True},
-        "interruption": {"mode": "vad"},
-    }
-    detector_factory.assert_called_once_with(version="v1-mini")
-    assert session.start.call_args.kwargs["room"] is room
-    assert session.start.call_args.kwargs["agent"].instructions == profile.instructions
-    session.start.assert_awaited_once()
-    session.say.assert_awaited_once_with(profile.greeting)
-    assert {call.args[0] for call in session.on.call_args_list} == {"error", "close"}
-    assert session.off.call_count == 2
-    room.local_participant.publish_track.assert_not_called()
-    session.aclose.assert_awaited_once()
-    for model in models:
-        model.aclose.assert_awaited_once()
-    livekit_conversation.openai.STT.assert_called_once_with(
+async def test_constructor_is_inert_and_job_close_before_start_needs_no_models(
+    private_settings: Settings,
+    boundary: SimpleNamespace,
+) -> None:
+    """Job 可先登记关闭回调，构造阶段不分配无法被宿主管理的模型资源。"""
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock()
+    )
+    assert conversation._models == [] and conversation._session is None
+    boundary.stt_factory.assert_not_called()
+    boundary.session_factory.assert_not_called()
+    await conversation.close()
+    boundary.connection.aclose.assert_awaited_once()
+    for model in boundary.models:
+        model.aclose.assert_not_awaited()
+
+
+async def test_single_expressive_pipeline_has_explicit_private_presets_and_clean_start_order(
+    private_settings: Settings,
+    boundary: SimpleNamespace,
+) -> None:
+    """控制解析后才过滤正文，唯一 neutral TTS 直接交给会话；注册后绑定再放行就绪。"""
+    vad = Mock()
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=vad
+    )
+    await conversation.start(AssistantProfile())
+    await conversation.say("你好。")
+    arguments = boundary.session_factory.call_args.kwargs
+    assert arguments["stt"] is boundary.stt and arguments["llm"] is boundary.llm
+    assert arguments["tts"] is boundary.voices[0]
+    assert arguments["tts_text_transforms"] == [] and arguments["vad"] is vad
+    assert arguments["turn_handling"]["interruption"] == {"mode": "vad"}
+    boundary.detector_factory.assert_called_once_with(version="v1-mini")
+    boundary.stt_factory.assert_called_once_with(
         model=private_settings.stt_model,
         language="zh",
         base_url=private_settings.stt_base_url,
         api_key="not-required",
-        use_realtime=False,
+        vad_model=vad,
     )
-    livekit_conversation.openai.LLM.assert_called_once_with(
+    boundary.llm_factory.assert_called_once_with(
         model=private_settings.llm_model,
         base_url=private_settings.llm_base_url,
-        api_key="not-required",
-        extra_body={},
+        api_key=private_settings.llm_api_key,
+        extra_body={"thinking": {"type": "disabled"}},
     )
-    livekit_conversation.openai.TTS.assert_called_once_with(
-        model=private_settings.tts_model,
-        voice=private_settings.tts_voice,
-        base_url=private_settings.tts_base_url,
-        api_key="not-required",
-        response_format="wav",
+    assert [call.kwargs.get("instructions") for call in boundary.tts_factory.call_args_list] == [
+        None,
+        "开心自然地说话。",
+        "轻柔温和地说话。",
+    ]
+    assert all(
+        call.kwargs["api_key"] == "not-required" for call in boundary.tts_factory.call_args_list
     )
-
-
-async def test_model_resources_close_even_when_session_close_fails(
-    monkeypatch: pytest.MonkeyPatch,
-    private_settings: Settings,
-) -> None:
-    """故障回收路径也必须释放模型客户端，避免长驻进程逐次累积连接。"""
-    session = Mock(aclose=AsyncMock(side_effect=RuntimeError("会话关闭失败")))
-    monkeypatch.setattr(livekit_conversation, "AgentSession", Mock(return_value=session))
-    models = [Mock(aclose=AsyncMock()) for _ in range(3)]
-    models[2].aclose.side_effect = RuntimeError("合成客户端关闭失败")
-    for name, model in zip(("STT", "LLM", "TTS"), models, strict=True):
-        monkeypatch.setattr(livekit_conversation.openai, name, Mock(return_value=model))
-    adapter = livekit_conversation.LiveKitVoiceConversation(
-        room=Mock(), settings=private_settings, vad=Mock()
-    )
-    with pytest.raises(RuntimeError, match="合成客户端关闭失败"):
-        await adapter.close()
-    for model in models:
-        model.aclose.assert_awaited_once()
-
-
-async def test_mcp_failure_prevents_session_start_and_releases_resources(
-    monkeypatch: pytest.MonkeyPatch,
-    private_settings: Settings,
-) -> None:
-    """MCP 是显式声明的能力，失败不能继续发送成功开场白，所有模型也要回收。"""
-    session = Mock(start=AsyncMock(), aclose=AsyncMock())
-    monkeypatch.setattr(livekit_conversation, "AgentSession", Mock(return_value=session))
-    mcp = Mock(tools=AsyncMock(side_effect=RuntimeError("MCP 初始化失败")), close=AsyncMock())
-    adapter = livekit_conversation.LiveKitVoiceConversation(
-        room=Mock(),
-        settings=private_settings,
-        vad=Mock(),
-        tools=AssistantToolAdapter(AssistantTools(clock=SystemClock())),
-        mcp=mcp,
-    )
-    with pytest.raises(RuntimeError, match="MCP"):
-        await adapter.start(AssistantProfile())
-    session.start.assert_not_awaited()
-    session.aclose.assert_awaited_once()
-    mcp.close.assert_awaited_once()
-
-
-@pytest.fixture
-def lifecycle_boundary(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
-    """只替换外部 SDK 调用，保留生产的事件绑定、任务取消与并发关闭语义。"""
-    session = Mock(start=AsyncMock(), say=AsyncMock(), aclose=AsyncMock())
-    monkeypatch.setattr(livekit_conversation, "AgentSession", Mock(return_value=session))
-    monkeypatch.setattr(livekit_conversation.inference, "TurnDetector", Mock())
-    models = [Mock(aclose=AsyncMock()) for _ in range(3)]
-    for name, model in zip(("STT", "LLM", "TTS"), models, strict=True):
-        monkeypatch.setattr(livekit_conversation.openai, name, Mock(return_value=model))
-    return SimpleNamespace(session=session, models=models)
-
-
-async def test_unrecoverable_session_error_closes_audio_resources(
-    private_settings: Settings, lifecycle_boundary: SimpleNamespace
-) -> None:
-    """移除视频回调后仍保留严重错误回收；可恢复错误继续交给 SDK，不能提前挂断。"""
-    conversation = livekit_conversation.LiveKitVoiceConversation(
-        room=Mock(), settings=private_settings, vad=Mock()
-    )
-    await conversation.start(AssistantProfile())
-    callbacks = {
-        call.args[0]: call.args[1] for call in lifecycle_boundary.session.on.call_args_list
-    }
-    callbacks["error"](SimpleNamespace(error=SimpleNamespace(recoverable=True)))
-    assert conversation._close_task is None
-    callbacks["error"](SimpleNamespace(error=SimpleNamespace(recoverable=False)))
+    options = boundary.session.start.call_args.kwargs["room_options"]
+    assert options.close_on_disconnect is False and options.text_output.sync_transcription is False
+    agent = boundary.session.start.call_args.kwargs["agent"]
+    assert agent.environment.channel == "web"
+    agent.enable_delivery.assert_awaited_once_with(conversation._snapshot_endpoint)
+    boundary.connection.bind.assert_awaited_once_with(boundary.session.room_io)
+    boundary.session.say.assert_awaited_once_with("[xiaoya:happy|wave]你好。")
     await asyncio.gather(conversation.close(), conversation.close())
-    lifecycle_boundary.session.aclose.assert_awaited_once()
-    assert lifecycle_boundary.session.off.call_count == 2
-    for model in lifecycle_boundary.models:
+    boundary.session.aclose.assert_awaited_once()
+    for model in boundary.models:
         model.aclose.assert_awaited_once()
 
 
-async def test_sdk_close_releases_resources_without_job_callback(
-    private_settings: Settings, lifecycle_boundary: SimpleNamespace
+@pytest.mark.parametrize(
+    "failure_at", ["stt", "llm", "neutral", "happy", "gentle", "turn", "session"]
+)
+async def test_partial_model_construction_failure_closes_exactly_owned_resources(
+    failure_at: str,
+    private_settings: Settings,
+    boundary: SimpleNamespace,
 ) -> None:
-    """SDK 主动结束时立即启动回收；晚到的 Job 回调共享结果，不能重复关闭模型。"""
+    """每项模型成功即登记，后续构造失败不会泄漏客户端或被关闭异常掩盖。"""
+    if failure_at in {"stt", "llm", "turn", "session"}:
+        factory = {
+            "stt": boundary.stt_factory,
+            "llm": boundary.llm_factory,
+            "turn": boundary.detector_factory,
+            "session": boundary.session_factory,
+        }[failure_at]
+        factory.side_effect = RuntimeError("创建失败")
+    else:
+        index = {"neutral": 0, "happy": 1, "gentle": 2}[failure_at]
+        boundary.tts_factory.side_effect = [*boundary.voices[:index], RuntimeError("创建失败")]
+    mcp = Mock(close=AsyncMock(), tools=AsyncMock())
     conversation = livekit_conversation.LiveKitVoiceConversation(
-        room=Mock(), settings=private_settings, vad=Mock()
+        room=boundary.room, settings=private_settings, vad=Mock(), mcp=mcp
     )
-    await conversation.start(AssistantProfile())
-    callbacks = {
-        call.args[0]: call.args[1] for call in lifecycle_boundary.session.on.call_args_list
-    }
-    callbacks["close"](Mock())
-    assert conversation._close_task is not None
-    await conversation._close_task
-    await conversation.close()
-    lifecycle_boundary.session.aclose.assert_awaited_once()
-    for model in lifecycle_boundary.models:
-        model.aclose.assert_awaited_once()
-
-
-async def test_session_start_failure_stops_greeting_and_releases_resources(
-    private_settings: Settings, lifecycle_boundary: SimpleNamespace
-) -> None:
-    """语音初始化失败仍向用例传播，不能因为网页人物可用而假装会话已启动。"""
-    lifecycle_boundary.session.start.side_effect = RuntimeError("语音启动失败")
-    conversation = livekit_conversation.LiveKitVoiceConversation(
-        room=Mock(), settings=private_settings, vad=Mock()
-    )
-    with pytest.raises(RuntimeError, match="语音启动失败"):
+    with pytest.raises(RuntimeError, match="创建失败"):
         await conversation.start(AssistantProfile())
-    await conversation.close()
-    lifecycle_boundary.session.say.assert_not_awaited()
-    lifecycle_boundary.session.aclose.assert_awaited_once()
-    for model in lifecycle_boundary.models:
+    expected = {"stt": 0, "llm": 1, "neutral": 2, "happy": 3, "gentle": 4, "turn": 5, "session": 5}[
+        failure_at
+    ]
+    assert len(conversation._models) == expected
+    for model in boundary.models[:expected]:
         model.aclose.assert_awaited_once()
+    for model in boundary.models[expected:]:
+        model.aclose.assert_not_awaited()
+    mcp.close.assert_awaited_once()
+    boundary.session.say.assert_not_awaited()
+    await conversation.close()
 
 
-async def test_close_during_start_is_not_reported_as_success(
-    private_settings: Settings, lifecycle_boundary: SimpleNamespace
+@pytest.mark.parametrize("failure", ["mcp", "session", "owner", "snapshot"])
+async def test_start_failure_never_says_greeting_or_notifies_runtime_completion(
+    failure: str,
+    private_settings: Settings,
+    boundary: SimpleNamespace,
 ) -> None:
-    """启动期间主动结束必须阻止开场白；提前监听 close 保证竞态也能释放模型。"""
-
-    async def stop_during_start(**kwargs: object) -> None:
-        """在启动返回前触发真实注册的关闭回调，避免靠偶然的任务时序复现。"""
-        callbacks = {
-            call.args[0]: call.args[1] for call in lifecycle_boundary.session.on.call_args_list
-        }
-        callbacks["close"](Mock())
-
-    lifecycle_boundary.session.start.side_effect = stop_during_start
+    """外部初始化失败按原异常传播，已经登记的模型仍全部关闭，不能假装运行态成功。"""
+    mcp = Mock(close=AsyncMock(), tools=AsyncMock(return_value=[]))
+    if failure == "mcp":
+        mcp.tools.side_effect = RuntimeError("初始化失败")
+    elif failure == "session":
+        boundary.session.start.side_effect = RuntimeError("初始化失败")
+    elif failure == "owner":
+        boundary.connection.bind.side_effect = RuntimeError("初始化失败")
+    else:
+        boundary.room.local_participant.register_rpc_method.side_effect = RuntimeError("初始化失败")
+    terminal = Mock()
     conversation = livekit_conversation.LiveKitVoiceConversation(
-        room=Mock(), settings=private_settings, vad=Mock()
+        room=boundary.room, settings=private_settings, vad=Mock(), mcp=mcp, on_terminal=terminal
+    )
+    with pytest.raises(RuntimeError, match="初始化失败"):
+        await conversation.start(AssistantProfile())
+    terminal.assert_not_called()
+    boundary.session.say.assert_not_awaited()
+    for model in boundary.models:
+        model.aclose.assert_awaited_once()
+    mcp.close.assert_awaited_once()
+    assert not conversation._started
+
+
+@pytest.mark.parametrize("event_name", ["close", "error"])
+async def test_close_during_start_propagates_failure(
+    event_name: str,
+    private_settings: Settings,
+    boundary: SimpleNamespace,
+) -> None:
+    """SDK 并发结束必须阻止启动成功，不能让开场白进入已经关闭的资源。"""
+
+    async def stop_during_start(**_kwargs) -> None:
+        """事件发生在 SDK start 返回前，避免依赖调度偶然覆盖竞态。"""
+        callbacks = {call.args[0]: call.args[1] for call in boundary.session.on.call_args_list}
+        callbacks[event_name](SimpleNamespace(error=SimpleNamespace(recoverable=False)))
+
+    boundary.session.start.side_effect = stop_during_start
+    terminal = Mock()
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock(), on_terminal=terminal
     )
     with pytest.raises(RuntimeError, match="启动完成前已关闭"):
         await conversation.start(AssistantProfile())
-    lifecycle_boundary.session.say.assert_not_awaited()
-    lifecycle_boundary.session.aclose.assert_awaited_once()
+    terminal.assert_not_called()
+    boundary.session.aclose.assert_awaited_once()
 
 
-async def test_cancelled_close_waiter_does_not_cancel_resource_cleanup(
-    private_settings: Settings, lifecycle_boundary: SimpleNamespace
+@pytest.mark.parametrize("event_name", ["close", "error", "connection"])
+async def test_runtime_terminal_closes_once_then_notifies_job(
+    event_name: str,
+    private_settings: Settings,
+    boundary: SimpleNamespace,
 ) -> None:
-    """页面或 Job 取消等待不应取消实际回收，后续等待必须得到同一次清理的结果。"""
+    """同步 SDK 事件只调度回收，宿主通知发生在模型和协议资源释放之后。"""
+    closed = []
+    terminal = Mock(side_effect=lambda: closed.append("terminal"))
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock(), on_terminal=terminal
+    )
+    await conversation.start(AssistantProfile())
+    boundary.session.aclose.side_effect = lambda: closed.append("session")
+    boundary.connection.aclose.side_effect = lambda: closed.append("connection")
+    for index, model in enumerate(boundary.models):
+        model.aclose.side_effect = lambda index=index: closed.append(index)
+    callbacks = {call.args[0]: call.args[1] for call in boundary.session.on.call_args_list}
+    callbacks["error"](SimpleNamespace(error=SimpleNamespace(recoverable=True)))
+    assert conversation._close_task is None
+    if event_name == "connection":
+        conversation._on_connection_end()
+    else:
+        callbacks[event_name](SimpleNamespace(error=SimpleNamespace(recoverable=False)))
+    await asyncio.gather(conversation.close(), conversation.close())
+    callbacks["close"](Mock())
+    await conversation.close()
+    assert closed == ["connection", "session", 4, 3, 2, 1, 0, "terminal"]
+    terminal.assert_called_once()
+    assert not conversation._snapshot_endpoint.registered
+
+
+async def test_cancelled_close_waiter_does_not_cancel_cleanup(
+    private_settings: Settings,
+    boundary: SimpleNamespace,
+) -> None:
+    """调用者取消等待不能中断实际释放；下一位关闭者共享同一清理任务。"""
     entered, release = asyncio.Event(), asyncio.Event()
 
-    async def delayed_session_close() -> None:
-        """明确控制 SDK 回收等待，验证 shield 不会因调用者取消而中断释放。"""
+    async def delayed_close() -> None:
+        """用明确等待控制回收中间窗口，取消断言无需真实网络或计时碰巧。"""
         entered.set()
         await release.wait()
 
-    lifecycle_boundary.session.aclose.side_effect = delayed_session_close
+    boundary.session.aclose.side_effect = delayed_close
     conversation = livekit_conversation.LiveKitVoiceConversation(
-        room=Mock(), settings=private_settings, vad=Mock()
+        room=boundary.room, settings=private_settings, vad=Mock()
     )
     await conversation.start(AssistantProfile())
     waiter = asyncio.create_task(conversation.close())
@@ -235,36 +293,117 @@ async def test_cancelled_close_waiter_does_not_cancel_resource_cleanup(
         await waiter
     release.set()
     await conversation.close()
-    lifecycle_boundary.session.aclose.assert_awaited_once()
-    for model in lifecycle_boundary.models:
+    boundary.session.aclose.assert_awaited_once()
+    for model in boundary.models:
         model.aclose.assert_awaited_once()
 
 
-async def test_builtin_and_mcp_tools_are_added_to_the_agent(
-    monkeypatch: pytest.MonkeyPatch,
+async def test_owner_wait_cancel_releases_resources_and_revokes_snapshot(
     private_settings: Settings,
+    boundary: SimpleNamespace,
 ) -> None:
-    """装配后的实际 Agent 同时拿到内置与远程工具，而不是只生成未使用的工具列表。"""
-    from livekit.agents.llm import function_tool
+    """启动取消仍回收全部已创建资源，不能保留已登记但没有用户的就绪入口。"""
+    entered = asyncio.Event()
 
-    session = Mock(start=AsyncMock(), aclose=AsyncMock())
-    monkeypatch.setattr(livekit_conversation, "AgentSession", Mock(return_value=session))
-    remote = function_tool(
-        AsyncMock(),
-        raw_schema={"name": "demo__lookup", "parameters": {"type": "object", "properties": {}}},
+    async def wait_for_owner(_room_io) -> None:
+        """只阻塞用户绑定，保证取消发生在快照登记之后。"""
+        entered.set()
+        await asyncio.Event().wait()
+
+    boundary.connection.bind.side_effect = wait_for_owner
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock()
     )
-    mcp = Mock(tools=AsyncMock(return_value=[remote]), close=AsyncMock())
-    adapter = livekit_conversation.LiveKitVoiceConversation(
-        room=Mock(),
-        settings=private_settings,
-        vad=Mock(),
-        tools=AssistantToolAdapter(AssistantTools(clock=SystemClock())),
-        mcp=mcp,
+    task = asyncio.create_task(conversation.start(AssistantProfile()))
+    await entered.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert not conversation._snapshot_endpoint.registered
+    for model in boundary.models:
+        model.aclose.assert_awaited_once()
+
+
+async def test_close_failure_does_not_skip_other_resources(
+    private_settings: Settings,
+    boundary: SimpleNamespace,
+) -> None:
+    """局部 SDK 释放失败不能跳过模型或 MCP，重复关闭仍只消费同一次失败。"""
+    mcp = Mock(close=AsyncMock(), tools=AsyncMock(return_value=[]))
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock(), mcp=mcp
     )
-    try:
-        await adapter.start(AssistantProfile())
-        names = {tool.info.name for tool in session.start.call_args.kwargs["agent"].tools}
-        assert "calculate" in names and "demo__lookup" in names
-    finally:
-        await adapter.close()
+    await conversation.start(AssistantProfile())
+    boundary.session.aclose.side_effect = RuntimeError("回收失败")
+    with pytest.raises(RuntimeError, match="回收失败"):
+        await conversation.close()
+    for model in boundary.models:
+        model.aclose.assert_awaited_once()
     mcp.close.assert_awaited_once()
+
+
+async def test_snapshot_readiness_requires_binding_and_live_owner(
+    private_settings: Settings,
+    boundary: SimpleNamespace,
+) -> None:
+    """登记并不等于 ready，过期用户 SID、未绑定和关闭状态都不能读取授权快照。"""
+
+    async def inspect_pending(_room_io) -> None:
+        """读取真正登记的 handler，避免用 mock ready 值代替端点行为。"""
+        handler = boundary.room.local_participant.register_rpc_method.call_args.args[1]
+        with pytest.raises(rtc.RpcError):
+            await handler(SimpleNamespace(caller_identity="owner"))
+
+    boundary.connection.bind.side_effect = inspect_pending
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock()
+    )
+    await conversation.start(AssistantProfile())
+    method, handler = boundary.room.local_participant.register_rpc_method.call_args.args
+    assert method == "xiaoya.getDeliverySnapshot"
+    payload = json.loads(await handler(SimpleNamespace(caller_identity="owner")))
+    assert payload["instance"] == conversation._snapshot_endpoint.instance
+    assert payload["revision"] == 3 and payload["v"] == 1
+    boundary.connection.is_owner.return_value = False
+    with pytest.raises(rtc.RpcError):
+        await handler(SimpleNamespace(caller_identity="owner"))
+    boundary.connection.is_owner.return_value = True
+    conversation._schedule_close()
+    with pytest.raises(rtc.RpcError):
+        await handler(SimpleNamespace(caller_identity="owner"))
+    await conversation.close()
+    boundary.room.local_participant.unregister_rpc_method.assert_called_once_with(method)
+
+
+async def test_console_uses_same_voice_without_room_output_or_snapshot(
+    private_settings: Settings,
+    boundary: SimpleNamespace,
+) -> None:
+    """Console 的公开 IO 属性明确不存在，声音与协议共用而不等待不存在的房间用户。"""
+    type(boundary.session).room_io = PropertyMock(side_effect=RuntimeError("no room IO"))
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock()
+    )
+    await conversation.start(AssistantProfile())
+    agent = boundary.session.start.call_args.kwargs["agent"]
+    assert agent.environment.channel == "console"
+    agent.enable_delivery.assert_not_awaited()
+    boundary.connection.bind.assert_not_awaited()
+    boundary.room.local_participant.register_rpc_method.assert_not_called()
+    await conversation.say("本机测试。")
+    boundary.session.say.assert_awaited_once_with("[xiaoya:happy|wave]本机测试。")
+    await conversation.close()
+
+
+@pytest.mark.parametrize(
+    "metadata,channel",
+    [
+        ('{"xiaoya":{"v":1,"client":"web"}}', "web"),
+        ("{}", "room"),
+        ('{"xiaoya":{"v":true,"client":"web"}}', "room"),
+        ("invalid", "room"),
+    ],
+)
+def test_channel_only_accepts_signed_fixed_metadata(metadata, channel) -> None:
+    """任意房名和未验证描述不能作为高优先级模型指令，只有固定网页标识影响渠道。"""
+    assert livekit_conversation._room_channel(metadata) == channel

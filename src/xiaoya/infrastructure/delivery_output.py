@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import json
 import logging
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass
 from typing import Literal, TypeVar
 from uuid import uuid4
@@ -37,6 +37,79 @@ class DeliveryState:
     def to_json(self) -> str:
         """小型控制消息不带正文，重连快照无需读取或泄露聊天记录。"""
         return json.dumps(asdict(self), ensure_ascii=False, separators=(",", ":"))
+
+
+class DeliverySnapshotEndpoint:
+    """就绪校验独立于可选表现输出，同一房间会话只拥有一个公开快照入口。"""
+
+    def __init__(
+        self,
+        room: rtc.Room,
+        *,
+        ready: Callable[[str], bool],
+        state: Callable[[], DeliveryState | None],
+        instance: str | None = None,
+    ) -> None:
+        """注册失败交由会话启动传播；稳定中性实例让关闭表现的会话仍能证明真实就绪。"""
+        self._room = room
+        self._participant = room.local_participant
+        self._ready = ready
+        self._state = state
+        self._fallback = DeliveryState(instance=instance or uuid4().hex)
+        self._registered = False
+        self._closed = False
+        try:
+            self._participant.register_rpc_method(DELIVERY_SNAPSHOT_RPC, self._snapshot)
+        except Exception:
+            # SDK 可能先保存回调再注册 FFI；只清理本入口，已捕获的回调也必须永远关门。
+            self._closed = True
+            with contextlib.suppress(Exception):
+                self._participant.unregister_rpc_method(DELIVERY_SNAPSHOT_RPC)
+            raise
+        self._registered = True
+
+    @property
+    def instance(self) -> str:
+        """实例由入口唯一生成，装饰输出不能额外建立第二个身份空间。"""
+        return self._fallback.instance
+
+    @property
+    def registered(self) -> bool:
+        """只暴露本地拥有权，注销失败也不能让迟到调用继续得到授权。"""
+        return self._registered and not self._closed
+
+    async def _snapshot(self, data: rtc.RpcInvocationData) -> str:
+        """先验证传输身份与业务就绪再读状态；表现故障只能降为中性，不能放宽授权。"""
+        identity = data.caller_identity
+        if (
+            not self.registered
+            or not identity
+            or identity not in self._room.remote_participants
+            or not self._ready(identity)
+        ):
+            raise rtc.RpcError(2001, "当前参与者尚未就绪或无权读取会话状态")
+        try:
+            state = self._state()
+            if state is None:
+                state = self._fallback
+            elif state.instance != self.instance:
+                raise ValueError("表现状态实例与会话不一致")
+            return state.to_json()
+        except Exception as error:
+            _LOGGER.warning("读取表现状态失败，返回中性快照（%s）", type(error).__name__)
+            return self._fallback.to_json()
+
+    async def aclose(self) -> None:
+        """同步撤销授权后仅注销一次，无网络等待，也不让单点失败阻止其他资源回收。"""
+        if self._closed:
+            return
+        self._closed = True
+        registered, self._registered = self._registered, False
+        if registered:
+            try:
+                self._participant.unregister_rpc_method(DELIVERY_SNAPSHOT_RPC)
+            except Exception as error:
+                _LOGGER.warning("注销会话快照失败（%s）", type(error).__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,16 +147,22 @@ class DeliveryTextOutput(io.TextOutput):
     """同步器之后的尽力输出层：字幕失败不终止音频，表达异常统一关门。"""
 
     def __init__(
-        self, room: rtc.Room, *, instance: str | None = None, io_timeout: float = 1.0
+        self,
+        room: rtc.Room,
+        *,
+        io_timeout: float = 1.0,
+        snapshot_endpoint: DeliverySnapshotEndpoint,
     ) -> None:
-        """每个房间会话独占快照和队列，网络超时只约束装饰输出而不约束用户说话。"""
+        """输出只借用会话快照；所有权不随字幕故障变化，超时仅约束装饰通道。"""
         super().__init__(label="xiaoya.delivery", next_in_chain=None)
         if io_timeout <= 0:
             raise ValueError("字幕网络超时必须大于零")
+        if not snapshot_endpoint.registered:
+            raise ValueError("表现输出需要已登记的会话快照")
         self._room = room
         self._participant = room.local_participant
         self._io_timeout = io_timeout
-        self._state = DeliveryState(instance=instance or uuid4().hex)
+        self._state = DeliveryState(instance=snapshot_endpoint.instance)
         self._bound: _Binding | None = None
         self._segment: _Segment | None = None
         self._cancelled_replies: set[str] = set()
@@ -91,12 +170,7 @@ class DeliveryTextOutput(io.TextOutput):
         self._worker: asyncio.Task[None] | None = None
         self._close_task: asyncio.Task[None] | None = None
         self._accepting = True
-        self._rpc_registered = False
-        try:
-            self._participant.register_rpc_method(DELIVERY_SNAPSHOT_RPC, self._snapshot)
-            self._rpc_registered = True
-        except Exception as error:
-            self._warn("注册快照", error)
+        self._snapshot_endpoint = snapshot_endpoint
 
     @property
     def snapshot(self) -> DeliveryState:
@@ -152,12 +226,6 @@ class DeliveryTextOutput(io.TextOutput):
             self._accepting = False
             self._close_task = asyncio.create_task(self._shutdown(), name="xiaoya-delivery-close")
         await asyncio.shield(self._close_task)
-
-    async def _snapshot(self, data: rtc.RpcInvocationData) -> str:
-        """身份只取 SDK 认证的调用上下文，正文内伪造的 identity 不参与授权。"""
-        if not data.caller_identity or data.caller_identity not in self._room.remote_participants:
-            raise rtc.RpcError(2001, "当前参与者无权读取会话状态")
-        return self._state.to_json()
 
     def _enqueue(self, operation: _Operation) -> None:
         """懒启动唯一工作任务，让同步 flush 与正文共享同一网络发送次序。"""
@@ -220,14 +288,13 @@ class DeliveryTextOutput(io.TextOutput):
             await self._close_expression(binding)
 
     async def _open_segment(self, segment: _Segment) -> None:
-        """首个获准正文才创建 active，状态失败仍尝试纯字幕而不会伪造表达许可。"""
+        """共享入口仍有效才创建 active；失去快照能力时继续纯字幕，不伪造可恢复的表达许可。"""
         binding = segment.binding
         attributes = {
             "lk.segment_id": binding.segment_id,
             "lk.transcription_final": "false",
-            "lk.expression": '{"expression":"neutral","mood":"neutral"}',
         }
-        if binding.reply_id and self._rpc_registered:
+        if binding.reply_id and self._snapshot_endpoint.registered:
             live = self._bound == binding
             intent = binding.intent if live else DeliveryIntent()
             self._state = DeliveryState(
@@ -243,10 +310,6 @@ class DeliveryTextOutput(io.TextOutput):
             if not success or binding.reply_id in self._cancelled_replies or self._bound != binding:
                 await self._close_expression(binding)
             attributes[DELIVERY_TOPIC] = self._state.to_json()
-            attributes["lk.expression"] = json.dumps(
-                {"expression": self._state.style, "mood": self._state.style},
-                separators=(",", ":"),
-            )
         if binding.reply_id in self._cancelled_replies:
             return
         success, writer = await self._network(
@@ -313,13 +376,7 @@ class DeliveryTextOutput(io.TextOutput):
             return False, None
 
     async def _shutdown(self) -> None:
-        """不等待已经过时的排队字幕，回收任务后只对当前输出做有限时长收尾。"""
-        if self._rpc_registered:
-            self._rpc_registered = False
-            try:
-                self._participant.unregister_rpc_method(DELIVERY_SNAPSHOT_RPC)
-            except Exception as error:
-                self._warn("注销快照", error)
+        """表现只回收自身队列和字幕，共享快照始终由会话独立回收。"""
         if self._worker is not None:
             self._worker.cancel()
             with contextlib.suppress(asyncio.CancelledError):

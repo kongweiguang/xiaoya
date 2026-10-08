@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { advanceFrameDeadline, easeParameter, selectBehavior } from '../lib/avatar/behavior.ts';
+import { advanceFrameDeadline, selectBehavior } from '../lib/avatar/behavior.ts';
 
 /** 在144Hz每次等满16.7ms会退化为48fps，必须验证调度保留取整余数。 */
 test('60 fps 调度在 60、144、165 Hz 下均不因取整降低帧率', () => {
@@ -47,35 +47,4 @@ test('已连接会话区分倾听、思考与说话，未知状态保留倾听',
   assert.equal(selectBehavior({ ...connected, agent: 'speaking' }), 'speaking');
   assert.equal(selectBehavior({ ...connected, agent: 'initializing' }), 'listening');
   assert.equal(selectBehavior({ ...connected, agent: 'future-sdk-state' }), 'listening');
-});
-
-/** 保证不同设备的刷新率得到相同的动作速度，避免降为 30 fps 后人物明显迟钝。 */
-test('30 fps 与 60 fps 在相同播放时长达到相同姿态', () => {
-  let at30 = -4;
-  let at60 = -4;
-  for (let frame = 0; frame < 30; frame += 1) at30 = easeParameter(at30, 6, 1 / 30);
-  for (let frame = 0; frame < 60; frame += 1) at60 = easeParameter(at60, 6, 1 / 60);
-  assert.ok(Math.abs(at30 - at60) < 1e-12);
-  assert.ok(at30 > 5.99 && at30 < 6);
-});
-
-/** 姿态变换必须单调接近目标，收敛时不越界；负方向的头部和手臂也遵守同一约束。 */
-test('过渡不会过冲，反向姿态同样平滑，零时间保持原值', () => {
-  assert.equal(easeParameter(2, -7, 0), 2);
-  assert.equal(easeParameter(3, 3, 1 / 60), 3);
-  let current = 2;
-  for (let frame = 0; frame < 120; frame += 1) {
-    const next = easeParameter(current, -7, 1 / 60);
-    assert.ok(next >= -7 && next <= current);
-    current = next;
-  }
-  assert.ok(Math.abs(current + 7) < 1e-6);
-});
-
-/** 后台停留十分钟也不能在恢复首帧瞬移到新表情，否则恢复连接会产生可见跳变。 */
-test('长时间后台恢复的首步有界，仍保留后续平滑过渡', () => {
-  const afterPause = easeParameter(-4, 6, 600);
-  assert.ok(afterPause > -4 && afterPause < 0);
-  const next = easeParameter(afterPause, 6, 1 / 60);
-  assert.ok(next > afterPause && next < 6);
 });

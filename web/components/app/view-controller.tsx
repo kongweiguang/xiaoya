@@ -1,27 +1,30 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LoaderCircle, MessageCircle, Sprout } from 'lucide-react';
-import { useSessionMessages } from '@livekit/components-react';
 import { StartAudioButton } from '@/components/agents-ui/start-audio-button';
 import { AvatarStage } from '@/components/app/avatar-stage';
 import { ConversationControls } from '@/components/app/conversation-controls';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { useConversation } from '@/hooks/use-conversation';
+import type { Conversation } from '@/hooks/use-conversation';
 import { groupReplyMessages } from '@/lib/avatar/delivery';
-import avatarPoster from '@/public/avatar/xiaoya/poster.png';
+import avatarPoster from '@/public/avatar/xiaoya/concept-v1/poster.png';
 
-/** 舞台与字幕共用真实会话及带内容指纹的形象；键盘出现时保留对话和操作，等待及错误都有退出入口。 */
-export function ViewController({ resetRoom }: { resetRoom: () => void }) {
-  const conversation = useConversation(resetRoom);
-  const { messages, send, isSending } = useSessionMessages();
+/** 页面持有未发送草稿；结束和故障只回收连接，只有成功发送才清空提交的文字。 */
+export function ViewController({ conversation }: { conversation: Conversation }) {
+  const { messages, send, sending: isSending, attempt, peer } = conversation;
+  const [draft, setDraft] = useState('');
   const displayMessages = groupReplyMessages(messages);
   const scroll = useRef<HTMLDivElement>(null);
   const lastScroll = useRef(true);
   const app = useRef<HTMLElement>(null);
+  /** 新会话从最新回复开始，同一会话的恢复仍保留用户主动翻阅历史的位置。 */
+  useEffect(() => {
+    lastScroll.current = true;
+  }, [conversation.conversationId]);
   /** 只在挂载期间追踪视口，卸载解除监听，避免反复会话积累布局事件。 */
   useEffect(() => {
     /** 按可见高度收起装饰，让软键盘和长草稿同时出现时仍能阅读回复；缩放不触发重排。 */
@@ -42,21 +45,35 @@ export function ViewController({ resetRoom }: { resetRoom: () => void }) {
       window.removeEventListener('resize', resize);
     };
   }, []);
-  const connected = conversation.phase === 'active';
+  const connected = conversation.phase === 'active' || conversation.phase === 'recovering';
+  const reconnecting = conversation.phase === 'recovering';
   const connecting = conversation.phase === 'connecting';
   const status = connecting
     ? '正在连接，马上就好…'
     : conversation.phase === 'ending'
       ? '正在结束聊天…'
-      : conversation.reconnecting
+      : reconnecting
         ? '正在恢复连接…'
         : !connected
-          ? '在这里，等你开口'
-          : conversation.agent.state === 'speaking'
+          ? '在这里，等你来聊'
+          : peer.state === 'speaking'
             ? '正在和你说话'
-            : conversation.agent.state === 'thinking'
+            : peer.state === 'thinking'
               ? '让我想一想…'
-              : '正在听你说';
+              : conversation.microphoneCapturing
+                ? '正在听你说'
+                : '等你发来消息';
+  const guidance = connecting
+    ? '正在连接，可以随时取消。'
+    : conversation.phase === 'ending'
+      ? '正在结束聊天，未发送的文字会保留。'
+      : reconnecting
+        ? '正在恢复连接，未发送的文字会保留。'
+        : connected
+          ? conversation.microphoneCapturing
+            ? '随时开口，也可以打字。说话时可以打断我。'
+            : '可以打字，也可以开启麦克风。'
+          : '一个会倾听、会思考的小伙伴。';
   useEffect(() => {
     if (lastScroll.current && scroll.current)
       scroll.current.scrollTop = scroll.current.scrollHeight;
@@ -86,10 +103,14 @@ export function ViewController({ resetRoom }: { resetRoom: () => void }) {
       <div className="conversation-layout">
         <AvatarStage
           connected={connected}
-          reconnecting={conversation.reconnecting}
+          reconnecting={reconnecting}
           status={status}
           error={!!conversation.error}
           messages={messages}
+          room={attempt?.room}
+          audio={attempt?.audio ?? null}
+          peer={peer}
+          delivery={conversation.controller.delivery}
         />
         <section className="transcript-panel" aria-label="对话字幕">
           <div className="transcript-heading">
@@ -118,7 +139,7 @@ export function ViewController({ resetRoom }: { resetRoom: () => void }) {
                   <br />
                   或分享一件有趣的小事。
                 </p>
-                <span>你的话，我都在听。</span>
+                <span>你的分享，我会认真回应。</span>
               </div>
             )}
             {displayMessages.map(({ id, timestamp, from, message }) => (
@@ -137,7 +158,7 @@ export function ViewController({ resetRoom }: { resetRoom: () => void }) {
                 </div>
               </div>
             ))}
-            {connected && conversation.agent.state === 'thinking' && (
+            {connected && !reconnecting && peer.state === 'thinking' && (
               <p className="thinking-indicator" role="status">
                 <span />
                 小芽正在想一想…
@@ -151,13 +172,17 @@ export function ViewController({ resetRoom }: { resetRoom: () => void }) {
           <p>{conversation.error}</p>
         </div>
       )}
-      {connected ? (
+      {connected && attempt ? (
         <ConversationControls
           key={conversation.conversationId}
-          ready={!conversation.reconnecting}
+          draft={draft}
+          setDraft={setDraft}
+          ready={!reconnecting}
+          room={attempt.room}
           send={send}
           sending={isSending}
           end={conversation.end}
+          onMicrophoneChange={attempt.reportMicrophone}
         />
       ) : (
         <div className="welcome-controls">
@@ -195,9 +220,11 @@ export function ViewController({ resetRoom }: { resetRoom: () => void }) {
           )}
         </div>
       )}
-      {connected && <StartAudioButton label="点击开启声音" className="start-audio" />}
+      {connected && attempt && (
+        <StartAudioButton room={attempt.room} label="点击开启声音" className="start-audio" />
+      )}
       <footer className="app-footer">
-        {connected ? '随时开口，也可以打字。说话时可以打断我。' : '一个会倾听、会思考的小伙伴。'}
+        {guidance}
         <span>{connected ? 'Enter 发送 · Shift + Enter 换行' : '也可以直接用文字聊天。'}</span>
       </footer>
     </main>

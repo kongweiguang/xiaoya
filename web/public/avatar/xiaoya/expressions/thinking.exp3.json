@@ -5,6 +5,9 @@
   "Parameters": [
     { "Id": "ParamBrowLY", "Value": 0.25, "Blend": "Add" },
     { "Id": "ParamBrowRY", "Value": -0.12, "Blend": "Add" },
+    { "Id": "ParamBrowLAngle", "Value": 0.32, "Blend": "Add" },
+    { "Id": "ParamBrowRAngle", "Value": -0.25, "Blend": "Add" },
+    { "Id": "ParamEyeSmile", "Value": 0, "Blend": "Overwrite" },
     { "Id": "ParamEyeBallX", "Value": 0.2, "Blend": "Add" },
     { "Id": "ParamEyeBallY", "Value": 0.12, "Blend": "Add" }
   ]

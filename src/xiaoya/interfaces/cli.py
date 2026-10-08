@@ -9,13 +9,18 @@ from io import TextIOWrapper
 from pathlib import Path
 
 from dotenv import load_dotenv
-from livekit.agents import AgentServer, JobContext
+from livekit.agents import JobContext
 
-from xiaoya.bootstrap import agent_name, prepare_conversation, prewarm, validate_configuration
+from xiaoya.bootstrap import (
+    agent_name,
+    prepare_conversation,
+    prepare_server,
+    validate_configuration,
+)
 
 load_dotenv(Path.cwd() / ".env.local", override=False)
 
-server = AgentServer(setup_fnc=prewarm)
+server = prepare_server()
 
 
 @server.rtc_session(agent_name=agent_name())
@@ -25,20 +30,18 @@ async def voice_agent(context: JobContext) -> None:
 
 
 def main() -> None:
-    """本地语音与 DeepSeek 交给官方 CLI，MCP 独立启动；子进程退出状态原样传播。"""
+    """本地语音与 DeepSeek 交给官方 CLI；独立示例不进入生产启动入口。"""
     os.environ.setdefault("PYTHONUTF8", "1")
     os.environ["PYTHONIOENCODING"] = "utf-8"
     for stream in (sys.stdout, sys.stderr):
         if isinstance(stream, TextIOWrapper):
             stream.reconfigure(encoding="utf-8")
 
-    parser = argparse.ArgumentParser(description="LiveKit 中文语音助手与 MCP 演示服务")
-    parser.add_argument("command", choices=("console", "dev", "start", "download-files", "mcp"))
+    parser = argparse.ArgumentParser(description="LiveKit 中文语音助手")
+    parser.add_argument("command", choices=("console", "dev", "start", "download-files"))
     parser.add_argument("options", nargs=argparse.REMAINDER, help="原样转发到所选启动命令的参数")
     arguments = parser.parse_args()
-    if arguments.command == "mcp":
-        command = [sys.executable, "-m", "xiaoya.interfaces.mcp_demo", *arguments.options]
-    elif arguments.command == "download-files":
+    if arguments.command == "download-files":
         command = [sys.executable, "-m", "livekit.agents", "download-files", *arguments.options]
     else:
         inspection_only = {"--help", "-h", "--list-devices"}.intersection(arguments.options)

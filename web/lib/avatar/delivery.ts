@@ -16,8 +16,8 @@ export type DeliveryMessage = {
   attributes?: Record<string, string>;
   from?: { identity: string; isLocal: boolean };
 };
-const styles = new Set(['neutral', 'happy', 'gentle', 'concerned', 'curious']);
-const gestures = new Set(['none', 'nod', 'tilt', 'wave']);
+const styles = new Set(['neutral', 'happy', 'gentle', 'concerned', 'curious', 'shy', 'surprised']);
+const gestures = new Set(['none', 'nod', 'tilt', 'wave', 'shy', 'shake']);
 
 /** 小型版本化消息只描述受控表现，损坏或未知协议保持中性而不影响字幕。 */
 export function parseDelivery(value: string): DeliveryState | null {
@@ -52,6 +52,25 @@ export class DeliveryGate {
   private consumedRevision = -1;
   private blockedReply: string | null = null;
   private synchronized = false;
+  private presentationInvalidated = false;
+  private recoveryFence: {
+    instance: string;
+    revision: number;
+    reply: string | null;
+  } | null = null;
+
+  /** 连接代次仍独占回调，但保留旧回复取消边界；不同 Agent 实例必须由新快照解除。 */
+  constructor(previous?: DeliveryGate) {
+    this.presentationInvalidated = previous?.presentationInvalidated ?? false;
+    const prior = previous?.current ?? previous?.pending;
+    this.recoveryFence = prior
+      ? {
+          instance: prior.instance,
+          revision: Math.max(prior.revision, previous!.consumedRevision),
+          reply: prior.state === 'active' ? prior.reply_id : previous!.blockedReply,
+        }
+      : (previous?.recoveryFence ?? null);
+  }
 
   /** 只读开发诊断只含协议身份与门控状态，不暴露文本、凭据或音频。 */
   get diagnostics() {
@@ -76,19 +95,38 @@ export class DeliveryGate {
     this.apply(state);
   }
 
-  /** 快照不能覆盖订阅期间已到达的新状态；其他实例的数据不参与当前连接。 */
+  /** 快照先合并订阅状态；同步前真实失效过的表现只建基线，不让迟到回复补演。 */
   snapshot(state: DeliveryState) {
     if (this.synchronized) return;
     this.synchronized = true;
-    const next =
+    let next =
       this.pending?.instance === state.instance && this.pending.revision > state.revision
         ? this.pending
         : state;
     this.pending = null;
+    const fence = this.recoveryFence;
+    this.recoveryFence = null;
+    if (fence?.instance === next.instance) {
+      this.blockedReply = fence.reply;
+      this.consumedRevision = fence.revision;
+      // 旧快照也不能回退已知序号；只恢复基线，等待权威的新回复而不补演旧段。
+      if (next.revision < fence.revision)
+        next = {
+          ...next,
+          revision: fence.revision,
+          state: 'closed',
+          style: 'neutral',
+          gesture: 'none',
+        };
+    }
     this.apply(next);
+    if (this.presentationInvalidated) {
+      this.presentationInvalidated = false;
+      this.interrupt();
+    }
   }
 
-  /** 每个 active 必须匹配同步字幕头，旧段首次迟到也不能通过当前状态栅栏。 */
+  /** active 必须匹配字幕头；replyKey 显式携带实例/回复而不解析段 ID，JSON 二元数组避免拼接歧义。 */
   offer(messages: readonly DeliveryMessage[], agentIdentity: string) {
     const state = this.current;
     if (
@@ -113,6 +151,7 @@ export class DeliveryGate {
       ) {
         this.candidate = {
           id: `${state.instance}:${state.revision}:${state.segment_id}`,
+          replyKey: JSON.stringify([state.instance, state.reply_id]),
           style: state.style,
           gesture: state.gesture,
         };
@@ -129,6 +168,12 @@ export class DeliveryGate {
     }
     this.candidate = null;
     this.displayed = null;
+  }
+
+  /** 真实播放能力失效才延续取消到首份快照；普通初始化不能消耗尚未开始的开场白。 */
+  invalidatePresentation() {
+    if (!this.synchronized) this.presentationInvalidated = true;
+    this.interrupt();
   }
 
   /** 首次表现等待真实音频；句内短暂静音保留神态，手势不会因静音重新触发。 */

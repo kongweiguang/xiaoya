@@ -27,9 +27,9 @@
     "**/*.ts",
     "**/*.tsx",
     ".next-build/types/**/*.ts",
+    ".next-dev-3000/types/**/*.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts",
-    ".next-delivery/types/**/*.ts"
+    "next-env.d.ts"
   ],
   "exclude": ["node_modules", "lib/avatar/vendor-source"]
 }
