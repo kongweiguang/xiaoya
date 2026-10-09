@@ -5,7 +5,7 @@ export type SessionAudio = {
   close: () => Promise<void>;
 };
 
-export type AvatarAudioBridgeOptions = {
+type AvatarAudioBridgeOptions = {
   context: AudioContext;
   onSamples: (samples: Float32Array, sampleRate: number, at: number) => void;
   onSilent: () => void;

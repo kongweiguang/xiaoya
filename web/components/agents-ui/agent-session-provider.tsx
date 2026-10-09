@@ -11,7 +11,7 @@ import {
  * Props for the AgentSessionProvider component.
  * Combines SessionProviderProps with RoomAudioRendererProps.
  */
-export type AgentSessionProviderProps = SessionProviderProps &
+type AgentSessionProviderProps = SessionProviderProps &
   RoomAudioRendererProps & {
     /**
      * The room to provide.

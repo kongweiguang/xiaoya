@@ -2,60 +2,26 @@
 
 import argparse
 import asyncio
-import io
 import json
 import os
 import sys
 import time
 import uuid
-import wave
 from collections import Counter
-from collections.abc import Callable
 from pathlib import Path
 
 import httpx
 import numpy as np
 from dotenv import load_dotenv
 from livekit import api, rtc
-from verification_room import create_verification_resources, verification_cleanup
+from verification_room import (
+    create_verification_resources,
+    publish_wav,
+    verification_cleanup,
+    wait_until,
+)
 
 from xiaoya.infrastructure.settings import Settings, validate_credentials
-
-
-async def wait_until(predicate: Callable[[], bool], timeout: float = 60) -> None:
-    """每一步单独限时，失败保留证据且始终进入房间清理。"""
-    deadline = time.monotonic() + timeout
-    while not predicate():
-        if time.monotonic() >= deadline:
-            raise TimeoutError("房间验收阶段超时")
-        await asyncio.sleep(0.05)
-
-
-async def publish_wav(source: rtc.AudioSource, content: bytes) -> int:
-    """按实时麦克风速率发送合成音频，补充静音让本地 VAD 检测轮次结束。"""
-    with wave.open(io.BytesIO(content)) as wav:
-        if wav.getnchannels() != 1 or wav.getsampwidth() != 2:
-            raise ValueError("验收合成音频必须是单声道 16 位 PCM WAV")
-        rate = wav.getframerate()
-        pcm = np.frombuffer(wav.readframes(wav.getnframes()), dtype=np.int16)
-    if not len(pcm):
-        raise ValueError("验收合成音频不能为空")
-    count = round(len(pcm) * 48000 / rate)
-    speech = np.interp(np.arange(count) * rate / 48000, np.arange(len(pcm)), pcm)
-    output = np.concatenate((speech.astype(np.int16), np.zeros(48000, dtype=np.int16)))
-    for offset in range(0, len(output), 960):
-        chunk = output[offset : offset + 960]
-        chunk = np.pad(chunk, (0, 960 - len(chunk)))
-        await source.capture_frame(
-            rtc.AudioFrame(
-                data=chunk.tobytes(),
-                sample_rate=48000,
-                num_channels=1,
-                samples_per_channel=len(chunk),
-            )
-        )
-    await source.wait_for_playout()
-    return count
 
 
 async def verify(output: Path, environment: Path) -> None:

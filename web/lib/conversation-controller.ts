@@ -15,10 +15,10 @@ import { DeliveryGate, type SubtitleMessage } from './avatar/delivery';
 import { acknowledgeConversationEnd } from './conversation-end';
 import { DeliveryChannel } from './delivery-channel';
 
-export type ConversationPhase = 'idle' | 'connecting' | 'active' | 'recovering' | 'ending';
+type ConversationPhase = 'idle' | 'connecting' | 'active' | 'recovering' | 'ending';
 export type ConversationPeer = { state: string; agent?: RemoteParticipant; track?: Track };
 type StartupAgent = { waitUntilConnected: (signal: AbortSignal) => Promise<void> };
-export type ConversationSnapshot = {
+type ConversationSnapshot = {
   phase: ConversationPhase;
   error: string;
   microphoneFailed: boolean;

@@ -5,12 +5,12 @@ export type LipSyncFrame = {
   form: number;
 };
 
-export type LipSyncTimelineOptions = {
+type LipSyncTimelineOptions = {
   maxFrames?: number;
   maxAge?: number;
 };
 
-export type AudioLevelLipSyncOptions = {
+type AudioLevelLipSyncOptions = {
   silenceThreshold?: number;
   fullOpenRms?: number;
   attackSeconds?: number;

@@ -2,13 +2,10 @@
 
 import argparse
 import asyncio
-import io
 import json
 import os
 import sys
-import time
 import uuid
-import wave
 from pathlib import Path
 
 import httpx
@@ -16,43 +13,14 @@ import numpy as np
 from dotenv import load_dotenv
 from livekit import api, rtc
 from livekit.agents.voice.remote_session import RemoteSession
-from verification_room import create_verification_resources, verification_cleanup
+from verification_room import (
+    create_verification_resources,
+    publish_wav,
+    verification_cleanup,
+    wait_until,
+)
 
 from xiaoya.infrastructure.settings import Settings, validate_credentials
-
-
-async def wait_until(predicate, timeout: float = 60) -> None:
-    """每个阶段单独限时，不能以网页连接成功代替工具或音频结果。"""
-    deadline = time.monotonic() + timeout
-    while not predicate():
-        if time.monotonic() >= deadline:
-            raise TimeoutError("工具房间验收阶段超时")
-        await asyncio.sleep(0.05)
-
-
-async def publish_wav(source: rtc.AudioSource, content: bytes) -> int:
-    """实时送入虚拟麦克风，补充静音供 VAD 收尾；合成输入不写入音频文件。"""
-    with wave.open(io.BytesIO(content)) as wav:
-        assert wav.getnchannels() == 1 and wav.getsampwidth() == 2
-        rate = wav.getframerate()
-        pcm = np.frombuffer(wav.readframes(wav.getnframes()), dtype=np.int16)
-    assert len(pcm)
-    count = round(len(pcm) * 48000 / rate)
-    speech = np.interp(np.arange(count) * rate / 48000, np.arange(len(pcm)), pcm)
-    output = np.concatenate((speech.astype(np.int16), np.zeros(48000, dtype=np.int16)))
-    for offset in range(0, len(output), 960):
-        chunk = output[offset : offset + 960]
-        chunk = np.pad(chunk, (0, 960 - len(chunk)))
-        await source.capture_frame(
-            rtc.AudioFrame(
-                data=chunk.tobytes(),
-                sample_rate=48000,
-                num_channels=1,
-                samples_per_channel=len(chunk),
-            )
-        )
-    await source.wait_for_playout()
-    return count
 
 
 async def verify(environment: Path, output: Path, *, demo: bool = False) -> None:

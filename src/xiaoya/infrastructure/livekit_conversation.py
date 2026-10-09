@@ -60,9 +60,6 @@ class LiveKitVoiceConversation:
         self._vad = vad
         self._starting = False
         self._models: list[Any] = []
-        self._stt: LocalStreamingSTT | None = None
-        self._llm: openai.LLM | None = None
-        self._tts: openai.TTS | None = None
         self._voices: dict[str, openai.TTS] = {}
         self._session: AgentSession | None = None
         self._connection = ConversationConnection(room, self._on_connection_end)
@@ -70,9 +67,9 @@ class LiveKitVoiceConversation:
         self._snapshot_endpoint: DeliverySnapshotEndpoint | None = None
 
     def _initialize_models(self) -> None:
-        """构造只在受保护的启动内执行，每成功一步即登记，下一步失败也能精确回收。"""
+        """中间客户端只用局部变量，成功即登记唯一清理清单，下一步失败也能精确回收。"""
         settings = self._settings
-        self._stt = self._own_model(
+        stt = self._own_model(
             LocalStreamingSTT(
                 model=settings.stt_model,
                 language=settings.language,
@@ -81,7 +78,7 @@ class LiveKitVoiceConversation:
                 vad_model=self._vad,
             )
         )
-        self._llm = self._own_model(
+        llm = self._own_model(
             openai.LLM(
                 model=settings.llm_model,
                 base_url=settings.llm_base_url,
@@ -89,7 +86,7 @@ class LiveKitVoiceConversation:
                 extra_body=settings.llm_extra_body,
             )
         )
-        self._tts = self._own_model(
+        tts = self._own_model(
             openai.TTS(
                 model=settings.tts_model,
                 voice=settings.tts_voice,
@@ -98,7 +95,7 @@ class LiveKitVoiceConversation:
                 response_format=settings.tts_response_format,
             )
         )
-        self._voices = {"neutral": self._tts}
+        self._voices = {"neutral": tts}
         for preset, instructions in VOICE_INSTRUCTIONS.items():
             self._voices[preset] = self._own_model(
                 openai.TTS(
@@ -113,9 +110,9 @@ class LiveKitVoiceConversation:
         self._session = AgentSession(
             # 内部头只在公开节点解码，SDK 不能提前把带括号的正文当 Markdown 链接。
             tts_text_transforms=[],
-            stt=self._stt,
-            llm=self._llm,
-            tts=self._tts,
+            stt=stt,
+            llm=llm,
+            tts=tts,
             vad=self._vad,
             turn_handling=TurnHandlingOptions(
                 turn_detection=inference.TurnDetector(version="v1-mini"),
@@ -164,7 +161,7 @@ class LiveKitVoiceConversation:
             agent = self._expressive_agent
             await self._session.start(
                 room=self._room,
-                agent=self._expressive_agent,
+                agent=agent,
                 room_options=RoomOptions(
                     close_on_disconnect=False,
                     text_output=TextOutputOptions(sync_transcription=False),
@@ -182,8 +179,7 @@ class LiveKitVoiceConversation:
                 self._snapshot_endpoint = DeliverySnapshotEndpoint(
                     self._room, ready=self._snapshot_ready, state=self._delivery_snapshot
                 )
-                if self._expressive_agent is not None:
-                    await self._expressive_agent.enable_delivery(self._snapshot_endpoint)
+                await agent.enable_delivery(self._snapshot_endpoint)
                 await self._connection.bind(room_io)
                 channel = _room_channel(self._room.metadata)
             if self._closed:

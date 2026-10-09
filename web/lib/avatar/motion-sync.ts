@@ -1,9 +1,9 @@
 import type { CubismModel } from '@framework/model/cubismmodel';
 import { AudioLevelLipSync, type LipSyncFrame, rmsAmplitude } from './lip-sync';
 
-export type MotionSyncMode = 'motion-sync' | 'amplitude';
+type MotionSyncMode = 'motion-sync' | 'amplitude';
 
-export type MotionSyncBackend = {
+type MotionSyncBackend = {
   sampleRate: number;
   getRequiredSamples: () => number;
   analyze: (samples: Float32Array) => { consumed: number; open: number; form: number };
@@ -11,7 +11,7 @@ export type MotionSyncBackend = {
   dispose: () => void;
 };
 
-export type MotionSyncAnalyzerOptions = {
+type MotionSyncAnalyzerOptions = {
   backend?: MotionSyncBackend | null;
   onModeChange?: (mode: MotionSyncMode, error?: Error) => void;
 };

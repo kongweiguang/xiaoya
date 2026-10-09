@@ -10,8 +10,17 @@ from livekit import rtc
 from livekit.agents.llm import ChatContext
 from livekit.plugins import silero
 
+from xiaoya.infrastructure import livekit_conversation
 from xiaoya.infrastructure.livekit_conversation import LiveKitVoiceConversation
 from xiaoya.infrastructure.settings import Settings
+
+
+@pytest.fixture
+def session_factory(monkeypatch: pytest.MonkeyPatch) -> Mock:
+    """捕获 SDK 公开构造边界且仍创建真实会话，不依赖适配器为测试重复保存客户端。"""
+    factory = Mock(wraps=livekit_conversation.AgentSession)
+    monkeypatch.setattr(livekit_conversation, "AgentSession", factory)
+    return factory
 
 
 @pytest.fixture
@@ -75,9 +84,10 @@ async def test_deepseek_and_private_tts_http_contracts(
     response_format: str,
     private_settings: Settings,
     private_requests: list[httpx.Request],
+    session_factory: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """假密钥只走内存；两种音频须保留样本，PCM 仅允许 SDK 公开 emitter 的 10ms 结束静音。"""
+    """实际装配客户端只走内存，音频须保留样本；PCM 仅允许 SDK 公开 emitter 的结束静音。"""
     monkeypatch.setenv("OPENAI_API_KEY", "must-not-be-inherited")
     monkeypatch.setenv("OPENAI_BASE_URL", "https://public.invalid/v1")
     settings = replace(private_settings, tts_response_format=response_format)
@@ -88,13 +98,14 @@ async def test_deepseek_and_private_tts_http_contracts(
     adapter = LiveKitVoiceConversation(room=Mock(), settings=settings, vad=silero.VAD.load())
     try:
         adapter._initialize_models()
+        models = session_factory.call_args.kwargs
         context = ChatContext()
         context.add_message(role="user", content="你好")
-        async with adapter._llm.chat(chat_ctx=context) as stream:
+        async with models["llm"].chat(chat_ctx=context) as stream:
             chunks = [chunk async for chunk in stream]
         assert "".join(chunk.delta.content or "" for chunk in chunks if chunk.delta) == "你好"
 
-        async with adapter._tts.synthesize("你好") as stream:
+        async with models["tts"].synthesize("你好") as stream:
             audio = [chunk async for chunk in stream]
         expected = b"\x20\x00" * 2400
         if response_format == "pcm":
@@ -129,9 +140,10 @@ async def test_deepseek_stream_uses_explicit_key_and_non_thinking_request(
     base_url: str,
     private_settings: Settings,
     private_requests: list[httpx.Request],
+    session_factory: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """两个官方前缀都通过真实 SDK 生成正确路径、独立假密钥和关闭思考的 SSE 请求。"""
+    """从公开会话装配取实际客户端，验证两个官方前缀、独立假密钥和关闭思考的 SSE。"""
     monkeypatch.setenv("OPENAI_API_KEY", "must-not-be-inherited")
     settings = replace(
         private_settings,
@@ -142,9 +154,10 @@ async def test_deepseek_stream_uses_explicit_key_and_non_thinking_request(
     adapter = LiveKitVoiceConversation(room=Mock(), settings=settings, vad=silero.VAD.load())
     try:
         adapter._initialize_models()
+        model = session_factory.call_args.kwargs["llm"]
         context = ChatContext()
         context.add_message(role="user", content="你好")
-        async with adapter._llm.chat(chat_ctx=context) as stream:
+        async with model.chat(chat_ctx=context) as stream:
             chunks = [chunk async for chunk in stream]
         assert "".join(chunk.delta.content or "" for chunk in chunks if chunk.delta) == "你好"
     finally:

@@ -2,10 +2,12 @@
 
 import asyncio
 import importlib.util
+import io
 import json
 import os
 import shutil
 import subprocess
+import wave
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -308,6 +310,92 @@ async def test_resource_construction_failure_closes_prior_objects(monkeypatch, f
         source.aclose.assert_awaited_once()
 
 
+def verification_wav(*, rate=24000, channels=1, width=2, samples=480):
+    """内存构造固定合成容器，协议回归不读取真人录音，也不依赖实际 TTS 或 RTC 客户端。"""
+    content = io.BytesIO()
+    with wave.open(content, "wb") as wav:
+        wav.setframerate(rate)
+        wav.setnchannels(channels)
+        wav.setsampwidth(width)
+        wav.writeframes(b"\x01" * samples * channels * width)
+    return content.getvalue()
+
+
+@pytest.mark.parametrize("rate", [24000, 48000])
+async def test_verification_publishes_complete_frames_with_vad_silence(monkeypatch, rate):
+    """两个实际房间脚本共用完整 20 毫秒帧，尾部一秒静音与补齐保持本地 VAD 收尾约束。"""
+    module = load_deployment("verification_room")
+    frame_factory = Mock(side_effect=lambda **values: SimpleNamespace(**values))
+    monkeypatch.setattr(module.rtc, "AudioFrame", frame_factory)
+    source = SimpleNamespace(capture_frame=AsyncMock(), wait_for_playout=AsyncMock())
+    count = await module.publish_wav(source, verification_wav(rate=rate))
+    frames = [call.args[0] for call in source.capture_frame.await_args_list]
+    assert count == round(480 * 48000 / rate)
+    assert len(frames) == (count + 48000 + 959) // 960
+    assert all(
+        frame.sample_rate == 48000
+        and frame.num_channels == 1
+        and frame.samples_per_channel == 960
+        and len(frame.data) == 1920
+        for frame in frames
+    )
+    assert frames[0].data[: count * 2] == b"\x01\x01" * min(count, 960)
+    assert frames[-1].data == bytes(1920)
+    source.wait_for_playout.assert_awaited_once()
+
+
+@pytest.mark.parametrize("invalid", [{"channels": 2}, {"width": 1}, {"samples": 0}])
+async def test_verification_rejects_invalid_wav_before_publishing(invalid):
+    """格式与空内容在传输前显式失败，即使 Python 优化模式关闭 assert 也不会发出假成功。"""
+    module = load_deployment("verification_room")
+    source = SimpleNamespace(capture_frame=AsyncMock(), wait_for_playout=AsyncMock())
+    with pytest.raises(ValueError, match="验收合成音频"):
+        await module.publish_wav(source, verification_wav(**invalid))
+    source.capture_frame.assert_not_called()
+    source.wait_for_playout.assert_not_called()
+
+
+async def test_verification_upstream_cancel_does_not_send_remaining_audio(monkeypatch):
+    """关闭房间时传输取消必须原样传播，不发送剩余合成音频或等待虚假的播放完成。"""
+    module = load_deployment("verification_room")
+    monkeypatch.setattr(module.rtc, "AudioFrame", lambda **values: SimpleNamespace(**values))
+    source = SimpleNamespace(
+        capture_frame=AsyncMock(side_effect=asyncio.CancelledError), wait_for_playout=AsyncMock()
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await module.publish_wav(source, verification_wav())
+    source.capture_frame.assert_awaited_once()
+    source.wait_for_playout.assert_not_called()
+
+
+@pytest.mark.parametrize("outcome", ["ready", "later", "timeout", "cancelled"])
+async def test_verification_wait_uses_phase_budget_and_preserves_cancel(monkeypatch, outcome):
+    """阶段检查共享单调时钟与 60 秒默认预算，立即成功不等待，超时和取消不能假装通过。"""
+    module = load_deployment("verification_room")
+    predicate = Mock(side_effect=[True] if outcome == "ready" else [False, True])
+    clock = Mock(side_effect=[0, 0])
+    sleep = AsyncMock()
+    if outcome == "timeout":
+        predicate = Mock(return_value=False)
+        clock = Mock(side_effect=[0, 0, 60])
+    if outcome == "cancelled":
+        sleep.side_effect = asyncio.CancelledError
+    monkeypatch.setattr(module, "monotonic", clock)
+    monkeypatch.setattr(module, "asyncio", SimpleNamespace(sleep=sleep))
+    if outcome == "timeout":
+        with pytest.raises(TimeoutError, match="房间验收阶段超时"):
+            await module.wait_until(predicate)
+    elif outcome == "cancelled":
+        with pytest.raises(asyncio.CancelledError):
+            await module.wait_until(predicate)
+    else:
+        await module.wait_until(predicate)
+    if outcome == "ready":
+        sleep.assert_not_called()
+    else:
+        sleep.assert_awaited_once_with(0.05)
+
+
 @pytest.mark.parametrize("failure", ["none", "type", "start", "active"])
 def test_wsl_launcher_uses_systemd_registration_gate(tmp_path, failure):
     """运行实际启动器，旧 simple 单元及启动失败均不能宣称 Agent 已注册。"""
@@ -539,6 +627,81 @@ def test_current_bash_scripts_parse_without_execution(script):
         timeout=20,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_deploy_manages_only_the_current_three_services():
+    """执行真实部署控制流但替换全部副作用，退役服务不能继续成为隐式迁移对象。"""
+    command = r"""
+function test { # 输入存在性由替身满足，离线验收不读取 /opt 私有环境。
+    return 0
+}
+function mkdir { # 不创建运行目录，只验证服务命令的实际控制流。
+    return 0
+}
+function git { # 不克隆或修改 vendor，但让真实脚本继续走完整部署路径。
+    return 0
+}
+function uv { # 不安装依赖、下载模型或构建真实环境。
+    return 0
+}
+function bash { # 源码同步由其他行为测试覆盖，此处不写入运行目录。
+    return 0
+}
+function cp { # 不安装 systemd 单元，后续调用仅供记录。
+    return 0
+}
+function systemctl { # 只记录命令，不允许诊断启动或停止任何真实服务。
+    printf '%s\n' "$*"
+}
+source "$1" "$2"
+"""
+    result = subprocess.run(
+        [
+            bash_executable(),
+            "--noprofile",
+            "--norc",
+            "-c",
+            command,
+            "deployment-test",
+            str(ROOT / "deployment/wsl/deploy.sh"),
+            ROOT.as_posix(),
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [
+        "daemon-reload",
+        "enable xiaoya-livekit xiaoya-speech xiaoya-agent",
+        "start xiaoya-livekit",
+        "restart xiaoya-speech xiaoya-agent",
+        "is-active xiaoya-livekit xiaoya-speech xiaoya-agent",
+    ]
+
+
+@pytest.mark.parametrize("key", ["not-required", "independent-test-tts-key"])
+async def test_synthetic_audio_generation_uses_explicit_private_credentials(
+    private_environment, key
+):
+    """真实请求用内存传输核对密钥原样传递，显式无鉴权值也不能借用其他模型的密钥。"""
+    module = load_deployment("generate-avatar-utterances")
+    settings = module.Settings.from_environment(
+        private_environment | {"VOICE_AGENT_TTS_API_KEY": key}
+    )
+    pcm = b"\xff\x7f" * 240
+
+    def respond(request):
+        """仅检查私有 PCM 契约，不连接实际服务、保存音频或触发付费模型。"""
+        assert request.url == "http://tts.internal:8003/v1/audio/speech"
+        assert request.headers["Authorization"] == "Bearer " + key
+        assert json.loads(request.content)["response_format"] == "pcm"
+        return module.httpx.Response(200, content=pcm, headers={"content-type": "audio/pcm"})
+
+    async with module.httpx.AsyncClient(transport=module.httpx.MockTransport(respond)) as client:
+        received, chunks, elapsed = await module.synthesize(client, settings, "合成测试。")
+    assert received == pcm and chunks == 1 and elapsed >= 0
 
 
 @pytest.mark.parametrize("available", [False, True])

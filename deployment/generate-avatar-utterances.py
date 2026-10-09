@@ -176,7 +176,7 @@ def reusable_entry(
 async def synthesize(
     client: httpx.AsyncClient, settings: Settings, text: str
 ) -> tuple[bytes, int, float]:
-    """读取现行流式 PCM 契约，不把认证、URL 或服务响应正文写进错误及测量记录。"""
+    """使用已经校验的独立密钥读取 PCM，不隐式补鉴权配置或记录私有响应正文。"""
     started = time.monotonic()
     chunks = 0
     pcm = bytearray()
@@ -184,7 +184,7 @@ async def synthesize(
         async with client.stream(
             "POST",
             settings.tts_base_url.rstrip("/") + "/audio/speech",
-            headers={"Authorization": "Bearer " + (settings.tts_api_key or "not-required")},
+            headers={"Authorization": "Bearer " + settings.tts_api_key},
             json={
                 "model": settings.tts_model,
                 "voice": settings.tts_voice,
@@ -222,7 +222,7 @@ def write_wav(path: Path, pcm: bytes) -> str:
 
 
 def write_manifest(output: Path, manifest: dict[str, object]) -> None:
-    """每条成功后记录进度；complete 只有全部三十条存在时为真，不夸大部分生成结果。"""
+    """每条成功后原子记录进度；完成标志由调用者的固定样本清单决定，不夸大部分结果。"""
     temporary = output / "manifest.json.part"
     temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(output / "manifest.json")

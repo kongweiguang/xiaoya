@@ -1,5 +1,5 @@
 export type AvatarBehavior = 'idle' | 'listening' | 'thinking' | 'speaking' | 'confused';
-export type AvatarState = {
+type AvatarState = {
   connected: boolean;
   reconnecting: boolean;
   error: boolean;

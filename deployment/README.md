@@ -57,3 +57,12 @@ uv run python deployment/verify-avatar-room.py
 ```
 
 工具默认验证五个内置工具，`--demo` 才额外连接独立示例 MCP。房间脚本创建自己的房间与连接，报告写入失败也会逐项清理。注入合成测试音频不算真人设备验收；完整房间、模型工程、真人设备结果分别记录于 [验收记录](../docs/delivery-acceptance.md)。
+
+需要口型或浏览器虚拟麦克风的固定素材时，显式调用私有 TTS：
+
+```powershell
+uv run python deployment/generate-avatar-utterances.py --reuse-valid
+uv run python deployment/generate-avatar-browser-mic.py
+```
+
+前者准备 30 条口型素材，默认写入 `.tools/live2d-verification/utterances`，`--reuse-valid` 仅复用校验通过且文案一致的已有样本。后者准备 2 条固定提问，默认写入 `.tools/live2d-verification/browser-mic`；它们都是合成音频，不采集真人录音，也不算真人设备验收。输出为本机忽略文件，不随源码推送。两个脚本均支持 `--env`、`--output`；`--help` 不访问模型服务。

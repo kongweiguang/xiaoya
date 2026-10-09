@@ -1,10 +1,50 @@
 """真实接口验收的资源清理与报告写入共用一个退出边界。"""
 
 import asyncio
-from collections.abc import AsyncIterator, Iterable
+import io
+import wave
+from collections.abc import AsyncIterator, Callable, Iterable
 from contextlib import AsyncExitStack, asynccontextmanager
+from time import monotonic
 
+import numpy as np
 from livekit import api, rtc
+
+
+async def wait_until(predicate: Callable[[], bool], timeout: float = 60) -> None:
+    """房间与工具按同一阶段预算等待真实结果，连接成功不能替代识别、音频或工具完成。"""
+    deadline = monotonic() + timeout
+    while not predicate():
+        if monotonic() >= deadline:
+            raise TimeoutError("房间验收阶段超时")
+        await asyncio.sleep(0.05)
+
+
+async def publish_wav(source: rtc.AudioSource, content: bytes) -> int:
+    """两个房间验收共用合成上行与静音收尾，显式拒绝坏容器，不依赖可关闭的 assert。"""
+    with wave.open(io.BytesIO(content)) as wav:
+        if wav.getnchannels() != 1 or wav.getsampwidth() != 2:
+            raise ValueError("验收合成音频必须是单声道 16 位 PCM WAV")
+        rate = wav.getframerate()
+        pcm = np.frombuffer(wav.readframes(wav.getnframes()), dtype=np.int16)
+    if not len(pcm):
+        raise ValueError("验收合成音频不能为空")
+    count = round(len(pcm) * 48000 / rate)
+    speech = np.interp(np.arange(count) * rate / 48000, np.arange(len(pcm)), pcm)
+    output = np.concatenate((speech.astype(np.int16), np.zeros(48000, dtype=np.int16)))
+    for offset in range(0, len(output), 960):
+        chunk = output[offset : offset + 960]
+        chunk = np.pad(chunk, (0, 960 - len(chunk)))
+        await source.capture_frame(
+            rtc.AudioFrame(
+                data=chunk.tobytes(),
+                sample_rate=48000,
+                num_channels=1,
+                samples_per_channel=len(chunk),
+            )
+        )
+    await source.wait_for_playout()
+    return count
 
 
 async def create_verification_resources(

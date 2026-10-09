@@ -23,7 +23,7 @@ export type AvatarExpression = {
   parameters: { id: string; value: number; blend: Blend }[];
 };
 export type AvatarExpressions = Partial<Record<ExpressionName, AvatarExpression>>;
-export type AvatarPresentationInput = {
+type AvatarPresentationInput = {
   time: number;
   delta: number;
   behavior: AvatarBehavior;

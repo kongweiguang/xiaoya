@@ -153,13 +153,12 @@ class DeliveryTextOutput(io.TextOutput):
         io_timeout: float = 1.0,
         snapshot_endpoint: DeliverySnapshotEndpoint,
     ) -> None:
-        """输出只借用会话快照；所有权不随字幕故障变化，超时仅约束装饰通道。"""
+        """只借用参与者与会话快照，不持有额外 Room；超时仅约束装饰通道。"""
         super().__init__(label="xiaoya.delivery", next_in_chain=None)
         if io_timeout <= 0:
             raise ValueError("字幕网络超时必须大于零")
         if not snapshot_endpoint.registered:
             raise ValueError("表现输出需要已登记的会话快照")
-        self._room = room
         self._participant = room.local_participant
         self._io_timeout = io_timeout
         self._state = DeliveryState(instance=snapshot_endpoint.instance)
@@ -270,7 +269,7 @@ class DeliveryTextOutput(io.TextOutput):
             text, segment.prefix = segment.prefix, ""
             segment.opened = True
             await self._open_segment(segment)
-        if segment is None or segment.failed or segment.writer is None:
+        if segment.failed or segment.writer is None:
             return
         if self._bound != binding:
             await self._close_expression(binding)

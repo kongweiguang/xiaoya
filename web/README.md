@@ -4,7 +4,7 @@
 
 ## 本机启动
 
-需要 Node.js 24 和 pnpm。先在项目根目录准备私有服务与配置，详见 [部署说明](../deployment/README.md)。
+需要 Node.js 24 和 pnpm 9.15.9。先准备私有服务与配置，详见 [部署说明](../deployment/README.md)。以下启动器命令在项目根目录执行，不是在 `web/` 中：
 
 ```powershell
 pwsh -File deployment/start-wsl.ps1
@@ -22,7 +22,7 @@ pwsh -File deployment/start-web.ps1
 pnpm install --frozen-lockfile
 ```
 
-复制 `.env.example` 为 `.env.local`，填写与私有 LiveKit 一致的地址、API Key、API Secret 及 `AGENT_NAME=xiaoya`。密钥只在服务端读取，不发送给浏览器。
+仅在 `web/.env.local` 不存在时复制 `web/.env.example`，填写与私有 LiveKit 一致的地址、API Key、API Secret 及 `AGENT_NAME=xiaoya`；不要覆盖已有配置。密钥只在服务端读取，不发送给浏览器。
 
 令牌接口只接收 `POST {}`，检查回环同源访问，并以标准 `201` 响应返回 `server_url`、`participant_token` 等字段。Agent、房间、身份、15 分钟令牌、35 秒离房期限及麦克风／数据权限均由服务端构造，旧 `room_config` 和客户端身份配置会被拒绝。
 
@@ -51,7 +51,7 @@ pnpm typecheck
 pnpm build
 ```
 
-开发服务正在运行时，用 `$env:NEXT_DIST_DIR='.next-build'` 运行构建，避免覆盖 `.next` 缓存；构建后移除该环境变量。数字人实现与验收范围见 [Live2D 说明](../docs/live2d/README.md)。
+开发服务正在运行时，用独立的 `NEXT_DIST_DIR` 构建并恢复原环境值，具体命令见 [根目录说明](../README.md#开发与验证)，避免覆盖开发缓存。数字人实现与验收范围见 [Live2D 说明](../docs/live2d/README.md)。
 
 开发、测试、类型检查、构建与模型验证会先从 `vendor-source` 生成 Cubism／MotionSync JS 和类型声明；`lib/avatar/vendor/` 是可再生构建产物，不纳入版本管理。角色 GPU 由页面舞台持有，Room 和音频时钟只在用户开始后创建，结束后释放；正常结束和断线重试均保留页面草稿及字幕，不自动重发。麦克风关闭时页面提示文字输入，只有实际有效的采集轨道才提示开口与语音打断。
 

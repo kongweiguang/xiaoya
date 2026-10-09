@@ -35,10 +35,7 @@ cp "$repo_dir/deployment/wsl/xiaoya-livekit.service" \
    "$repo_dir/deployment/wsl/xiaoya-speech.service" \
    "$repo_dir/deployment/wsl/xiaoya-agent.service" /etc/systemd/system/
 systemctl daemon-reload
-# 对话模型已切换 DeepSeek，重复部署不得重新启动项目旧的 GPU LLM。
-if systemctl cat xiaoya-ollama.service >/dev/null 2>&1; then
-    systemctl disable --now xiaoya-ollama
-fi
+# 部署只管理现行三个单元，不再为已退役部署执行迁移或探测其他进程。
 systemctl enable xiaoya-livekit xiaoya-speech xiaoya-agent
 systemctl start xiaoya-livekit
 systemctl restart xiaoya-speech xiaoya-agent

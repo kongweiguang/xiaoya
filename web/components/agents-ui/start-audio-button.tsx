@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 /**
  * Props for the StartAudioButton component.
  */
-export interface StartAudioButtonProps extends ComponentProps<'button'> {
+interface StartAudioButtonProps extends ComponentProps<'button'> {
   /**
    * The size of the button.
    * @defaultValue 'default'

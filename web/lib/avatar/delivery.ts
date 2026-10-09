@@ -1,6 +1,6 @@
 import type { AvatarDelivery } from './presentation';
 
-export type DeliveryState = {
+type DeliveryState = {
   v: 1;
   instance: string;
   revision: number;

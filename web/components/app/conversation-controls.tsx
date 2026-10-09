@@ -19,7 +19,7 @@ import {
 import { ChevronDown, LoaderCircle, Mic, MicOff, PhoneOff, Send } from 'lucide-react';
 import { useMediaDeviceSelect, useTrackToggle } from '@livekit/components-react';
 import { Button } from '@/components/ui/button';
-import { microphoneError } from '@/hooks/use-conversation';
+import { microphoneError } from '@/lib/conversation-controller';
 
 interface ConversationControlsProps {
   room: Room;
