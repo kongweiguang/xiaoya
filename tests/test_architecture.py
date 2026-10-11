@@ -57,13 +57,14 @@ def test_all_project_functions_have_docstrings() -> None:
         ("domain", {"domain"}),
         ("application", {"domain", "application"}),
         ("infrastructure", {"domain", "infrastructure", "streaming_asr", "acceleration"}),
-        ("acceleration", {"acceleration"}),
+        ("acceleration", {"acceleration", "flow_graph"}),
+        ("flow_graph", {"flow_graph"}),
         ("bootstrap", {"application", "infrastructure", "streaming_asr", "bootstrap"}),
         ("api", {"domain", "application", "bootstrap", "api"}),
     ],
 )
 def test_local_speech_preserves_ddd_boundaries(layer: str, allowed: set[str]) -> None:
-    """新推理服务也须隔离模型库和 HTTP，使部署需求不会侵入领域与应用端口。"""
+    """推理与图缓存只在基础设施内部互用，不能让部署和模型依赖侵入领域与应用端口。"""
     path = SPEECH_ROOT / f"{layer}.py"
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Import):

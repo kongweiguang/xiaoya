@@ -9,7 +9,9 @@ from unittest.mock import Mock
 import pytest
 
 
-@pytest.mark.parametrize("failure_stage", ["unavailable", "load", "decode", "accelerated_decode"])
+@pytest.mark.parametrize(
+    "failure_stage", ["unavailable", "load", "decode", "accelerated_decode", "graph_decode"]
+)
 def test_cuda_failure_prevents_ready_service_without_cpu_fallback(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failure_stage: str
 ) -> None:
@@ -25,6 +27,9 @@ def test_cuda_failure_prevents_ready_service_without_cpu_fallback(
     monkeypatch.setenv("SPEECH_TTS_NORMALIZER_PATH", str(tmp_path))
     monkeypatch.setenv(
         "SPEECH_TTS_ACCELERATION", "vllm" if failure_stage == "accelerated_decode" else "none"
+    )
+    monkeypatch.setenv(
+        "SPEECH_TTS_FLOW_ACCELERATION", "cuda-graph" if failure_stage == "graph_decode" else "none"
     )
     for language in ("zh", "en"):
         rules = tmp_path / language / "tn"
@@ -60,6 +65,8 @@ def test_cuda_failure_prevents_ready_service_without_cpu_fallback(
         model.llm.vllm = engine
 
     acceleration.enable_vllm = enable_vllm
+    restore_flow = Mock()
+    acceleration.enable_flow_graph = Mock(return_value=restore_flow)
     for name, module in (
         ("torch", torch),
         ("cosyvoice.cli.cosyvoice", cosyvoice),
@@ -85,10 +92,12 @@ def test_cuda_failure_prevents_ready_service_without_cpu_fallback(
         engine.engine_core.shutdown.assert_called_once()
         assert not hasattr(model.model.llm, "vllm")
         torch.cuda.empty_cache.assert_called_once()
+    if failure_stage == "graph_decode":
+        restore_flow.assert_called_once()
 
 
 def test_model_close_is_idempotent_after_engine_shutdown(monkeypatch) -> None:
-    """失败清理与服务退出可能相继发生，关闭引擎和进程组都只能执行一次。"""
+    """失败清理与服务退出可能相继发生，引擎、进程组和掩码所有权都只能释放一次。"""
     speech_root = Path(__file__).resolve().parents[1] / "services/speech/src"
     monkeypatch.syspath_prepend(str(speech_root))
     torch = ModuleType("torch")
@@ -114,6 +123,8 @@ def test_model_close_is_idempotent_after_engine_shutdown(monkeypatch) -> None:
     models = module.LocalSpeechModels.__new__(module.LocalSpeechModels)
     models._closed = False
     models._tts_lock = Lock()
+    restore_mask = Mock()
+    models._restore_flow = restore_mask
     engine = Mock()
     models._voice = SimpleNamespace(model=SimpleNamespace(llm=SimpleNamespace(vllm=engine)))
     models.close()
@@ -121,3 +132,5 @@ def test_model_close_is_idempotent_after_engine_shutdown(monkeypatch) -> None:
     engine.engine_core.shutdown.assert_called_once()
     torch.distributed.destroy_process_group.assert_called_once()
     torch.cuda.empty_cache.assert_called_once()
+    restore_mask.assert_called_once()
+    assert models._restore_flow is None

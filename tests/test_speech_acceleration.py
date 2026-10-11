@@ -9,7 +9,104 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock
 
 import httpx
+import numpy as np
 import pytest
+
+
+class MaskTensor:
+    """仅提供布尔张量运算，让离线测试检查填充语义而无需 CUDA 或语音权重。"""
+
+    def __init__(self, values):
+        """保留数组类型以覆盖非法掩码，测试替身不自动修正输入。"""
+        self.values = np.asarray(values)
+        self.dtype = self.values.dtype
+        self.device = "test-device"
+
+    def size(self, dimension):
+        """形状来自输入，不能把固定测试长度写死在适配器中。"""
+        return self.values.shape[dimension]
+
+    def unsqueeze(self, dimension):
+        """与批次掩码广播一致，覆盖批次大于一时的填充边界。"""
+        return MaskTensor(np.expand_dims(self.values, dimension))
+
+    def any(self, *, dim, keepdim):
+        """使用 NumPy 参考布尔归约，保持实现与 PyTorch 运行时独立。"""
+        return MaskTensor(self.values.any(axis=dim, keepdims=keepdim))
+
+    def __and__(self, other):
+        """广播由数组库执行，不在替身中重复候选算法。"""
+        return MaskTensor(self.values & other.values)
+
+    def __or__(self, other):
+        """全零行修复仍走普通逐元素运算，避免替身掩盖错误。"""
+        return MaskTensor(self.values | other.values)
+
+    def __invert__(self):
+        """只支持与生产布尔掩码相同的逐元素取反。"""
+        return MaskTensor(~self.values)
+
+
+@pytest.mark.parametrize("chunk_size", [0, 2])
+def test_gpu_mask_preserves_padding_and_all_empty_rows(monkeypatch, chunk_size) -> None:
+    """固定期望覆盖完整、尾部填充、空批次；任何全零注意力行都必须保留原库修复语义。"""
+    source = Path(__file__).resolve().parents[1] / "services/speech/src/local_speech"
+    spec = importlib.util.spec_from_file_location("gpu_mask_under_test", source / "acceleration.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    original = Mock(return_value="dynamic-result")
+    dit = SimpleNamespace(add_optional_chunk_mask=original)
+    imports = {
+        "torch": SimpleNamespace(bool=np.dtype(bool)),
+        "cosyvoice.flow.DiT": SimpleNamespace(dit=dit),
+        "cosyvoice.utils.mask": SimpleNamespace(
+            subsequent_chunk_mask=Mock(
+                return_value=MaskTensor(
+                    [[True, True, False, False]] * 2 + [[False, False, True, True]] * 2
+                )
+            )
+        ),
+    }
+    for name, value in imports.items():
+        monkeypatch.setitem(sys.modules, name, value)
+    masks = MaskTensor([[[True, True, True, False]], [[False, False, False, False]]])
+    xs = MaskTensor(np.zeros((2, 4, 3)))
+    restore = module.enable_gpu_mask()
+    output = dit.add_optional_chunk_mask(xs, masks, False, False, 0, chunk_size, 0)
+    expected = (
+        [[[True, True, True, False]], [[True, True, True, True]]]
+        if chunk_size == 0
+        else [
+            [[True, True, False, False]] * 2 + [[False, False, True, False]] * 2,
+            [[True, True, True, True]] * 4,
+        ]
+    )
+    np.testing.assert_array_equal(output.values, expected)
+    original.assert_not_called()
+    assert dit.add_optional_chunk_mask(xs, masks, True, False, 0, chunk_size, 0) == "dynamic-result"
+    original.assert_called_once()
+    restore()
+    restore()
+    assert dit.add_optional_chunk_mask is original
+
+
+def test_gpu_mask_restore_does_not_overwrite_a_new_owner(monkeypatch) -> None:
+    """初始化失败清理只能撤回自己的适配，不能把后来安装的新所有者覆盖掉。"""
+    source = Path(__file__).resolve().parents[1] / "services/speech/src/local_speech"
+    spec = importlib.util.spec_from_file_location("gpu_mask_owner_test", source / "acceleration.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    dit = SimpleNamespace(add_optional_chunk_mask=Mock())
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(bool=np.dtype(bool)))
+    monkeypatch.setitem(sys.modules, "cosyvoice.flow.DiT", SimpleNamespace(dit=dit))
+    monkeypatch.setitem(
+        sys.modules, "cosyvoice.utils.mask", SimpleNamespace(subsequent_chunk_mask=Mock())
+    )
+    restore = module.enable_gpu_mask()
+    new_owner = Mock()
+    dit.add_optional_chunk_mask = new_owner
+    restore()
+    assert dit.add_optional_chunk_mask is new_owner
 
 
 @pytest.mark.parametrize("fails", [False, True])

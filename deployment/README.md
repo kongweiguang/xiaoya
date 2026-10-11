@@ -46,6 +46,7 @@ speech 与 Agent 健康接口绑定 `127.0.0.1`。LiveKit 信令与媒体必须�
 - Jev 在根 `.env.local` 使用 `VOICE_AGENT_JEV_BASE_URL=https://api.typesafe.ai`、`VOICE_AGENT_JEV_MODEL=jev-1.13.0` 与独立 `VOICE_AGENT_JEV_API_KEY`；空 Key 保持自然表现，不影响正常对话。填 Key 后用显式配置同步并重启 Agent，密钥不下发网页。Mock 仅用于离线或受管验收，不是部署供应商。
 - 2026-10-11 的房间验收临时向同一 Agent 注入 Mock Jev，保留真实私有识别、对话和合成；受管结束恢复正式入口，未改变私有 Key。严格帧观测使用独立开发诊断端口，生产页面另做真实链路检查，两份证据分别记录。
 - 本地语音要求 CUDA；`SPEECH_TTS_ACCELERATION` 明确为 `vllm` 或 `none`。保留 CosyVoice 实际需要的 Whisper、Matcha 等依赖。
+- speech 的 `SPEECH_TTS_FLOW_ACCELERATION=cuda-graph` 在启动预热中捕获两种声学形状；运行中不扩张缓存，其他形状仍由原模型计算。直接运行未设置时为 `none`，其他值会明确失败。捕获不借用 AMP 临时权重缓存，退出时还原模型与掩码；权重、精度、求解步数及训练块保持不变。关闭图或回滚前先结束会话，重载单元后同时重启 speech／Agent，并确认模型健康与公开注册，详见 [延迟验收及回滚](../docs/voice-latency.md)。
 - 默认网页监听本机。令牌只接受浏览器 `POST {}`，服务端决定房间、身份、Agent 与最小权限，15 分钟过期，离房清理窗口为 35 秒。
 - 远程网页须经已认证网关／隧道。服务端同时配置 `TOKEN_GATEWAY_ORIGIN`、`TOKEN_GATEWAY_KEY`；网关鉴权后覆盖注入 `x-xiaoya-gateway-key`。必须拒绝客户端伪造的同名头，密钥不能下发浏览器。仅做端口转发不是鉴权。
 - LiveKit 成功响应遵循 [官方令牌接口契约](https://docs.livekit.io/frontends/build/authentication/endpoint/)；失败信息统一且不包含密钥，响应禁止缓存。

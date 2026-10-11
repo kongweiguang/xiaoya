@@ -1,8 +1,82 @@
-"""只加速语音 token 解码，保留 CosyVoice 的声学步数与训练块长。"""
+"""加速 token 解码与等价声学掩码，保留 CosyVoice 的声学步数与训练块长。"""
 
 import os
+from collections.abc import Callable
 from threading import Lock
 from typing import Any
+
+
+def enable_gpu_mask() -> Callable[[], None]:
+    """静态 DiT 掩码以等价布尔计算替代逐步 .item() 同步，不改权重、精度、步数或音频块。"""
+    import torch
+    from cosyvoice.flow.DiT import dit
+    from cosyvoice.utils.mask import subsequent_chunk_mask
+
+    original = dit.add_optional_chunk_mask
+
+    def gpu_mask(
+        xs,
+        masks,
+        use_dynamic_chunk,
+        use_dynamic_left_chunk,
+        decoding_chunk_size,
+        static_chunk_size,
+        num_decoding_left_chunks,
+        enable_full_context=True,
+    ):
+        """仅固定推理路径走 GPU；全零行与填充逐值保留，动态训练选项仍调用原库。"""
+        if use_dynamic_chunk or use_dynamic_left_chunk or decoding_chunk_size != 0:
+            return original(
+                xs,
+                masks,
+                use_dynamic_chunk,
+                use_dynamic_left_chunk,
+                decoding_chunk_size,
+                static_chunk_size,
+                num_decoding_left_chunks,
+                enable_full_context,
+            )
+        chunks = masks
+        if static_chunk_size > 0:
+            chunks = masks & subsequent_chunk_mask(
+                xs.size(1), static_chunk_size, num_decoding_left_chunks, xs.device
+            ).unsqueeze(0)
+        if chunks.dtype != torch.bool:
+            raise TypeError("声学掩码必须为布尔张量")
+        return chunks | ~chunks.any(dim=-1, keepdim=True)
+
+    def restore() -> None:
+        """仅还原自己的进程内适配器，关闭或初始化失败均不得覆盖其他所有者的新实现。"""
+        if dit.add_optional_chunk_mask is gpu_mask:
+            dit.add_optional_chunk_mask = original
+
+    dit.add_optional_chunk_mask = gpu_mask
+    return restore
+
+
+def enable_flow_graph(model: Any) -> Callable[[], None]:
+    """图只包裹声学解码器；初始化失败或退出必须撤回原模型和进程内掩码。"""
+    from local_speech.flow_graph import FlowGraph
+
+    original = model.flow.decoder
+    original_noise = original.rand_noise
+    restore_mask = enable_gpu_mask()
+    try:
+        graph = FlowGraph(original)
+        model.flow.decoder = graph
+    except BaseException:
+        original.rand_noise = original_noise
+        restore_mask()
+        raise
+
+    def restore() -> None:
+        """只有本次包装仍在使用时才还原，显存释放由会话模型的关闭边界负责。"""
+        if model.flow.decoder is graph:
+            model.flow.decoder = original
+        original.rand_noise = original_noise
+        restore_mask()
+
+    return restore
 
 
 def enable_vllm(model: Any, model_dir: str) -> None:

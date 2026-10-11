@@ -31,7 +31,7 @@ def _load_module(name: str, path: Path) -> ModuleType:
 
 @pytest.fixture
 def speech_delivery(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
-    """只替换模型库导入，保留实际应用校验、音频转换和 HTTP 请求处理。"""
+    """只替换模型库导入，保留实际音频信号校验、转换与 HTTP 处理，失败路径不依赖 GPU。"""
     root = Path(__file__).resolve().parents[1] / "services/speech/src"
     monkeypatch.syspath_prepend(str(root))
     from local_speech.application import SpeechService
@@ -63,6 +63,7 @@ def speech_delivery(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     return SimpleNamespace(
         api=api,
         models=models,
+        implementation=infrastructure,
         service_type=SpeechService,
         style_type=SpeechStyle,
     )
@@ -340,6 +341,138 @@ def test_failed_neutral_fallback_propagates_without_retry(speech_delivery) -> No
     models._voice.inference_instruct2.assert_called_once()
     models._voice.inference_zero_shot.assert_called_once()
     assert not models._tts_lock.locked()
+
+
+@pytest.mark.parametrize("style", ["NEUTRAL", "HAPPY", "GENTLE"])
+@pytest.mark.parametrize("noise", [0.0, 1 / 32767, 3 / 32767])
+def test_quantization_only_speech_retries_once_with_same_voice(
+    speech_delivery, style, noise
+) -> None:
+    """近乎静音不是有效朗读；首包前重试保持同一文案、语气、语速和音色，不放出失败结果。"""
+    models = speech_delivery.models
+    voice = getattr(speech_delivery.style_type, style)
+    method = (
+        models._voice.inference_zero_shot
+        if style == "NEUTRAL"
+        else models._voice.inference_instruct2
+    )
+    method.side_effect = [_audio_results(noise), _audio_results(0.25)]
+    chunks = list(models.synthesize_stream("你好。", style=voice))
+    assert sum(map(len, chunks)) == 480
+    assert method.call_count == 2
+    assert method.call_args_list[0] == method.call_args_list[1]
+    assert not models._tts_lock.locked()
+
+
+def test_repeated_silent_speech_fails_before_pcm_without_unbounded_retry(speech_delivery) -> None:
+    """第二次仍无声必须失败，禁止以空声音成功或持续重试占用显卡，两个生成器均须关闭。"""
+    models = speech_delivery.models
+    closed = []
+
+    def muted():
+        """故障结果有字节但没有可听信号，关闭标记覆盖两次惰性推理的释放边界。"""
+        try:
+            yield _audio_result(0)
+        finally:
+            closed.append(True)
+
+    models._voice.inference_zero_shot.side_effect = [muted(), muted()]
+    with pytest.raises(speech_delivery.implementation.SilentSynthesisError):
+        next(models.synthesize_stream("你好。"))
+    assert models._voice.inference_zero_shot.call_count == 2
+    assert closed == [True, True]
+    assert not models._tts_lock.locked()
+
+
+@pytest.mark.parametrize("signal", [4 / 32767, 0.25])
+def test_signal_gate_preserves_soft_voice_and_all_pause_bytes(speech_delivery, signal) -> None:
+    """极轻声音也保留原字节和完整前后停顿；门槛不承担识别或主观音质判断。"""
+    models = speech_delivery.models
+    models._voice.inference_zero_shot.return_value = _audio_results(0, signal, 0)
+    chunks = list(models.synthesize_stream("轻声说话。"))
+    expected = [
+        np.full(240, int(np.float32(value) * 32767), dtype=np.int16).tobytes()
+        for value in (0, signal, 0)
+    ]
+    assert chunks == expected
+    models._voice.inference_zero_shot.assert_called_once()
+
+
+def test_cancelled_pending_silence_never_retries_or_emits(speech_delivery) -> None:
+    """尚未放行的前导静音也能取消；收尾排空不能使重试或旧音频在新轮次出现。"""
+    models = speech_delivery.models
+    cancelled = Event()
+    closed = []
+
+    def results():
+        """第二块返回时收到取消，首块此前只在有界缓存内，不能算作已播放。"""
+        try:
+            yield _audio_result(0)
+            cancelled.set()
+            yield _audio_result(0.25)
+        finally:
+            closed.append(True)
+
+    models._voice.inference_zero_shot.return_value = results()
+    assert list(models.synthesize_stream("取消的短句。", cancelled=cancelled)) == []
+    models._voice.inference_zero_shot.assert_called_once()
+    assert closed == [True]
+    assert not models._tts_lock.locked()
+
+
+def test_initial_silence_buffer_is_bounded(speech_delivery) -> None:
+    """故障模型持续产出静音也不能积压无限内存，阈值超出正常前导停顿且不修改已有音频。"""
+    closed = []
+
+    def silence():
+        """超出上限的第一块触发失败，生成器仍必须由消费边界回收。"""
+        try:
+            yield bytes(2**20 + 2)
+        finally:
+            closed.append(True)
+
+    with pytest.raises(speech_delivery.implementation.SilentSynthesisError):
+        next(speech_delivery.implementation._audible_pcm(silence(), None))
+    assert closed == [True]
+
+
+def test_silent_retry_then_style_error_does_not_start_third_attempt(speech_delivery) -> None:
+    """同语气重试已经用尽预算，后续供应商故障不能再追加自然回退成为第三次推理。"""
+    models = speech_delivery.models
+    models._voice.inference_instruct2.side_effect = [
+        _audio_results(0),
+        RuntimeError("第二次合成失败"),
+    ]
+    with pytest.raises(RuntimeError, match="第二次合成失败"):
+        next(models.synthesize_stream("同一句。", style=speech_delivery.style_type.HAPPY))
+    assert models._voice.inference_instruct2.call_count == 2
+    models._voice.inference_zero_shot.assert_not_called()
+    assert not models._tts_lock.locked()
+
+
+def test_two_silent_attempts_return_safe_503_and_release_http_admission(speech_delivery) -> None:
+    """首字节前无声失败走现有503契约，HTTP不会假成功，文案不泄露且下次请求能取得许可。"""
+    models = speech_delivery.models
+    models._voice.inference_zero_shot.side_effect = [_audio_results(0), _audio_results(0)]
+    speech_delivery.api.app.state.service = speech_delivery.service_type(models, Mock())
+    client = TestClient(speech_delivery.api.app)
+    try:
+        response = client.post(
+            "/v1/audio/speech",
+            json={
+                "model": "cosyvoice3-0.5b",
+                "input": "私有短句不能进入错误",
+                "voice": "default",
+                "response_format": "pcm",
+            },
+        )
+    finally:
+        client.close()
+    assert response.status_code == 503
+    assert "私有短句不能进入错误" not in response.text
+    assert models._voice.inference_zero_shot.call_count == 2
+    assert not models._tts_lock.locked()
+    assert not speech_delivery.api.app.state.tts_admission.locked()
 
 
 def test_failure_after_pcm_never_replays_the_sentence(speech_delivery) -> None:
