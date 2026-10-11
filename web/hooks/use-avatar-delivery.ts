@@ -19,7 +19,8 @@ export function useAvatarDelivery(
   useEffect(() => {
     if (identity) gate.current.offer(messages, identity);
     const local = messages.findLast((message) => message.from?.isLocal)?.id;
-    if (initialized.current && local && local !== previousLocal.current) gate.current.interrupt();
+    if (initialized.current && local && local !== previousLocal.current)
+      gate.current.interruptSpeaking();
     previousLocal.current = local;
     initialized.current = true;
   }, [gate, messages, identity]);
@@ -29,9 +30,9 @@ export function useAvatarDelivery(
     previousTrack.current = track;
     if (previous && previous !== track) gate.current.interrupt();
   }, [gate, track]);
-  /** 状态离开 speaking 后立即收束表现，不能等待字幕或下一帧才取消。 */
+  /** 状态离开 speaking 只收束说话动作，用户正在说话的倾听阶段继续独立接收视觉更新。 */
   useEffect(() => {
-    if (state !== 'speaking') gate.current.interrupt();
+    if (state !== 'speaking') gate.current.interruptSpeaking();
   }, [gate, state]);
   return gate;
 }

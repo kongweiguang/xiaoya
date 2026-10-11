@@ -12,7 +12,9 @@ from uuid import uuid4
 from livekit import rtc
 from livekit.agents.voice import io
 
+from xiaoya.application.presentation import PresentationController
 from xiaoya.domain.delivery import DeliveryIntent
+from xiaoya.domain.presentation import PresentationCue
 
 DELIVERY_TOPIC = "xiaoya.delivery"
 DELIVERY_SNAPSHOT_RPC = "xiaoya.getDeliverySnapshot"
@@ -32,7 +34,11 @@ class DeliveryState:
     state: Literal["active", "closed"] = "closed"
     style: str = "neutral"
     gesture: str = "none"
-    v: int = 1
+    phase: Literal["idle", "listening", "thinking", "speaking"] = "idle"
+    turn_id: str = ""
+    gesture_id: str = ""
+    energy: float = 0.5
+    v: int = 2
 
     def to_json(self) -> str:
         """小型控制消息不带正文，重连快照无需读取或泄露聊天记录。"""
@@ -119,17 +125,20 @@ class _Binding:
     reply_id: str
     segment_id: str
     intent: DeliveryIntent
+    turn_id: str = ""
+    text: str = ""
 
 
 @dataclass(frozen=True, slots=True)
 class _Operation:
     """同步 flush 与异步网络共用单队列，保持开流、正文和关闭的调用顺序。"""
 
-    kind: Literal["text", "flush", "cancel"]
+    kind: Literal["text", "flush", "cancel", "present"]
     binding: _Binding | None = None
     text: str = ""
     reply_id: str = ""
     done: asyncio.Future[None] | None = None
+    state: DeliveryState | None = None
 
 
 @dataclass(slots=True)
@@ -152,8 +161,9 @@ class DeliveryTextOutput(io.TextOutput):
         *,
         io_timeout: float = 1.0,
         snapshot_endpoint: DeliverySnapshotEndpoint,
+        presentation: PresentationController | None = None,
     ) -> None:
-        """只借用参与者与会话快照，不持有额外 Room；超时仅约束装饰通道。"""
+        """正文输入与实际播放分开持有身份，字幕flush不能让仍在播放的短句提前闭嘴。"""
         super().__init__(label="xiaoya.delivery", next_in_chain=None)
         if io_timeout <= 0:
             raise ValueError("字幕网络超时必须大于零")
@@ -163,6 +173,7 @@ class DeliveryTextOutput(io.TextOutput):
         self._io_timeout = io_timeout
         self._state = DeliveryState(instance=snapshot_endpoint.instance)
         self._bound: _Binding | None = None
+        self._playback_binding: _Binding | None = None
         self._segment: _Segment | None = None
         self._cancelled_replies: set[str] = set()
         self._queue: asyncio.Queue[_Operation] = asyncio.Queue()
@@ -170,24 +181,72 @@ class DeliveryTextOutput(io.TextOutput):
         self._close_task: asyncio.Task[None] | None = None
         self._accepting = True
         self._snapshot_endpoint = snapshot_endpoint
+        self._presentation = presentation or PresentationController()
+        self._presentation.attach(self.present)
 
     @property
     def snapshot(self) -> DeliveryState:
         """只暴露不可变状态，供装配和测试读取而不允许绕过串行更新。"""
         return self._state
 
-    async def bind_segment(self, reply_id: str, intent: DeliveryIntent) -> None:
-        """调用者须先等待同步器 barrier；绑定本身不证明开始播放，也不发送消息。"""
+    async def bind_segment(self, reply_id: str, intent: DeliveryIntent, text: str = "") -> None:
+        """下一段撤销旧播放身份；正文完成后仍保留独立播放绑定，等待SDK真实结束。"""
         if not self._accepting:
             return
         if not reply_id:
             raise ValueError("表达句段必须绑定已获播放许可的回复身份")
         if self._bound is not None:
             self.flush()
+        if self._playback_binding is not None and self._revoke_expression(self._playback_binding):
+            self._enqueue(_Operation("present", state=self._state))
         self._bound = _Binding(
             reply_id=reply_id,
             segment_id=f"SG_{uuid4().hex}",
             intent=DeliveryIntent.normalize(intent.style, intent.gesture),
+            turn_id=self._presentation.turn_id,
+            text=text,
+        )
+        self._playback_binding = self._bound
+
+    def present(self, cue: PresentationCue) -> None:
+        """思考预判保留同轮未开流候选；实际空闲、倾听或换轮同步撤销旧播放身份。"""
+        if not self._accepting:
+            return
+        if cue.phase == "speaking" and (
+            self._playback_binding is None
+            or (cue.reply_id, cue.segment_id)
+            != (self._playback_binding.reply_id, self._playback_binding.segment_id)
+            or cue.reply_id in self._cancelled_replies
+        ):
+            return
+        binding = self._playback_binding
+        if (
+            cue.phase != "speaking"
+            and binding is not None
+            and (
+                cue.phase in {"idle", "listening"}
+                or cue.turn_id != binding.turn_id
+                or self._state.phase == "speaking"
+            )
+        ):
+            self._playback_binding = None
+        self._set_cue(cue)
+        self._enqueue(_Operation("present", state=self._state))
+
+    def _set_cue(self, cue: PresentationCue) -> None:
+        """协议版本统一映射领域值对象，字幕头与消息快照复用相同稳定片段身份。"""
+        self._state = DeliveryState(
+            instance=self._state.instance,
+            revision=self._state.revision + 1,
+            reply_id=cue.reply_id,
+            segment_id=cue.segment_id,
+            state="closed" if cue.phase == "idle" else "active",
+            style=cue.intent.style,
+            gesture=cue.intent.gesture,
+            phase=cue.phase,
+            turn_id=cue.turn_id,
+            gesture_id=cue.gesture_id,
+            energy=cue.energy,
         )
 
     async def capture_text(self, text: str) -> None:
@@ -200,20 +259,36 @@ class DeliveryTextOutput(io.TextOutput):
         self._enqueue(_Operation("text", binding=self._bound, text=text))
 
     def flush(self) -> None:
-        """关闭操作捕获旧绑定，不能在异步执行时误关已经开始的新句段。"""
+        """flush只完成字幕输入；中文单字的字幕可以早于真实音频尾部，不能据此撤销播放。"""
         if not self._accepting or self._bound is None:
             return
         binding, self._bound = self._bound, None
         self._enqueue(_Operation("flush", binding=binding))
 
     async def cancel_reply(self, reply_id: str) -> None:
-        """先隔离尚未输出的取消回复，再等待其精确关闭，旧回调不影响新回复。"""
+        """取消立即撤销精确播放身份，网络收尾排队也不能让旧口型或迟到Jev继续生效。"""
         if not reply_id or not self._accepting:
             return
         self._cancelled_replies.add(reply_id)
+        binding = self._playback_binding
+        if (
+            binding is not None
+            and binding.reply_id == reply_id
+            and self._revoke_expression(binding)
+        ):
+            self._enqueue(_Operation("present", state=self._state))
         done = asyncio.get_running_loop().create_future()
         self._enqueue(_Operation("cancel", reply_id=reply_id, done=done))
         await asyncio.shield(done)
+
+    async def finish_reply(self, reply_id: str) -> None:
+        """公开SpeechHandle正常done只结束自己的最终片段，旧回调不会收掉后来回复。"""
+        binding = self._playback_binding
+        if not self._accepting or binding is None or binding.reply_id != reply_id:
+            return
+        if self._bound == binding:
+            self._bound = None
+        await self._close_expression(binding)
 
     async def drain(self) -> None:
         """仅在验证或显式关闭边界等待队列，正常音频路径不依赖消息发送耗时。"""
@@ -237,11 +312,14 @@ class DeliveryTextOutput(io.TextOutput):
         while True:
             operation = await self._queue.get()
             try:
-                if operation.kind == "text" and operation.binding is not None:
+                if operation.kind == "present":
+                    if operation.state == self._state:
+                        await self._publish_state()
+                elif operation.kind == "text" and operation.binding is not None:
                     await self._write_text(operation.binding, operation.text)
                 elif operation.kind == "flush":
                     if self._segment and self._segment.binding == operation.binding:
-                        await self._finish_segment()
+                        await self._finish_segment(revoke=False)
                 elif self._segment and self._segment.binding.reply_id == operation.reply_id:
                     await self._finish_segment()
             except Exception as error:
@@ -253,7 +331,7 @@ class DeliveryTextOutput(io.TextOutput):
                 self._queue.task_done()
 
     async def _write_text(self, binding: _Binding, text: str) -> None:
-        """多次网络 await 后均重新检查取消，防止排队的旧正文恢复已取消的表情。"""
+        """网络await后校验实际播放绑定，正常文字flush不算取消，换段仍撤销旧表达。"""
         if binding.reply_id in self._cancelled_replies:
             return
         if self._segment is None or self._segment.binding != binding:
@@ -268,10 +346,10 @@ class DeliveryTextOutput(io.TextOutput):
                 return
             text, segment.prefix = segment.prefix, ""
             segment.opened = True
-            await self._open_segment(segment)
+            await self._open_segment(segment, text)
         if segment.failed or segment.writer is None:
             return
-        if self._bound != binding:
+        if self._playback_binding != binding:
             await self._close_expression(binding)
         if binding.reply_id in self._cancelled_replies:
             await self._finish_segment()
@@ -283,32 +361,56 @@ class DeliveryTextOutput(io.TextOutput):
             await self._close_writer(segment)
         elif binding.reply_id in self._cancelled_replies:
             await self._finish_segment()
-        elif self._bound != binding:
+        elif self._playback_binding != binding:
             await self._close_expression(binding)
 
-    async def _open_segment(self, segment: _Segment) -> None:
-        """共享入口仍有效才创建 active；失去快照能力时继续纯字幕，不伪造可恢复的表达许可。"""
+    async def _open_segment(self, segment: _Segment, text: str) -> None:
+        """放行片段检查独立播放身份；字幕已完成也可开正常短句，旧轮次绝不重开。"""
         binding = segment.binding
         attributes = {
             "lk.segment_id": binding.segment_id,
             "lk.transcription_final": "false",
         }
+        closed_header = DeliveryState(
+            instance=self._state.instance,
+            revision=self._state.revision,
+            reply_id=binding.reply_id,
+            segment_id=binding.segment_id,
+            turn_id=binding.turn_id,
+        ).to_json()
         if binding.reply_id and self._snapshot_endpoint.registered:
-            live = self._bound == binding
-            intent = binding.intent if live else DeliveryIntent()
-            self._state = DeliveryState(
-                instance=self._state.instance,
-                revision=self._state.revision + 1,
-                reply_id=binding.reply_id,
-                segment_id=binding.segment_id,
-                state="active" if live else "closed",
-                style=intent.style,
-                gesture=intent.gesture,
+            # 过期字幕仍携带自己的身份，但 closed 头不能授予任何表现许可。
+            attributes[DELIVERY_TOPIC] = closed_header
+        if (
+            binding.reply_id
+            and self._snapshot_endpoint.registered
+            and self._playback_binding == binding
+            and binding.turn_id == self._presentation.turn_id
+        ):
+            self._set_cue(
+                self._presentation.speak(
+                    binding.reply_id, binding.segment_id, binding.intent, binding.text or text
+                )
             )
+            speaking_header = self._state.to_json()
             success = await self._publish_state()
-            if not success or binding.reply_id in self._cancelled_replies or self._bound != binding:
+            if (
+                not success
+                or binding.reply_id in self._cancelled_replies
+                or self._playback_binding != binding
+            ):
                 await self._close_expression(binding)
-            attributes[DELIVERY_TOPIC] = self._state.to_json()
+            # await 期间新轮次可同步换快照；旧字幕只能保留自己的身份，不能借用新快照。
+            attributes[DELIVERY_TOPIC] = (
+                speaking_header
+                if success
+                and binding.turn_id == self._presentation.turn_id
+                and self._state.phase == "speaking"
+                and (self._state.reply_id, self._state.segment_id)
+                == (binding.reply_id, binding.segment_id)
+                and self._playback_binding == binding
+                else closed_header
+            )
         if binding.reply_id in self._cancelled_replies:
             return
         success, writer = await self._network(
@@ -321,39 +423,49 @@ class DeliveryTextOutput(io.TextOutput):
             segment.failed = True
             await self._close_expression(binding)
 
-    async def _finish_segment(self) -> None:
-        """关闭先撤销权威许可，再尽力结束字幕流；旧 stream 不持有下一段的状态。"""
+    async def _finish_segment(self, *, revoke: bool = True) -> None:
+        """普通flush只关闭字幕流；换段、取消、故障与关机仍同步撤销精确播放许可。"""
         segment = self._segment
         if segment is None:
             return
-        await self._close_expression(segment.binding)
+        if revoke:
+            await self._close_expression(segment.binding)
         await self._close_writer(segment)
         if self._segment is segment:
             self._segment = None
 
-    async def _close_expression(self, binding: _Binding) -> None:
-        """同时比对回复与句段，迟到的取消或异常不能关闭更新的权威版本。"""
+    def _revoke_expression(self, binding: _Binding) -> bool:
+        """内存许可先于网络撤销，回复和句段双重匹配防止旧结束事件关闭新说话。"""
+        if self._playback_binding == binding:
+            self._playback_binding = None
         if (
             self._state.state != "active"
             or self._state.reply_id != binding.reply_id
             or self._state.segment_id != binding.segment_id
         ):
-            return
-        self._state = DeliveryState(
-            instance=self._state.instance,
-            revision=self._state.revision + 1,
-            reply_id=binding.reply_id,
-            segment_id=binding.segment_id,
-        )
-        await self._publish_state()
+            return False
+        cue = self._presentation.finish(binding.reply_id, binding.segment_id)
+        if cue is None:
+            return False
+        self._set_cue(cue)
+        return True
+
+    async def _close_expression(self, binding: _Binding) -> None:
+        """权威撤销同步生效后尽力通知浏览器，控制网络失败不能恢复旧播放身份。"""
+        if self._revoke_expression(binding):
+            await self._publish_state()
 
     async def _close_writer(self, segment: _Segment) -> None:
-        """清空拥有权后再关闭，超时或重复清理都不会再次消费同一个 SDK writer。"""
-        writer, segment.writer = segment.writer, None
+        """关闭await被取消时保留writer交给关机重收；正常完成或失败才释放拥有权。"""
+        writer = segment.writer
         if writer is not None:
-            await self._network(
+            success, _ = await self._network(
                 writer.aclose(attributes={"lk.transcription_final": "true"}), "字幕收尾"
             )
+            if segment.writer is writer:
+                segment.writer = None
+            if not success:
+                await self._close_expression(segment.binding)
 
     async def _publish_state(self) -> bool:
         """高频状态走可靠 data topic；当前内存快照始终可供重连后的 RPC 补取。"""
@@ -375,7 +487,7 @@ class DeliveryTextOutput(io.TextOutput):
             return False, None
 
     async def _shutdown(self) -> None:
-        """表现只回收自身队列和字幕，共享快照始终由会话独立回收。"""
+        """正文已经flush也必须关闭剩余播放身份；共享快照仍由会话独立回收。"""
         if self._worker is not None:
             self._worker.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -386,6 +498,8 @@ class DeliveryTextOutput(io.TextOutput):
                 operation.done.set_result(None)
             self._queue.task_done()
         self._bound = None
+        if self._playback_binding is not None:
+            await self._close_expression(self._playback_binding)
         await self._finish_segment()
 
     @staticmethod

@@ -296,9 +296,13 @@ test('重连共用快照，恢复不重发草稿且旧 SID 响应不能放行', 
   await settle(() =>
     gate.resolve(
       JSON.stringify({
-        v: 1,
+        v: 2,
         instance: 'job-a',
         revision: 1,
+        phase: 'idle',
+        turn_id: '',
+        gesture_id: '',
+        energy: 0,
         reply_id: '',
         segment_id: '',
         state: 'closed',
@@ -440,9 +444,13 @@ test('同一参与者对象换 SID 也重新确认，只有新快照允许输入
   await settle(() =>
     confirmation.resolve(
       JSON.stringify({
-        v: 1,
+        v: 2,
         instance: 'job-new',
         revision: 0,
+        phase: 'idle',
+        turn_id: '',
+        gesture_id: '',
+        energy: 0,
         reply_id: '',
         segment_id: '',
         state: 'closed',

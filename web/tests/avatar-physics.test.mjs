@@ -425,7 +425,17 @@ function frameInput(time, delta, frame, delivery) {
 
 /** 段与回复身份都显式提供，缺replyKey必须在非零动作断言处失败，不兼容旧诊断伪输入。 */
 function cue(id, style, gesture, reply = 'reply-a') {
-  return { id, replyKey: JSON.stringify(['physics-evidence-v2', reply]), style, gesture };
+  return {
+    id,
+    replyKey: JSON.stringify(['physics-evidence-v2', reply]),
+    style,
+    gesture,
+    phase: 'speaking',
+    turnId: 'turn-a',
+    segmentKey: id,
+    gestureId: id,
+    energy: 1,
+  };
 }
 
 /** 只量化实际可见纹理顶点的差分；像素位移不是表情语义或渲染美观已经通过的证据。 */

@@ -3,7 +3,11 @@ import { EventEmitter, getEventListeners } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { after, test } from 'node:test';
 import vm from 'node:vm';
-import { AvatarAudioBridge, createSessionAudio } from '../lib/avatar/audio-bridge.ts';
+import {
+  AudioEnvelopeTimeline,
+  AvatarAudioBridge,
+  createSessionAudio,
+} from '../lib/avatar/audio-bridge.ts';
 import {
   AudioLevelLipSync,
   LipSyncTimeline,
@@ -166,12 +170,15 @@ function packet(at, value = 0.2) {
 /** 收集外部可见结果，测试既检查用户行为也检查资源所有权。 */
 function makeBridge(context = new FakeContext()) {
   const samples = [];
+  const envelopes = [];
   const errors = [];
   const observation = { silent: 0 };
   const bridge = new AvatarAudioBridge({
     context,
     /** 样本记录保留参数，验证音频窗口与同一音频时钟没有被重写。 */
     onSamples: (...arguments_) => samples.push(arguments_),
+    /** 同一 PCM 生成的包络保留真实时间，验证动作分析没有建立另一条音频链路。 */
+    onEnvelope: (frame) => envelopes.push(frame),
     /** 收嘴回调代表运行时持有口型被主动清除。 */
     onSilent: () => {
       observation.silent += 1;
@@ -179,8 +186,56 @@ function makeBridge(context = new FakeContext()) {
     /** 运行期失败必须对调用方可见，不能只在内部吞掉。 */
     onError: (error) => errors.push(error),
   });
-  return { bridge, context, samples, errors, observation };
+  return { bridge, context, samples, envelopes, errors, observation };
 }
+
+/** 准备动作只能使用已可听的起音，设备时间回退和过期窗口均不得抢先触发。 */
+test('动作包络在可听时钟取帧，拒绝旧窗口并在停止后失效', () => {
+  const timeline = new AudioEnvelopeTimeline();
+  timeline.push({ at: 1, energy: 0.6, onset: 0.5 });
+  timeline.push({ at: 1.04, energy: 0.3, onset: 0 });
+  timeline.push({ at: 0.5, energy: 1, onset: 1 });
+  assert.equal(timeline.select(0.99).energy, 0);
+  assert.equal(timeline.select(1).onset, 0.5);
+  assert.equal(timeline.select(1.04).energy, 0.3);
+  assert.equal(timeline.select(0.99).energy, 0);
+  assert.equal(timeline.select(1.17).energy, 0);
+  timeline.clear();
+  timeline.push({ at: 0.1, energy: 2, onset: -1 });
+  assert.equal(timeline.select(0.1).energy, 1);
+  assert.equal(timeline.select(0.1).onset, 0);
+});
+
+/** 同一静音分析分支派生音量与起音，暂停时重置检测基线，异常样本保持有限。 */
+test('真实PCM包络检测起音和静音，声音恢复不继承旧包络', async () => {
+  const view = makeBridge();
+  const track = new FakeTrack();
+  view.bridge.setPlaybackAvailable(true);
+  await view.bridge.attach(track);
+  const port = view.context.worklets[0].port;
+  port.emit(packet(1, 0));
+  view.context.currentTime = 1.02;
+  port.emit(packet(1.02, 0.1));
+  assert.equal(view.envelopes[0].energy, 0);
+  assert.ok(view.envelopes[1].energy > 0);
+  assert.ok(view.envelopes[1].onset > 0.5);
+  for (let index = 2; index < 40; index++) {
+    view.context.currentTime = 1 + index * 0.02;
+    port.emit(packet(view.context.currentTime, 0));
+  }
+  assert.ok(view.envelopes.at(-1).energy < 1e-5);
+  view.bridge.setPlaybackAvailable(false);
+  const length = view.envelopes.length;
+  port.emit(packet(view.context.currentTime, 1));
+  assert.equal(view.envelopes.length, length);
+  view.bridge.setPlaybackAvailable(true);
+  port.emit(packet(view.context.currentTime, 0.1));
+  assert.ok(view.envelopes.at(-1).onset > 0.5);
+  assert.equal(view.context.gains.length, 1);
+  assert.equal(view.context.gains[0].gain.value, 0);
+  assert.equal(track.mediaStreamTrack.stopCalls, 0);
+  view.bridge.dispose();
+});
 
 /** 输出设备延迟必须校正，过期的输出时间戳回退到公开延迟值。 */
 test('输出时钟优先使用设备时间戳，缺失或过期时使用输出延迟', () => {

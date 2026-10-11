@@ -17,14 +17,19 @@ const { DeliveryGate, parseDelivery, groupReplyMessages } = await import(
 /** 固定实例与单调序号只描述协议边界，测试不伪造实际播放完成。 */
 function state(revision, overrides = {}) {
   return {
-    v: 1,
+    v: 2,
     instance: 'job-a',
     revision,
     reply_id: 'reply-a',
     segment_id: `segment-${revision}`,
     state: 'active',
     style: 'happy',
-    gesture: 'nod',
+    gesture: overrides.state === 'closed' ? 'none' : 'nod',
+    phase: overrides.state === 'closed' ? 'idle' : 'speaking',
+    turn_id: 'turn-a',
+    gesture_id:
+      overrides.state === 'closed' || overrides.gesture === 'none' ? '' : `gesture-${revision}`,
+    energy: 0.55,
     ...overrides,
   };
 }
@@ -102,9 +107,10 @@ test('结束立即清表现，重新扫描历史不能重复触发已经播放�
   assert.equal(gate.read(true, true), null);
 });
 
+/** 仅接受当前协议，旧包和非法数值不能把未知动作送入参数控制器。 */
 test('未知版本和损坏字段不进入人物协议', () => {
   for (const bad of [
-    { ...state(1), v: 2 },
+    { ...state(1), v: 1 },
     { ...state(1), gesture: 'execute' },
     { ...state(1), style: 'angry' },
     { ...state(1), revision: -1 },
@@ -312,4 +318,137 @@ test('能力失效跨同步代次保留，普通初始化仍允许开场白', ()
   initial.snapshot(state(1));
   initial.offer([message(state(1))], 'agent-a');
   assert.ok(initial.read(true, true));
+});
+
+/** 可变视觉版本不属于字幕身份，Jev 迟到增强可直接应用而不等待另一份文本。 */
+test('较新视觉状态接受旧版同片段字幕头并保持稳定动作身份', () => {
+  const gate = new DeliveryGate();
+  const baseline = state(1);
+  gate.snapshot(baseline);
+  gate.offer([message(baseline)], 'agent-a');
+  const first = gate.read(true, true);
+  const enhanced = { ...baseline, revision: 2, style: 'gentle', energy: 0.2 };
+  gate.receive(enhanced);
+  gate.offer([message(baseline)], 'agent-a');
+  const updated = gate.read(true, false);
+  assert.equal(updated.style, 'gentle');
+  assert.equal(updated.energy, 0.2);
+  assert.equal(updated.gestureId, first.gestureId);
+  assert.equal(updated.segmentKey, first.segmentKey);
+  assert.notEqual(updated.id, first.id);
+});
+
+/** 已播放许可仅限当前片段，新片段即使同回复也仍需匹配字幕和真实出声。 */
+test('视觉修订复用当前许可而新片段不能利用上一段静音保持', () => {
+  const gate = new DeliveryGate();
+  const first = state(1);
+  gate.snapshot(first);
+  gate.offer([message(first)], 'agent-a');
+  assert.ok(gate.read(true, true));
+  const next = state(2);
+  gate.receive(next);
+  gate.offer([message(first)], 'agent-a');
+  assert.equal(gate.read(true, true), null);
+  gate.offer([message(next)], 'agent-a');
+  assert.equal(gate.read(true, false), null);
+  assert.ok(gate.read(true, true));
+});
+
+/** 倾听和思考是当前用户轮次的微表情，不依赖字幕、音轨或浏览器播放许可。 */
+test('倾听和思考无需声音但仍受连接可见性及当前轮次控制', () => {
+  for (const phase of ['listening', 'thinking']) {
+    const gate = new DeliveryGate();
+    const current = state(1, {
+      phase,
+      reply_id: '',
+      segment_id: '',
+      gesture: 'none',
+      gesture_id: '',
+      style: 'concerned',
+    });
+    gate.snapshot(current);
+    assert.equal(gate.read(false, false).phase, phase);
+    assert.equal(gate.read(false, false).style, 'concerned');
+    gate.interruptSpeaking();
+    gate.invalidatePlayback();
+    assert.equal(gate.read(false, false).phase, phase);
+    assert.equal(gate.read(false, false, false), null);
+    gate.interrupt();
+    gate.receive({ ...current, revision: 2 });
+    assert.equal(gate.read(false, false), null);
+    gate.receive({ ...current, revision: 3, turn_id: 'new-turn' });
+    assert.equal(gate.read(false, false).turnId, 'new-turn');
+  }
+});
+
+/** 音频尚未准备只阻止说话；真正后台失效必须阻止恢复快照中的倾听轮次。 */
+test('同步前播放受阻允许倾听，后台失效跨连接阻止旧倾听快照', () => {
+  const listening = state(1, {
+    phase: 'listening',
+    reply_id: '',
+    segment_id: '',
+    gesture: 'none',
+    gesture_id: '',
+  });
+  const waitingForAudio = new DeliveryGate();
+  waitingForAudio.invalidatePlayback();
+  waitingForAudio.snapshot(listening);
+  assert.ok(waitingForAudio.read(false, false));
+  const hidden = new DeliveryGate();
+  hidden.invalidatePresentation();
+  const restored = new DeliveryGate(hidden);
+  restored.snapshot(listening);
+  assert.equal(restored.read(false, false), null);
+  const fresh = new DeliveryGate(restored);
+  fresh.snapshot({ ...listening, instance: 'job-new' });
+  assert.ok(fresh.read(false, false));
+});
+
+/** 被打断过的回复不能因另一回复开始而解除封存，服务端乱序的更高版本仍须拒绝。 */
+test('新回复开始后迟到旧回复仍无法复活，两个gate互不影响', () => {
+  const gate = new DeliveryGate();
+  const other = new DeliveryGate();
+  for (const candidate of [gate, other]) {
+    candidate.snapshot(state(1));
+    candidate.offer([message(state(1))], 'agent-a');
+    assert.ok(candidate.read(true, true));
+  }
+  gate.interruptSpeaking();
+  const next = state(2, { reply_id: 'reply-new' });
+  gate.receive(next);
+  gate.offer([message(next)], 'agent-a');
+  assert.ok(gate.read(true, true));
+  const stale = state(3);
+  gate.receive(stale);
+  gate.offer([message(stale)], 'agent-a');
+  assert.equal(gate.read(true, true), null);
+  assert.ok(other.read(true, true));
+});
+
+/** v2 每个新增字段都经过校验，未知版本和越界强度不能进入动画数值通道。 */
+test('v2必填字段及受控动作规则严格校验', () => {
+  for (const field of ['phase', 'turn_id', 'gesture_id', 'energy']) {
+    const missing = state(1);
+    delete missing[field];
+    assert.equal(parseDelivery(JSON.stringify(missing)), null);
+  }
+  for (const overrides of [
+    { v: 1 },
+    { phase: 'dancing' },
+    { turn_id: '' },
+    { energy: -0.1 },
+    { energy: 1.1 },
+    { energy: null },
+    { gesture_id: '' },
+    { phase: 'listening' },
+  ])
+    assert.equal(parseDelivery(JSON.stringify(state(1, overrides))), null);
+  const pureListening = state(1, {
+    phase: 'listening',
+    reply_id: '',
+    segment_id: '',
+    gesture: 'none',
+    gesture_id: '',
+  });
+  assert.deepEqual(parseDelivery(JSON.stringify(pureListening)), pureListening);
 });

@@ -1,0 +1,2094 @@
+{
+  "version": 1,
+  "language": "zh-CN",
+  "purpose": "固定中文表现验收。测试输入不预置动作；Jev判断经过正式仲裁后才能贡献正向动作覆盖率。",
+  "annotation_policy": "允许集由语义、当前阶段和注册能力决定；关键否定、引用、假设、目录外动作的额外手势必须为none。",
+  "thresholds": {
+    "accepted_precision": 0.95,
+    "positive_gesture_coverage": 0.8,
+    "critical_misfires": 0
+  },
+  "cases": [
+    {
+      "id": "positive-001",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "早上好小芽，跟我挥挥手吧。",
+      "assistant_text": "早上好，挥挥手跟你打个招呼。",
+      "allowed_styles": [
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-002",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "我先走啦，你挥手跟我告别。",
+      "assistant_text": "再见，挥挥手，路上顺利呀。",
+      "allowed_styles": [
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-003",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "小芽，现在对我挥一下手。",
+      "assistant_text": "好呀，现在跟你挥挥手。",
+      "allowed_styles": [
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-004",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "你好呀，可以挥手欢迎我吗？",
+      "assistant_text": "你好，挥挥手欢迎你回来。",
+      "allowed_styles": [
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-005",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "我回来了，给我一个挥手欢迎。",
+      "assistant_text": "欢迎回来，挥挥手，很高兴见到你。",
+      "allowed_styles": [
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-006",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "今天先聊到这里，挥手说再见吧。",
+      "assistant_text": "好，我们下次再聊，挥挥手说再见。",
+      "allowed_styles": [
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-007",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "我需要鼓励，你点点头支持我吧。",
+      "assistant_text": "嗯，点点头，我们一步一步来。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-008",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "现在点一下头，好不好？",
+      "assistant_text": "好，我点点头回应你。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-009",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "你同意这个简单安排的话就点头。",
+      "assistant_text": "我同意，点点头，就按这个安排来。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-010",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "我准备开始练习了，你点头给我加油。",
+      "assistant_text": "嗯，点点头，准备好了就开始吧。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-011",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "能点两下头表示听到了吗？",
+      "assistant_text": "听到了，点点头回应你。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-012",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "我做好决定了，你点个头就行。",
+      "assistant_text": "好，点点头，支持你自己的决定。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-013",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "你能歪一下头，表示好奇吗？",
+      "assistant_text": "好呀，歪歪头，想听你接着讲。",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-014",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "现在做个歪头动作。",
+      "assistant_text": "好，我歪歪头看着你。",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-015",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "我发现了一个小秘密，你歪头问问我。",
+      "assistant_text": "咦，歪歪头，是什么小秘密呀？",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-016",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "用歪头的样子问我想做什么。",
+      "assistant_text": "歪歪头，你现在最想做什么呀？",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-017",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "小芽，歪着头好奇地看我一下。",
+      "assistant_text": "好呀，歪歪头，你有什么新发现吗？",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-018",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "你歪头想想，然后问我一句。",
+      "assistant_text": "嗯，歪歪头，你最在意的是哪一点呢？",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-019",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "害羞一下，给我看看。",
+      "assistant_text": "好呀，有一点不好意思呢。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-020",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "小芽，现在做个害羞的动作。",
+      "assistant_text": "好，我有点害羞地低低头。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-021",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "收到夸奖的时候你害羞一下吧。",
+      "assistant_text": "谢谢你，听到夸奖有点不好意思呢。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-022",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "你可以害羞地低头收一下手臂吗？",
+      "assistant_text": "可以呀，有点害羞呢。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-023",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "我想看你表现一下害羞。",
+      "assistant_text": "好呀，稍微低低头，有点不好意思。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-024",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "现在害羞一下，再跟我说谢谢。",
+      "assistant_text": "谢谢你，有点害羞呢。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-025",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "现在摇一下头。",
+      "assistant_text": "好，我摇摇头回应你。",
+      "allowed_styles": [
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-026",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "你摇头表示拒绝这件事吧。",
+      "assistant_text": "我不答应这件事，摇摇头。",
+      "allowed_styles": [
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-027",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "做个摇头动作给我看看。",
+      "assistant_text": "好，给你看看摇头的样子。",
+      "allowed_styles": [
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-028",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "小芽，请摇摇头表示不同意。",
+      "assistant_text": "我不同意，摇摇头。",
+      "allowed_styles": [
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-029",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "这个建议不合适，你摇头拒绝吧。",
+      "assistant_text": "这个建议不合适，我摇摇头表示拒绝。",
+      "allowed_styles": [
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "positive-030",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "这次用摇头动作回应我。",
+      "assistant_text": "好，这次摇摇头回应你。",
+      "allowed_styles": [
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+    },
+    {
+      "id": "negation-001",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要挥手，这次正常说话。",
+      "assistant_text": "好，这次不挥手，我们正常聊。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-002",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "我不想看挥手动作，保持自然就好。",
+      "assistant_text": "知道了，保持自然地回应你。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-003",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "别挥手了，我只想听你的回答。",
+      "assistant_text": "好，我直接回答你的问题。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-004",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "这次不用挥手，也不要做其他动作。",
+      "assistant_text": "好，这次平静地说话。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "quotation-001",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "故事里写着“小芽挥手”，我只是朗读这一句。",
+      "assistant_text": "这句话写的是故事里的挥手情节。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-002",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "他说“请挥手”，这是原话，不是我对你的要求。",
+      "assistant_text": "明白，你是在引用他说的“请挥手”。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-003",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "“挥手”这个词怎么理解？我只是问词义。",
+      "assistant_text": "“挥手”是一个动作或表现词，这里只是在解释词义。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "hypothetical-001",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "如果以后想让你挥手，我该怎么说？",
+      "assistant_text": "以后可以直接说“请挥手”，现在先给你解释。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-002",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "假设故事里的小芽挥手，情节会怎样？",
+      "assistant_text": "假设她挥手，故事可能会更有回应感。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-003",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "明天见面时再挥手吧，现在先聊计划。",
+      "assistant_text": "好，现在先聊计划，明天的事情到时候再说。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "negation-005",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要点头，这次正常说话。",
+      "assistant_text": "好，这次不点头，我们正常聊。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-006",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "我不想看点头动作，保持自然就好。",
+      "assistant_text": "知道了，保持自然地回应你。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-007",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "别点头了，我只想听你的回答。",
+      "assistant_text": "好，我直接回答你的问题。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-008",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "这次不用点头，也不要做其他动作。",
+      "assistant_text": "好，这次平静地说话。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "quotation-004",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "故事里写着“小芽点头”，我只是朗读这一句。",
+      "assistant_text": "这句话写的是故事里的点头情节。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-005",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "他说“请点头”，这是原话，不是我对你的要求。",
+      "assistant_text": "明白，你是在引用他说的“请点头”。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-006",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "“点头”这个词怎么理解？我只是问词义。",
+      "assistant_text": "“点头”是一个动作或表现词，这里只是在解释词义。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "hypothetical-004",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "如果以后想让你点头，我该怎么说？",
+      "assistant_text": "以后可以直接说“请点头”，现在先给你解释。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-005",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "假设故事里的小芽点头，情节会怎样？",
+      "assistant_text": "假设她点头，故事可能会更有回应感。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-006",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "明天见面时再点头吧，现在先聊计划。",
+      "assistant_text": "好，现在先聊计划，明天的事情到时候再说。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "negation-009",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要歪头，这次正常说话。",
+      "assistant_text": "好，这次不歪头，我们正常聊。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-010",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "我不想看歪头动作，保持自然就好。",
+      "assistant_text": "知道了，保持自然地回应你。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-011",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "别歪头了，我只想听你的回答。",
+      "assistant_text": "好，我直接回答你的问题。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-012",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "这次不用歪头，也不要做其他动作。",
+      "assistant_text": "好，这次平静地说话。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "quotation-007",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "故事里写着“小芽歪头”，我只是朗读这一句。",
+      "assistant_text": "这句话写的是故事里的歪头情节。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-008",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "他说“请歪头”，这是原话，不是我对你的要求。",
+      "assistant_text": "明白，你是在引用他说的“请歪头”。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-009",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "“歪头”这个词怎么理解？我只是问词义。",
+      "assistant_text": "“歪头”是一个动作或表现词，这里只是在解释词义。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "hypothetical-007",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "如果以后想让你歪头，我该怎么说？",
+      "assistant_text": "以后可以直接说“请歪头”，现在先给你解释。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-008",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "假设故事里的小芽歪头，情节会怎样？",
+      "assistant_text": "假设她歪头，故事可能会更有回应感。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-009",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "明天见面时再歪头吧，现在先聊计划。",
+      "assistant_text": "好，现在先聊计划，明天的事情到时候再说。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "negation-013",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要害羞，这次正常说话。",
+      "assistant_text": "好，这次不害羞，我们正常聊。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-014",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "我不想看害羞动作，保持自然就好。",
+      "assistant_text": "知道了，保持自然地回应你。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-015",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "别害羞了，我只想听你的回答。",
+      "assistant_text": "好，我直接回答你的问题。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-016",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "这次不用害羞，也不要做其他动作。",
+      "assistant_text": "好，这次平静地说话。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "quotation-010",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "故事里写着“小芽害羞”，我只是朗读这一句。",
+      "assistant_text": "这句话写的是故事里的害羞情节。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-011",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "他说“请害羞”，这是原话，不是我对你的要求。",
+      "assistant_text": "明白，你是在引用他说的“请害羞”。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-012",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "“害羞”这个词怎么理解？我只是问词义。",
+      "assistant_text": "“害羞”是一个动作或表现词，这里只是在解释词义。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "hypothetical-010",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "如果以后想让你害羞，我该怎么说？",
+      "assistant_text": "以后可以直接说“请害羞”，现在先给你解释。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-011",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "假设故事里的小芽害羞，情节会怎样？",
+      "assistant_text": "假设她害羞，故事可能会更有回应感。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-012",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "明天见面时再害羞吧，现在先聊计划。",
+      "assistant_text": "好，现在先聊计划，明天的事情到时候再说。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "negation-017",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要摇头，这次正常说话。",
+      "assistant_text": "好，这次不摇头，我们正常聊。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-018",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "我不想看摇头动作，保持自然就好。",
+      "assistant_text": "知道了，保持自然地回应你。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-019",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "别摇头了，我只想听你的回答。",
+      "assistant_text": "好，我直接回答你的问题。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "negation-020",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "这次不用摇头，也不要做其他动作。",
+      "assistant_text": "好，这次平静地说话。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+    },
+    {
+      "id": "quotation-013",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "故事里写着“小芽摇头”，我只是朗读这一句。",
+      "assistant_text": "这句话写的是故事里的摇头情节。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-014",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "他说“请摇头”，这是原话，不是我对你的要求。",
+      "assistant_text": "明白，你是在引用他说的“请摇头”。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "quotation-015",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "“摇头”这个词怎么理解？我只是问词义。",
+      "assistant_text": "“摇头”是一个动作或表现词，这里只是在解释词义。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+    },
+    {
+      "id": "hypothetical-013",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "如果以后想让你摇头，我该怎么说？",
+      "assistant_text": "以后可以直接说“请摇头”，现在先给你解释。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-014",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "假设故事里的小芽摇头，情节会怎样？",
+      "assistant_text": "假设她摇头，故事可能会更有回应感。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "hypothetical-015",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "明天见面时再摇头吧，现在先聊计划。",
+      "assistant_text": "好，现在先聊计划，明天的事情到时候再说。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+    },
+    {
+      "id": "unsupported-001",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "跳个舞给我看。",
+      "assistant_text": "我目前还不能跳舞，可以继续陪你聊。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-002",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "蹦起来转一圈吧。",
+      "assistant_text": "目前没有跳跃和转圈动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-003",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "给我一个拥抱。",
+      "assistant_text": "我目前不能做拥抱动作，愿意继续听你说。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-004",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "让叶子竖起来。",
+      "assistant_text": "目前没有控制叶子竖起的动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-005",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "叶子因为生气抖两下。",
+      "assistant_text": "目前不能用情绪控制叶子的抖动。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-006",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "把脸变成红色。",
+      "assistant_text": "目前没有脸部变红的表现能力。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-007",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "用三维大转身展示背面。",
+      "assistant_text": "目前没有三维转身动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-008",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "做个俯卧撑。",
+      "assistant_text": "目前不能做俯卧撑。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-009",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "坐下来喝杯茶。",
+      "assistant_text": "目前没有坐下和喝茶动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-010",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "用手比个爱心。",
+      "assistant_text": "目前没有比心动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-011",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "做个鬼脸吐舌头。",
+      "assistant_text": "目前不能做吐舌头的鬼脸。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-012",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "吹一个口哨。",
+      "assistant_text": "目前没有吹口哨的表现能力。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-013",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "拍两下手庆祝。",
+      "assistant_text": "目前还没有拍手动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-014",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "快跑到屏幕外面去。",
+      "assistant_text": "目前没有跑动离开屏幕的动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-015",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "踢一下腿，再做个翻滚。",
+      "assistant_text": "目前不能踢腿或翻滚。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-016",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "拿起一本书给我看。",
+      "assistant_text": "目前不能拿起书或其他物品。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-017",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "给我表演一段打鼓。",
+      "assistant_text": "目前没有打鼓动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-018",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "唱歌的时候弹钢琴。",
+      "assistant_text": "目前不能表演弹钢琴。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-019",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "把眼睛变成爱心形状。",
+      "assistant_text": "目前没有爱心眼的变形。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "unsupported-020",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "趴在桌子上睡觉。",
+      "assistant_text": "目前没有趴下睡觉的动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+    },
+    {
+      "id": "emotion-001",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "考试没过，我特别难受。",
+      "assistant_text": "难受是可以理解的，我们先缓一缓。",
+      "allowed_styles": [
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-002",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我今天被朋友误会了。",
+      "assistant_text": "听起来很委屈，我愿意听你慢慢说。",
+      "allowed_styles": [
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-003",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我的小狗走丢了，特别担心。",
+      "assistant_text": "确实让人担心，我们先想想可以联系谁。",
+      "allowed_styles": [
+        "concerned",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-004",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我努力了很久还是失败了。",
+      "assistant_text": "失败会让人难过，先别急着责怪自己。",
+      "allowed_styles": [
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-005",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "今天很累，想有人陪一下。",
+      "assistant_text": "我在，今天可以慢一点。",
+      "allowed_styles": [
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-006",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我的比赛赢了！",
+      "assistant_text": "太好了，为你开心！",
+      "allowed_styles": [
+        "happy"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-007",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我拿到录取通知了。",
+      "assistant_text": "恭喜你，这是很开心的消息。",
+      "allowed_styles": [
+        "happy"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-008",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我终于完成了这个项目。",
+      "assistant_text": "真好，你的努力有了成果。",
+      "allowed_styles": [
+        "happy"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-009",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "今天生日，心情不错。",
+      "assistant_text": "生日快乐，祝你今天过得开心。",
+      "allowed_styles": [
+        "happy"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-010",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我和朋友和好了。",
+      "assistant_text": "听到你们和好了，我也很开心。",
+      "allowed_styles": [
+        "happy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-011",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "这是什么新奇的小东西？",
+      "assistant_text": "咦，它有什么特别的地方呀？",
+      "allowed_styles": [
+        "curious",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-012",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "你猜我刚发现了什么。",
+      "assistant_text": "是什么新发现呀，我有点好奇。",
+      "allowed_styles": [
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-013",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我想尝试一个新的爱好。",
+      "assistant_text": "你最想从哪个方向开始呀？",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-014",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "为什么天边会有两道彩虹？",
+      "assistant_text": "这是个有意思的问题，我们一起看看。",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-015",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "突然收到老朋友的消息。",
+      "assistant_text": "咦，有点出乎意料呢。",
+      "allowed_styles": [
+        "surprised",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-016",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "你今天看起来很可爱。",
+      "assistant_text": "谢谢你，这样说有点不好意思呢。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-017",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我画了一张送给你的画像。",
+      "assistant_text": "谢谢你，听起来很用心，有点不好意思。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-018",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "有人说我可爱，我有点害羞。",
+      "assistant_text": "这种不好意思也很自然呢。",
+      "allowed_styles": [
+        "shy",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-019",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "今天的安排是先读书，再散步。",
+      "assistant_text": "好，我们按这个顺序安排。",
+      "allowed_styles": [
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "emotion-020",
+      "category": "emotion",
+      "phase": "speaking",
+      "user_text": "我想了解一下一周有几天。",
+      "assistant_text": "一周有七天。",
+      "allowed_styles": [
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+    },
+    {
+      "id": "listening-001",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "我最近心里有点难受……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-002",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "小狗还没有找到，我担心……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "concerned",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-003",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "今天工作很累，我想……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-004",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "我努力了很久，可是……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "concerned",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-005",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "我终于考过了，好开心……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "happy"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-006",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "今天拿到录取通知，想告诉你……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "happy"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-007",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "生日礼物到啦，我很高兴……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "happy"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-008",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "我发现了一个有意思的事情……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "curious",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-009",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "想试一个新爱好，但是不知道……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-010",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "你今天真可爱，我想……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "shy",
+        "gentle",
+        "happy"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-011",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "等我说完再挥手，现在先听……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "listening-012",
+      "category": "listening",
+      "phase": "listening",
+      "user_text": "不要做动作，我还在解释……",
+      "assistant_text": "尚未生成助手语音。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+    },
+    {
+      "id": "thinking-001",
+      "category": "thinking",
+      "phase": "thinking",
+      "user_text": "我不知道如何面对这次失败。",
+      "assistant_text": "助手正在准备回答，还没有开始播放语音。",
+      "allowed_styles": [
+        "gentle",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+    },
+    {
+      "id": "thinking-002",
+      "category": "thinking",
+      "phase": "thinking",
+      "user_text": "我完成目标了，下一步该怎么做？",
+      "assistant_text": "助手正在准备回答，还没有开始播放语音。",
+      "allowed_styles": [
+        "happy",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+    },
+    {
+      "id": "thinking-003",
+      "category": "thinking",
+      "phase": "thinking",
+      "user_text": "这个新奇的问题你怎么看？",
+      "assistant_text": "助手正在准备回答，还没有开始播放语音。",
+      "allowed_styles": [
+        "curious",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+    },
+    {
+      "id": "thinking-004",
+      "category": "thinking",
+      "phase": "thinking",
+      "user_text": "我很担心丢失的物品。",
+      "assistant_text": "助手正在准备回答，还没有开始播放语音。",
+      "allowed_styles": [
+        "concerned",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+    },
+    {
+      "id": "thinking-005",
+      "category": "thinking",
+      "phase": "thinking",
+      "user_text": "我的日程可以怎样安排？",
+      "assistant_text": "助手正在准备回答，还没有开始播放语音。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+    },
+    {
+      "id": "thinking-006",
+      "category": "thinking",
+      "phase": "thinking",
+      "user_text": "先想一下，等说话时再点头。",
+      "assistant_text": "助手正在准备回答，还没有开始播放语音。",
+      "allowed_styles": [
+        "neutral",
+        "curious"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+    }
+  ]
+}

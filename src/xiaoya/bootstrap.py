@@ -6,9 +6,11 @@ from livekit.local_inference import init_eot
 from livekit.plugins import silero
 
 from xiaoya.application.assistant_tools import AssistantTools
+from xiaoya.application.presentation import PresentationController
 from xiaoya.application.start_conversation import StartVoiceConversation
 from xiaoya.domain.assistant import AssistantProfile
 from xiaoya.infrastructure.assistant_tools import AssistantToolAdapter, SystemClock
+from xiaoya.infrastructure.jev import JevPresentationDecider
 from xiaoya.infrastructure.livekit_conversation import LiveKitVoiceConversation
 from xiaoya.infrastructure.mcp_settings import load_mcp_settings
 from xiaoya.infrastructure.mcp_tools import MCPTools
@@ -49,7 +51,7 @@ def validate_configuration(*, require_livekit: bool = False) -> None:
 
 
 def prepare_conversation(context: JobContext) -> StartVoiceConversation:
-    """工具按 Job 隔离；运行态会话结束通知 Job，启动失败仍按原异常传播。"""
+    """工具和表现连接池按 Job 隔离；唯一装配入口显式选择可选外部判断端口。"""
     settings = Settings.from_environment()
     profile = AssistantProfile(instructions=settings.instructions, greeting=settings.greeting)
     conversation = LiveKitVoiceConversation(
@@ -59,6 +61,15 @@ def prepare_conversation(context: JobContext) -> StartVoiceConversation:
         tools=AssistantToolAdapter(AssistantTools(clock=SystemClock())),
         mcp=MCPTools(settings.mcp_config_file),
         on_terminal=context.shutdown,
+        presentation=PresentationController(
+            JevPresentationDecider(
+                base_url=settings.jev_base_url,
+                model=settings.jev_model,
+                api_key=settings.jev_api_key,
+            )
+            if settings.jev_api_key
+            else None
+        ),
     )
     context.add_shutdown_callback(conversation.close)
     return StartVoiceConversation(conversation=conversation, profile=profile)

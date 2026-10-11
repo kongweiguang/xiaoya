@@ -43,7 +43,8 @@ export class DeliveryChannel {
     room.on(RoomEvent.ActiveSpeakersChanged, this.activeSpeakers);
     room.on(RoomEvent.AudioPlaybackStatusChanged, this.playbackChanged);
     document.addEventListener('visibilitychange', this.visibilityChanged);
-    if (this.playbackUnavailable || this.hidden) this.gate.invalidatePresentation();
+    if (this.hidden) this.gate.invalidatePresentation();
+    else if (this.playbackUnavailable) this.gate.invalidatePlayback();
     void this.synchronize();
   }
 
@@ -186,7 +187,7 @@ export class DeliveryChannel {
 
   /** 用户开口先截断动作，不等待转写或模型响应。 */
   private activeSpeakers = (): void => {
-    if (this.room.localParticipant.isSpeaking) this.gate.interrupt();
+    if (this.room.localParticipant.isSpeaking) this.gate.interruptSpeaking();
   };
 
   /** 播放许可丢失和恢复都划定新的表现边界，恢复后不追赶旧手势。 */
@@ -194,8 +195,8 @@ export class DeliveryChannel {
     const unavailable = !this.room.canPlaybackAudio;
     if (unavailable === this.playbackUnavailable) return;
     this.playbackUnavailable = unavailable;
-    if (unavailable) this.gate.invalidatePresentation();
-    else this.gate.interrupt();
+    if (unavailable) this.gate.invalidatePlayback();
+    else this.gate.interruptSpeaking();
   };
 
   /** 后台回复已错过展示时机，返回前台只允许之后的新回复表演。 */

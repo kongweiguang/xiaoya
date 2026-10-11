@@ -44,6 +44,8 @@ async function controls(options = {}) {
       end: async () => undefined,
       /** 独立控件用例只观察采集端口，全页面提示同步由真实 App 用例验证。 */
       onMicrophoneChange: options.onMicrophoneChange ?? (() => undefined),
+      onHistoryToggle: options.onHistoryToggle,
+      historyOpen: options.historyOpen ?? false,
     });
   }
   return { ...environment, room, ...render(React.createElement(Composer)) };
@@ -413,4 +415,34 @@ test('编辑草稿保留100px高度上限与唯一观察器，清空后回到单
   await settle(() => fireEvent.change(input, { target: { value: '' } }));
   assert.equal(input.style.height, '38px');
   assert.deepEqual([...observers], [observer]);
+});
+
+/** 历史入口仅调用页面的开合操作，不提交草稿或重新获取设备。 */
+test('历史入口暴露展开语义并保留草稿和设备状态', async () => {
+  let opens = 0;
+  const view = await controls({
+    draft: '不发送这条',
+    /** 历史由父页面持有，控件不另建一份会话或消息状态。 */
+    onHistoryToggle: () => {
+      opens += 1;
+    },
+  });
+  const opener = view.getByRole('button', { name: '查看聊天记录' });
+  assert.equal(opener.getAttribute('aria-expanded'), 'false');
+  fireEvent.click(opener);
+  assert.equal(opens, 1);
+  assert.equal(view.getByRole('textbox').value, '不发送这条');
+  assert.equal(view.calls.microphones.length, 0);
+});
+
+/** 设备菜单的退出与焦点归还独立于采集操作，Escape 不修改麦克风开关。 */
+test('设备菜单 Escape 收起并归还选择入口', async () => {
+  const view = await controls();
+  const menu = view.container.querySelector('.device-menu');
+  menu.open = true;
+  view.getByRole('combobox').focus();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  assert.equal(menu.open, false);
+  assert.equal(document.activeElement, menu.querySelector('summary'));
+  assert.equal(view.calls.microphones.length, 0);
 });

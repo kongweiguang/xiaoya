@@ -1,7 +1,7 @@
 import type { AvatarDelivery } from './presentation';
 
-type DeliveryState = {
-  v: 1;
+export type DeliveryState = {
+  v: 2;
   instance: string;
   revision: number;
   reply_id: string;
@@ -9,6 +9,10 @@ type DeliveryState = {
   state: 'active' | 'closed';
   style: AvatarDelivery['style'];
   gesture: AvatarDelivery['gesture'];
+  phase: AvatarDelivery['phase'];
+  turn_id: string;
+  gesture_id: string;
+  energy: number;
 };
 export type DeliveryMessage = {
   id: string;
@@ -25,7 +29,7 @@ export function parseDelivery(value: string): DeliveryState | null {
   try {
     const data = JSON.parse(value);
     if (
-      data?.v !== 1 ||
+      data?.v !== 2 ||
       typeof data.instance !== 'string' ||
       !data.instance ||
       !Number.isSafeInteger(data.revision) ||
@@ -35,7 +39,23 @@ export function parseDelivery(value: string): DeliveryState | null {
       !['active', 'closed'].includes(data.state) ||
       !styles.has(data.style) ||
       !gestures.has(data.gesture) ||
-      (data.state === 'active' && (!data.reply_id || !data.segment_id))
+      !['idle', 'listening', 'thinking', 'speaking'].includes(data.phase) ||
+      (data.phase === 'idle' && data.state !== 'closed') ||
+      (data.phase !== 'idle' && data.state !== 'active') ||
+      typeof data.turn_id !== 'string' ||
+      typeof data.gesture_id !== 'string' ||
+      typeof data.energy !== 'number' ||
+      !Number.isFinite(data.energy) ||
+      data.energy < 0 ||
+      data.energy > 1 ||
+      (data.state === 'active' &&
+        data.phase === 'speaking' &&
+        (!data.reply_id ||
+          !data.segment_id ||
+          !data.turn_id ||
+          (data.gesture !== 'none' && !data.gesture_id))) ||
+      (data.phase !== 'speaking' && (data.gesture !== 'none' || data.gesture_id !== '')) ||
+      (data.state === 'active' && data.phase !== 'idle' && !data.turn_id)
     )
       return null;
     return data as DeliveryState;
@@ -51,23 +71,33 @@ export class DeliveryGate {
   private displayed: AvatarDelivery | null = null;
   private consumedRevision = -1;
   private blockedReply: string | null = null;
+  private readonly blockedReplies = new Set<string>();
+  private readonly blockedTurns = new Set<string>();
   private synchronized = false;
   private presentationInvalidated = false;
+  private playbackInvalidated = false;
   private recoveryFence: {
     instance: string;
     revision: number;
     reply: string | null;
+    turn: string | null;
   } | null = null;
 
   /** 连接代次仍独占回调，但保留旧回复取消边界；不同 Agent 实例必须由新快照解除。 */
   constructor(previous?: DeliveryGate) {
     this.presentationInvalidated = previous?.presentationInvalidated ?? false;
+    this.playbackInvalidated = previous?.playbackInvalidated ?? false;
+    if (previous) {
+      for (const reply of previous.blockedReplies) this.blockedReplies.add(reply);
+      for (const turn of previous.blockedTurns) this.blockedTurns.add(turn);
+    }
     const prior = previous?.current ?? previous?.pending;
     this.recoveryFence = prior
       ? {
           instance: prior.instance,
           revision: Math.max(prior.revision, previous!.consumedRevision),
           reply: prior.state === 'active' ? prior.reply_id : previous!.blockedReply,
+          turn: prior.state === 'active' && prior.phase !== 'speaking' ? prior.turn_id : null,
         }
       : (previous?.recoveryFence ?? null);
   }
@@ -82,6 +112,19 @@ export class DeliveryGate {
       blockedReply: this.blockedReply,
       consumedRevision: this.consumedRevision,
     };
+  }
+
+  /** 已匹配字幕的候选可等待设备输出缓冲；舞台不能把这种合法未来 PCM 当取消尾窗清掉。 */
+  get awaitingAudibleSpeech(): boolean {
+    const state = this.current;
+    return Boolean(
+      this.synchronized &&
+        state?.state === 'active' &&
+        state.phase === 'speaking' &&
+        this.candidate &&
+        !this.blockedReplies.has(state.reply_id) &&
+        !this.blockedTurns.has(state.turn_id)
+    );
   }
 
   /** 数据订阅先于快照建立，但实例身份只由此次 RPC 快照确认。 */
@@ -108,6 +151,8 @@ export class DeliveryGate {
     this.recoveryFence = null;
     if (fence?.instance === next.instance) {
       this.blockedReply = fence.reply;
+      if (fence.reply) this.blockedReplies.add(fence.reply);
+      if (fence.turn) this.blockedTurns.add(fence.turn);
       this.consumedRevision = fence.revision;
       // 旧快照也不能回退已知序号；只恢复基线，等待权威的新回复而不补演旧段。
       if (next.revision < fence.revision)
@@ -115,25 +160,37 @@ export class DeliveryGate {
           ...next,
           revision: fence.revision,
           state: 'closed',
+          phase: 'idle',
           style: 'neutral',
           gesture: 'none',
+          gesture_id: '',
         };
+    } else if (fence) {
+      this.blockedReplies.clear();
+      this.blockedTurns.clear();
+      this.blockedReply = null;
     }
     this.apply(next);
     if (this.presentationInvalidated) {
       this.presentationInvalidated = false;
       this.interrupt();
     }
+    if (this.playbackInvalidated) {
+      this.playbackInvalidated = false;
+      this.interruptSpeaking();
+    }
   }
 
-  /** active 必须匹配字幕头；replyKey 显式携带实例/回复而不解析段 ID，JSON 二元数组避免拼接歧义。 */
+  /** 字幕只确认不可变片段身份；视觉修订号可独立前进，Jev 更新不要求重发字幕。 */
   offer(messages: readonly DeliveryMessage[], agentIdentity: string) {
     const state = this.current;
     if (
       !this.synchronized ||
       !state ||
       state.state !== 'active' ||
-      state.revision <= this.consumedRevision
+      state.phase !== 'speaking' ||
+      this.blockedReplies.has(state.reply_id) ||
+      this.blockedTurns.has(state.turn_id)
     )
       return;
     for (let index = messages.length - 1; index >= 0; index--) {
@@ -144,30 +201,38 @@ export class DeliveryGate {
       if (
         header &&
         header.instance === state.instance &&
-        header.revision === state.revision &&
+        header.phase === 'speaking' &&
         header.reply_id === state.reply_id &&
         header.segment_id === state.segment_id &&
         message.attributes?.['lk.segment_id'] === state.segment_id
       ) {
-        this.candidate = {
-          id: `${state.instance}:${state.revision}:${state.segment_id}`,
-          replyKey: JSON.stringify([state.instance, state.reply_id]),
-          style: state.style,
-          gesture: state.gesture,
-        };
+        const candidate = this.delivery(state);
+        if (this.displayed?.id !== candidate.id) this.candidate = candidate;
         return;
       }
     }
   }
 
-  /** 用户开口、换轨或播放受阻立即关闭表现，不因下一次 speaking 自行补演旧动作。 */
+  /** 舞台隐藏和连接换代封存当前轮次；未来更高修订也不能复活错过的同轮动作。 */
   interrupt() {
     if (this.current?.state === 'active') {
-      this.blockedReply = this.current.reply_id;
-      this.consumedRevision = Math.max(this.consumedRevision, this.current.revision);
+      if (this.current.phase !== 'speaking' && this.current.turn_id)
+        this.blockedTurns.add(this.current.turn_id);
     }
+    this.interruptSpeaking();
     this.candidate = null;
     this.displayed = null;
+  }
+
+  /** 用户开口或播放许可丢失只截断旧说话，仍允许无音频依赖的当前倾听表情。 */
+  interruptSpeaking() {
+    if (this.current?.state === 'active' && this.current.phase === 'speaking') {
+      this.blockedReply = this.current.reply_id;
+      this.blockedReplies.add(this.current.reply_id);
+      this.consumedRevision = Math.max(this.consumedRevision, this.current.revision);
+      this.candidate = null;
+      this.displayed = null;
+    }
   }
 
   /** 真实播放能力失效才延续取消到首份快照；普通初始化不能消耗尚未开始的开场白。 */
@@ -176,27 +241,66 @@ export class DeliveryGate {
     this.interrupt();
   }
 
-  /** 首次表现等待真实音频；句内短暂静音保留神态，手势不会因静音重新触发。 */
-  read(playbackAvailable: boolean, audible: boolean): AvatarDelivery | null {
-    if (!playbackAvailable || this.current?.state !== 'active') return null;
-    if (this.blockedReply === this.current.reply_id) return null;
-    if (this.candidate && audible) {
+  /** 音频初始化和浏览器播放受阻不会取消倾听；同步前失效只延续到首份说话快照。 */
+  invalidatePlayback() {
+    if (!this.synchronized) this.playbackInvalidated = true;
+    this.interruptSpeaking();
+  }
+
+  /** 倾听不依赖声音；说话必须先有匹配字幕与实际出声，句内静音保持已展示神态。 */
+  read(
+    playbackAvailable: boolean,
+    audible: boolean,
+    visualAvailable = true
+  ): AvatarDelivery | null {
+    const state = this.current;
+    if (!visualAvailable || !this.synchronized || state?.state !== 'active') return null;
+    if (this.blockedTurns.has(state.turn_id)) return null;
+    if (state.phase !== 'speaking') return this.delivery(state);
+    if (!playbackAvailable || this.blockedReplies.has(state.reply_id)) return null;
+    const sameSegment =
+      this.displayed?.segmentKey ===
+      JSON.stringify([state.instance, state.reply_id, state.segment_id]);
+    if (this.candidate && (audible || sameSegment)) {
       this.displayed = this.candidate;
       this.candidate = null;
-      this.consumedRevision = this.current.revision;
+      this.consumedRevision = state.revision;
     }
     return this.displayed;
   }
 
-  /** 一个状态更新唯一改变当前段；结束和新序号均清除旧姿态的所有权。 */
+  /** 同片段视觉增强保留播放许可，片段或阶段变更必须重新证明当前所有权。 */
   private apply(state: DeliveryState) {
+    const previous = this.current;
+    const sameSegment =
+      previous?.state === 'active' &&
+      state.state === 'active' &&
+      previous.phase === 'speaking' &&
+      state.phase === 'speaking' &&
+      previous.reply_id === state.reply_id &&
+      previous.segment_id === state.segment_id;
     this.current = state;
     this.candidate = null;
-    this.displayed = null;
+    if (!sameSegment) this.displayed = null;
     // 更高序号的新回复已经证明旧回复失去所有权，不依赖某个关闭通知一定送达。
     if (state.state === 'active' && this.blockedReply && state.reply_id !== this.blockedReply) {
       this.blockedReply = null;
     }
+  }
+
+  /** 稳定动作身份与可变视觉版本分开，重复字幕或表情变化不会重新启动已消费手势。 */
+  private delivery(state: DeliveryState): AvatarDelivery {
+    return {
+      id: `${state.instance}:${state.revision}:${state.segment_id}`,
+      replyKey: JSON.stringify([state.instance, state.reply_id || state.turn_id]),
+      segmentKey: JSON.stringify([state.instance, state.reply_id, state.segment_id]),
+      phase: state.phase,
+      turnId: state.turn_id,
+      gestureId: state.gesture_id,
+      energy: state.energy,
+      style: state.style,
+      gesture: state.gesture,
+    };
   }
 }
 

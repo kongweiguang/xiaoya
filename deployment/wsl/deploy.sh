@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Windows 和 Linux 的虚拟环境分开保存，防止 WSL 同步覆盖主项目的 Windows .venv。
 set -euo pipefail
-repo_dir="${1:-/mnt/c/dev/rust/xiaoya}"
+# 默认源码根随脚本位置解析，保留显式参数覆盖且不回退旧开发目录。
+repo_dir="${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}"
 runtime_dir=/opt/xiaoya
 
 test -x "$runtime_dir/bin/livekit-server"

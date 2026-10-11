@@ -19,7 +19,7 @@ export const states = {
 /** 合法权威状态采用当前协议，不以任意对象绕过生产解析与许可规则。 */
 export function delivery(revision = 0, overrides = {}) {
   return {
-    v: 1,
+    v: 2,
     instance: 'job-a',
     revision,
     reply_id: '',
@@ -27,6 +27,13 @@ export function delivery(revision = 0, overrides = {}) {
     state: 'closed',
     style: 'neutral',
     gesture: 'none',
+    phase: overrides.state === 'active' ? 'speaking' : 'idle',
+    turn_id: overrides.turn_id ?? 'turn-a',
+    gesture_id:
+      overrides.gesture && overrides.gesture !== 'none'
+        ? `${overrides.reply_id}:${overrides.segment_id}:${overrides.gesture}`
+        : '',
+    energy: 0.55,
     ...overrides,
   };
 }

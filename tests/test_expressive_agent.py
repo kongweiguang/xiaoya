@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from livekit.agents import Agent, APIConnectOptions, FlushSentinel, ModelSettings, llm
 
-from xiaoya.domain.delivery import DELIVERY_INSTRUCTIONS, DeliveryIntent, SpeechSegment
+from xiaoya.domain.delivery import DeliveryIntent, SpeechSegment
 from xiaoya.infrastructure import livekit_conversation
 from xiaoya.infrastructure.expressive_agent import ExpressiveAgent
 from xiaoya.infrastructure.settings import Settings
@@ -16,8 +16,8 @@ from xiaoya.infrastructure.settings import Settings
 class NodeAgent(ExpressiveAgent):
     """只替换公开 session 属性，避免测试依赖 SDK 的私有 activity 字段。"""
 
-    def __init__(self, *, voices=None):
-        """会话与流对象保持内存实现，控制头和播放许可仍执行生产节点。"""
+    def __init__(self, *, voices=None, style="neutral"):
+        """节点测试固定控制器的声音选择端口；正文与轮次匹配另由应用层竞争测试验证。"""
         super().__init__(
             instructions="测试",
             tools=[],
@@ -29,6 +29,7 @@ class NodeAgent(ExpressiveAgent):
             conn_options=SimpleNamespace(tts_conn_options=APIConnectOptions()),
             output=SimpleNamespace(audio=None, transcription=None),
         )
+        self._presentation.voice_for = Mock(return_value=DeliveryIntent(style))
 
     @property
     def session(self):
@@ -67,10 +68,10 @@ class SynthesisStream:
 
 
 async def test_streaming_node_preserves_tool_metadata_and_boundaries(monkeypatch):
-    """有限标记可重组文本，但工具参数、扩展字段及用量块不能被解析器吞掉。"""
+    """完整短句立即进入独立 SDK 段落，工具参数、扩展字段及用量块仍保持无损。"""
     tool = llm.FunctionToolCall(name="calculate", arguments='{"x":2}', call_id="call-1")
     chunks = [
-        llm.ChatChunk(id="r", delta=llm.ChoiceDelta(content="[xiaoya:happy|nod]你好。")),
+        llm.ChatChunk(id="r", delta=llm.ChoiceDelta(content="你好。")),
         llm.ChatChunk(
             id="r",
             delta=llm.ChoiceDelta(content="下一步", tool_calls=[tool], extra={"opaque": "kept"}),
@@ -81,10 +82,7 @@ async def test_streaming_node_preserves_tool_metadata_and_boundaries(monkeypatch
     ]
     monkeypatch.setattr(Agent.default, "llm_node", lambda *args: source(*chunks))
     result = [item async for item in NodeAgent().llm_node(llm.ChatContext(), [], ModelSettings())]
-    assert [item for item in result if isinstance(item, str)] == [
-        "[xiaoya:happy|nod]你好。",
-        "[xiaoya:happy|none]下一步",
-    ]
+    assert [item for item in result if isinstance(item, str)] == ["你好。", "下一步"]
     assert sum(isinstance(item, FlushSentinel) for item in result) == 2
     forwarded = [item for item in result if isinstance(item, llm.ChatChunk)]
     assert forwarded[0].delta.content is None
@@ -94,8 +92,8 @@ async def test_streaming_node_preserves_tool_metadata_and_boundaries(monkeypatch
     assert chunks[1].delta.content == "下一步"
 
 
-async def test_protocol_reminder_is_ephemeral_and_preserves_tool_history(monkeypatch):
-    """协议和当前事实仅在临时副本重申，纯净历史及工具调用身份不累积额外消息。"""
+async def test_environment_is_ephemeral_and_preserves_tool_history(monkeypatch):
+    """当前事实仅放在临时副本，纯正文历史及工具调用身份不累积额外消息。"""
     context = llm.ChatContext()
     context.add_message(role="assistant", content="纯净的已说历史。")
     context.add_message(role="user", content="请好奇地问我一个问题。")
@@ -106,43 +104,38 @@ async def test_protocol_reminder_is_ephemeral_and_preserves_tool_history(monkeyp
     def generate(_agent, generation_context, *_args):
         """捕获公开节点传入的临时副本，不通过私有 SDK activity 读取生成上下文。"""
         captured.append(generation_context)
-        return source("[xiaoya:curious|tilt]你最近有什么新想法呀？")
+        return source("你最近有什么新想法呀？")
 
     monkeypatch.setattr(Agent.default, "llm_node", generate)
     for _ in range(2):
         result = [item async for item in NodeAgent().llm_node(context, [], ModelSettings())]
-        assert result[0] == "[xiaoya:curious|tilt]你最近有什么新想法呀？"
+        assert result[0] == "你最近有什么新想法呀？"
     assert context.items == before
     assert all(generation_context.items[:-1] == before for generation_context in captured)
-    assert all(
-        DELIVERY_INSTRUCTIONS in generation_context.messages()[-1].text_content
-        for generation_context in captured
-    )
     assert all("小芽" in copy.messages()[-1].text_content for copy in captured)
 
 
-async def test_transcription_strips_headers_before_spoken_history():
-    """同步器只收到净正文，真实当前 handle 才能绑定到对应句段。"""
+async def test_transcription_preserves_plain_spoken_history():
+    """同步器只收到净正文；正常handle完成独立收束音频许可，不借文字EOF执行取消。"""
     agent = NodeAgent()
     handle = Mock(id="reply-1", interrupted=False, done=Mock(return_value=False))
     agent.test_session.current_speech = handle
-    agent._delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock())
+    agent._delivery = Mock(
+        bind_segment=AsyncMock(), cancel_reply=AsyncMock(), finish_reply=AsyncMock()
+    )
     agent._synchronizer = Mock(barrier=AsyncMock())
     result = [
-        item
-        async for item in agent.transcription_node(
-            source("[xiaoya:gent", "le|nod]别担心。"), ModelSettings()
-        )
+        item async for item in agent.transcription_node(source("别担", "心。"), ModelSettings())
     ]
     assert result == ["别担心。"]
     agent._synchronizer.barrier.assert_awaited_once()
-    agent._delivery.bind_segment.assert_awaited_once_with(
-        "reply-1", DeliveryIntent("gentle", "nod")
-    )
+    agent._delivery.bind_segment.assert_awaited_once_with("reply-1", DeliveryIntent(), "别担心。")
     handle.add_done_callback.assert_called_once()
     agent._delivery.cancel_reply.assert_not_awaited()
     agent._speech_done(handle)
+    await asyncio.gather(*agent._tasks)
     agent._delivery.cancel_reply.assert_not_called()
+    agent._delivery.finish_reply.assert_awaited_once_with("reply-1")
 
 
 @pytest.mark.parametrize("interrupted,done", [(True, False), (False, True)])
@@ -152,12 +145,7 @@ async def test_stale_transcription_cannot_write_into_newer_reply(interrupted, do
     handle = Mock(id="old", interrupted=interrupted, done=Mock(return_value=done))
     agent.test_session.current_speech = handle
     agent._delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock())
-    result = [
-        item
-        async for item in agent.transcription_node(
-            source("[xiaoya:happy|wave]旧内容。"), ModelSettings()
-        )
-    ]
+    result = [item async for item in agent.transcription_node(source("旧内容。"), ModelSettings())]
     assert result == []
     agent._delivery.bind_segment.assert_not_awaited()
     if interrupted:
@@ -179,7 +167,7 @@ async def test_transcription_rechecks_permission_after_first_segment(
 
     async def replaced_source():
         """在首次真实输出后改变公开状态，准确覆盖绑定已成功而取消尚未完成的窗口。"""
-        yield "[xiaoya:happy|wave]第一句。"
+        yield "第一句。"
         if change == "interrupted":
             handle.interrupted = True
         elif change == "done":
@@ -196,7 +184,7 @@ async def test_transcription_rechecks_permission_after_first_segment(
         item async for item in agent.transcription_node(replaced_source(), ModelSettings())
     ] == ["第一句。"]
     if delivery_enabled:
-        delivery.bind_segment.assert_awaited_once_with("old", DeliveryIntent("happy", "wave"))
+        delivery.bind_segment.assert_awaited_once_with("old", DeliveryIntent(), "第一句。")
         if change == "interrupted":
             delivery.cancel_reply.assert_awaited_once_with("old")
         else:
@@ -204,19 +192,16 @@ async def test_transcription_rechecks_permission_after_first_segment(
 
 
 async def test_transcription_keeps_symbols_without_consuming_first_spoken_binding():
-    """符号只进入净正文，首个可朗读片段才拥有手势，后续闭括号不会重新绑定或丢失。"""
+    """符号只进入正文，首个可朗读片段才建立身份，后续闭括号不会重新绑定或丢失。"""
     agent = NodeAgent()
     handle = Mock(id="reply", interrupted=False, done=Mock(return_value=False))
     agent.test_session.current_speech = handle
     agent._delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock())
     result = [
-        item
-        async for item in agent.transcription_node(
-            source("[xiaoya:happy|wave]😊！\n你好。]"), ModelSettings()
-        )
+        item async for item in agent.transcription_node(source("😊！\n你好。]"), ModelSettings())
     ]
     assert "".join(result) == "😊！\n你好。]"
-    agent._delivery.bind_segment.assert_awaited_once_with("reply", DeliveryIntent("happy", "wave"))
+    agent._delivery.bind_segment.assert_awaited_once_with("reply", DeliveryIntent(), "你好。")
 
 
 async def test_permission_revoked_while_binding_cannot_commit_text():
@@ -233,10 +218,7 @@ async def test_permission_revoked_while_binding_cannot_commit_text():
         bind_segment=AsyncMock(side_effect=interrupted_binding), cancel_reply=AsyncMock()
     )
     assert [
-        item
-        async for item in agent.transcription_node(
-            source("[xiaoya:happy|wave]不应保存。"), ModelSettings()
-        )
+        item async for item in agent.transcription_node(source("不应保存。"), ModelSettings())
     ] == []
     agent._delivery.cancel_reply.assert_awaited_once_with("reply")
 
@@ -256,8 +238,8 @@ async def test_failed_or_cancelled_nodes_never_commit_buffered_body(
     monkeypatch.setattr(agent, "_synthesize", synthesized)
 
     async def failed_source():
-        """先进入受控正文缓冲再失败，确保测试不是仅覆盖没有任何输入的空流。"""
-        yield "[xiaoya:happy|wave]尚未提交的半句"
+        """有输入后才失败，LLM 直接透传，合成和字幕不能在清理时补说半句。"""
+        yield "尚未提交的半句"
         raise failure
 
     if node == "llm":
@@ -284,13 +266,10 @@ async def test_failed_or_cancelled_nodes_never_commit_buffered_body(
 async def test_tts_skips_preserved_symbol_segments():
     """文本保真不代表朗读 emoji 或标点，音频入口仍只请求实际口语正文。"""
     voice = Mock(synthesize=Mock(return_value=SynthesisStream(["frame"])))
-    agent = NodeAgent(voices={"happy": voice})
-    assert [
-        frame
-        async for frame in agent.tts_node(
-            source("[xiaoya:happy|wave]😊！\n你好。]"), ModelSettings()
-        )
-    ] == ["frame"]
+    agent = NodeAgent(voices={"neutral": voice})
+    assert [frame async for frame in agent.tts_node(source("😊！\n你好。]"), ModelSettings())] == [
+        "frame"
+    ]
     voice.synthesize.assert_called_once()
     assert voice.synthesize.call_args.args[0] == "你好。"
 
@@ -303,12 +282,9 @@ async def test_agent_does_not_repeat_service_fallback_before_or_after_audio():
         "happy": Mock(synthesize=Mock(return_value=failed)),
         "neutral": Mock(synthesize=Mock(return_value=natural)),
     }
-    agent = NodeAgent(voices=voices)
+    agent = NodeAgent(voices=voices, style="happy")
     with pytest.raises(RuntimeError, match="offline"):
-        _ = [
-            frame
-            async for frame in agent._synthesize(SpeechSegment("你好。", DeliveryIntent("happy")))
-        ]
+        _ = [frame async for frame in agent._synthesize(SpeechSegment("你好。"))]
     assert failed.closed and not natural.closed
     assert voices["happy"].synthesize.call_args.kwargs["conn_options"].max_retry == 0
     voices["neutral"].synthesize.assert_not_called()
@@ -316,7 +292,7 @@ async def test_agent_does_not_repeat_service_fallback_before_or_after_audio():
     voices["happy"].synthesize.return_value = SynthesisStream(["frame", RuntimeError("mid-stream")])
     frames = []
     with pytest.raises(RuntimeError, match="mid-stream"):
-        async for frame in agent._synthesize(SpeechSegment("你好。", DeliveryIntent("happy"))):
+        async for frame in agent._synthesize(SpeechSegment("你好。")):
             frames.append(frame)
     assert frames == ["frame"]
     voices["neutral"].synthesize.assert_not_called()
@@ -329,8 +305,8 @@ async def test_cancelled_voice_does_not_retry_natural():
     with pytest.raises(asyncio.CancelledError):
         _ = [
             frame
-            async for frame in NodeAgent(voices=voices)._synthesize(
-                SpeechSegment("没关系。", DeliveryIntent("concerned"))
+            async for frame in NodeAgent(voices=voices, style="concerned")._synthesize(
+                SpeechSegment("没关系。")
             )
         ]
     assert stream.closed
@@ -367,7 +343,9 @@ async def test_shared_output_installs_once_and_never_owns_snapshot(monkeypatch):
     monkeypatch.setattr(expressive_agent, "TranscriptSynchronizer", sync_factory)
     await agent.enable_delivery(endpoint)
     await agent.enable_delivery(endpoint)
-    output_factory.assert_called_once_with(agent._room, snapshot_endpoint=endpoint)
+    output_factory.assert_called_once_with(
+        agent._room, snapshot_endpoint=endpoint, presentation=agent._presentation
+    )
     sync_factory.assert_called_once_with(
         next_in_chain_audio=original_audio, next_in_chain_text=publisher
     )
@@ -430,21 +408,52 @@ async def test_enabled_adapter_uses_immutable_private_voice_presets(
     assert all(
         call.kwargs["base_url"] == private_settings.tts_base_url for call in factory.call_args_list
     )
-    session.say.assert_awaited_once_with("[xiaoya:happy|wave]你好。")
+    session.say.assert_awaited_once_with("你好。")
     await adapter.close()
     session.aclose.assert_awaited_once()
 
 
-async def test_markdown_is_filtered_only_after_control_header():
-    """实际 SDK 会把控制头加括号正文识别成链接，禁前置过滤后必须仍选开心且正文净化。"""
-    from livekit.agents.voice.transcription import text_transforms
-
-    raw = "[xiaoya:happy|wave](Hello) **Good morning**. 😀"
-    sdk_default = "".join([part async for part in text_transforms.filter_markdown(source(raw))])
-    assert "happy|wave" in sdk_default and "[xiaoya:happy|wave]" not in sdk_default
+async def test_markdown_is_filtered_only_at_audio_boundary():
+    """正文不承载协议，朗读边界仍使用 SDK 过滤 Markdown 和 emoji。"""
+    raw = "(Hello) **Good morning**. 😀"
     voice = Mock(synthesize=Mock(return_value=SynthesisStream(["frame"])))
-    agent = NodeAgent(voices={"happy": voice})
+    agent = NodeAgent(voices={"happy": voice}, style="happy")
     assert [frame async for frame in agent.tts_node(source(raw), ModelSettings())] == ["frame"]
     body = voice.synthesize.call_args.args[0]
     assert "Hello" in body and "Good morning" in body
     assert "happy" not in body and "|" not in body and "**" not in body and "😀" not in body
+
+
+async def test_identical_precomputed_text_keeps_committed_voice_order_for_transcription():
+    """下一段同字正文可提前合成；字幕稍后绑定时必须按真实 HTTP 顺序消费冻结声音。"""
+    happy = Mock(synthesize=Mock(return_value=SynthesisStream(["happy-frame"])))
+    gentle = Mock(synthesize=Mock(return_value=SynthesisStream(["gentle-frame"])))
+    agent = NodeAgent(voices={"happy": happy, "gentle": gentle}, style="happy")
+    text = "你好呀。"
+    turn = agent._presentation.turn_id
+    assert [frame async for frame in agent._synthesize(SpeechSegment(text))] == ["happy-frame"]
+    agent._presentation.voice_for.return_value = DeliveryIntent("gentle")
+    assert [frame async for frame in agent._synthesize(SpeechSegment(text))] == ["gentle-frame"]
+    assert list(agent._voice_intents[(turn, text)]) == [
+        DeliveryIntent("happy"),
+        DeliveryIntent("gentle"),
+    ]
+    handle = Mock(id="reply", interrupted=False, done=Mock(return_value=False))
+    agent.test_session.current_speech = handle
+    agent._delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock(), aclose=AsyncMock())
+    for _ in range(2):
+        assert [body async for body in agent.transcription_node(source(text), ModelSettings())] == [
+            text
+        ]
+    bindings = agent._delivery.bind_segment.await_args_list
+    assert [call.args for call in bindings] == [
+        ("reply", DeliveryIntent("happy"), text),
+        ("reply", DeliveryIntent("gentle"), text),
+    ]
+    assert (turn, text) not in agent._voice_intents
+    assert agent._committed_voice(text) == DeliveryIntent()
+    happy.synthesize.assert_called_once()
+    gentle.synthesize.assert_called_once()
+    assert happy.synthesize.call_args.args[0] == gentle.synthesize.call_args.args[0] == text
+    assert agent._committed_voice("其他正文。") == DeliveryIntent()
+    await agent.aclose()

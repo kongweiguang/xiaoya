@@ -6,7 +6,11 @@ import { RemoteAudioTrack, type Room, RoomEvent } from 'livekit-client';
 import { Button } from '@/components/ui/button';
 import { useAvatarDelivery } from '@/hooks/use-avatar-delivery';
 import { useReducedMotionPreference } from '@/hooks/use-reduced-motion-preference';
-import { AvatarAudioBridge, type SessionAudio } from '@/lib/avatar/audio-bridge';
+import {
+  AudioEnvelopeTimeline,
+  AvatarAudioBridge,
+  type SessionAudio,
+} from '@/lib/avatar/audio-bridge';
 import { selectBehavior } from '@/lib/avatar/behavior';
 import type { DeliveryGate, DeliveryMessage } from '@/lib/avatar/delivery';
 import { LipSyncTimeline, getAudibleAudioTime } from '@/lib/avatar/lip-sync';
@@ -47,6 +51,7 @@ export function AvatarStage({
   const canvas = useRef<HTMLCanvasElement>(null);
   const runtime = useRef<Live2DRuntime | null>(null);
   const [timeline] = useState(() => new LipSyncTimeline());
+  const [envelopeTimeline] = useState(() => new AudioEnvelopeTimeline());
   const latest = useRef({
     audio,
     room,
@@ -73,6 +78,7 @@ export function AvatarStage({
   const [retry, setRetry] = useState(0);
   const behavior = selectBehavior({ connected, reconnecting, error, agent: state });
 
+  /** GPU 仅随动画偏好或显式重试重建，房间和模型的生命周期互不误伤。 */
   useEffect(() => {
     // 静态期间的新回复也已错过动作时机；恢复时取消它，但首次正常加载不取消开场。
     const returningFromStatic = previousReducedMotion.current && !reducedMotion;
@@ -80,6 +86,7 @@ export function AvatarStage({
     setReady(false);
     setFailed(false);
     timeline.clear();
+    envelopeTimeline.clear();
     if (reducedMotion || returningFromStatic) delivery.current.interrupt();
     if (reducedMotion) {
       return;
@@ -94,6 +101,49 @@ export function AvatarStage({
     let activeDelivery: ReturnType<(typeof delivery.current)['read']> = null;
     let renderObservation: (AvatarFrame & { wall: number; count: number }) | null = null;
     let rendered = 0;
+    let playbackWasAvailable = false;
+    /** 口型和动作共用播放身份栅栏；迟到 PCM 不能在倾听、取消或恢复后独自重新授权嘴部。 */
+    function readPerformance() {
+      const current = latest.current;
+      const visualAvailable = Boolean(
+        current.connected &&
+          !current.reconnecting &&
+          !current.error &&
+          !current.reducedMotion &&
+          !document.hidden
+      );
+      const available = Boolean(
+        visualAvailable &&
+          current.state === 'speaking' &&
+          current.room?.canPlaybackAudio &&
+          current.audio?.context.state === 'running' &&
+          current.track &&
+          !current.track.isMuted &&
+          current.track.mediaStreamTrack.readyState !== 'ended'
+      );
+      // 停止期间到达的尾窗也丢弃，下一回复不能借用取消回复的最近开口帧。
+      if (!available) {
+        timeline.clear();
+        envelopeTimeline.clear();
+        // 只有已经实际接管的回复失去许可才取消，初始化不能误封尚未出声的开场。
+        if (playbackWasAvailable) delivery.current.interruptSpeaking();
+      }
+      const at = current.audio ? getAudibleAudioTime(current.audio.context) : 0;
+      const lip = timeline.select(at);
+      const envelope = envelopeTimeline.select(at);
+      const selected = delivery.current.read(
+        available,
+        envelope.energy > 0.025 || lip.open > 0.015,
+        visualAvailable
+      );
+      // 取消后清尾窗；已绑定字幕的新候选仍须保留未来帧，等设备输出而不形成首声死锁。
+      if (selected?.phase !== 'speaking' && !delivery.current.awaitingAudibleSpeech) {
+        timeline.clear();
+        envelopeTimeline.clear();
+      }
+      playbackWasAvailable = available && selected?.phase === 'speaking';
+      return { available, lip, envelope, selected };
+    }
     const timeout = setTimeout(() => {
       timedOut = true;
       controller.abort();
@@ -111,37 +161,15 @@ export function AvatarStage({
               if (process.env.NODE_ENV === 'development')
                 renderObservation = { ...frame, wall: performance.now(), count: ++rendered };
             },
-            /** 只按实际可听时间取帧，字幕和 speaking 都不能令嘴部空动。 */
+            /** 实际音频与当前回复授权缺一即闭嘴，停止后的下一渲染帧不接受旧尾窗。 */
             readLip() {
-              const current = latest.current;
-              if (
-                !current.connected ||
-                current.reconnecting ||
-                !current.audio ||
-                current.audio.context.state !== 'running'
-              )
-                return null;
-              return timeline.select(getAudibleAudioTime(current.audio.context));
+              const frame = readPerformance();
+              return frame.available && frame.selected?.phase === 'speaking' ? frame.lip : null;
             },
             /** 同步字幕只提供语义锚点，首次手势仍等待用户真正可听的音频窗口。 */
             readDelivery() {
-              const current = latest.current;
-              const available = Boolean(
-                current.connected &&
-                  !current.reconnecting &&
-                  !current.error &&
-                  !current.reducedMotion &&
-                  current.state === 'speaking' &&
-                  !document.hidden &&
-                  current.room?.canPlaybackAudio &&
-                  current.audio?.context.state === 'running' &&
-                  current.track &&
-                  !current.track.isMuted
-              );
-              const lip = current.audio
-                ? timeline.select(getAudibleAudioTime(current.audio.context))
-                : null;
-              activeDelivery = delivery.current.read(available, (lip?.open ?? 0) > 0.015);
+              const { selected, envelope } = readPerformance();
+              activeDelivery = selected ? { ...selected, audio: envelope } : null;
               return activeDelivery;
             },
             /** GL 丢失保留 canvas 等待恢复，语音和文字继续可用。 */
@@ -200,15 +228,19 @@ export function AvatarStage({
       instance?.dispose();
       if (runtime.current === instance) runtime.current = null;
       timeline.clear();
+      envelopeTimeline.clear();
     };
-  }, [reducedMotion, retry, timeline, delivery]);
+  }, [reducedMotion, retry, timeline, envelopeTimeline, delivery]);
 
+  /** 生命周期姿态与语义表情分离，SDK 更新只改变轻微姿态，不生成情绪决策。 */
   useEffect(() => {
     runtime.current?.setBehavior(behavior);
   }, [behavior, ready]);
 
+  /** 同一个已发布音轨借用会话时钟派生口型与重音，取消时一起清空对应时间线。 */
   useEffect(() => {
     timeline.clear();
+    envelopeTimeline.clear();
     if (
       !connected ||
       reconnecting ||
@@ -262,10 +294,15 @@ export function AvatarStage({
             if (!controller.signal.aborted)
               for (const frame of analyzer!.sample(samples, rate, at)) timeline.push(frame);
           },
+          /** 音量与起音来自同一 PCM 窗口；按实际输出时钟取帧，避免字幕先到就发力。 */
+          onEnvelope(frame) {
+            if (!controller.signal.aborted) envelopeTimeline.push(frame);
+          },
           /** 真实能力丢失与恢复都取消当下回复；首次正常清嘴和重复事件不消耗开场许可。 */
           onSilent() {
             if (controller.signal.aborted) return;
             timeline.clear();
+            envelopeTimeline.clear();
             analyzer?.reset();
             const unavailable =
               audio!.context.state !== 'running' ||
@@ -274,12 +311,13 @@ export function AvatarStage({
               boundTrack.mediaStreamTrack.readyState === 'ended';
             if (unavailable === wasPlaybackUnavailable) return;
             wasPlaybackUnavailable = unavailable;
-            if (unavailable) delivery.current.invalidatePresentation();
-            else delivery.current.interrupt();
+            if (unavailable) delivery.current.invalidatePlayback();
+            else delivery.current.interruptSpeaking();
           },
           /** 分析故障只停止口型并提供重试，不结束当前语音会话。 */
           onError() {
             timeline.clear();
+            envelopeTimeline.clear();
             delivery.current.interrupt();
             setAnalysisMode('unavailable');
           },
@@ -301,8 +339,20 @@ export function AvatarStage({
       bridge?.dispose();
       analyzer?.dispose();
       timeline.clear();
+      envelopeTimeline.clear();
     };
-  }, [audio, track, connected, reconnecting, ready, room, retry, timeline, delivery]);
+  }, [
+    audio,
+    track,
+    connected,
+    reconnecting,
+    ready,
+    room,
+    retry,
+    timeline,
+    envelopeTimeline,
+    delivery,
+  ]);
 
   const animated = ready && !failed && !reducedMotion;
   const audioFailed = connected && ['amplitude', 'unavailable'].includes(analysisMode);

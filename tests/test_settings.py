@@ -16,6 +16,41 @@ def test_private_services_use_chinese_defaults(private_settings: Settings) -> No
     assert settings.greeting == AssistantProfile().greeting
 
 
+@pytest.mark.parametrize("key", ["", "   "])
+def test_optional_jev_key_keeps_startup_offline(private_environment, key):
+    """无 Key 是自然表现的明确配置，不能强迫用户注册或创建外部网络客户端。"""
+    settings = Settings.from_environment(private_environment | {"VOICE_AGENT_JEV_API_KEY": key})
+    assert settings.jev_api_key == ""
+    assert settings.jev_base_url == "https://api.typesafe.ai"
+    assert settings.jev_model == "jev-1.13.0"
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("jev_base_url", "http://api.typesafe.ai"),
+        ("jev_base_url", "https://api.typesafe.ai/v1"),
+        ("jev_base_url", "https://api.typesafe.ai.attacker.test"),
+        ("jev_base_url", "https://api.typesafe.ai?key=secret"),
+        ("jev_model", "jev"),
+        ("jev_api_key", "not-required"),
+    ],
+)
+def test_enabled_jev_validates_before_client_allocation(private_settings, field, value):
+    """官方 Key 只能进入精确 HTTPS 根地址与固定模型，异常不携带凭据或输入 URL。"""
+    with pytest.raises(ValueError) as error:
+        replace(private_settings, **({"jev_api_key": "test-jev-secret"} | {field: value}))
+    assert "test-jev-secret" not in str(error.value)
+    assert "attacker.test" not in str(error.value)
+
+
+def test_jev_credentials_are_hidden_from_settings_repr(private_settings):
+    """运维打印配置对象不应暴露 Jev 凭据，语义服务也不能继承其他供应商密钥。"""
+    settings = replace(private_settings, jev_api_key="test-jev-secret")
+    assert "test-jev-secret" not in repr(settings)
+    assert settings.jev_api_key != settings.llm_api_key
+
+
 @pytest.mark.parametrize("language", ["fr", "auto", "ZH", "zh-CN", "en-US"])
 @pytest.mark.parametrize("source", ["environment", "direct"])
 def test_language_rejects_values_unsupported_by_streaming_service(
@@ -70,12 +105,16 @@ def test_environment_normalizes_explicit_models_and_overrides_greeting(
 
 @pytest.mark.parametrize(
     "field_name",
-    [item.name for item in fields(Settings) if item.name != "mcp_config_file"],
+    [
+        item.name
+        for item in fields(Settings)
+        if item.name != "mcp_config_file" and not item.name.startswith("jev_")
+    ],
 )
 def test_explicit_empty_configuration_fails(
     field_name: str, private_environment: dict[str, str]
 ) -> None:
-    """必填项明确设置为空必须失败；外部工具路径的空值由独立测试覆盖。"""
+    """核心服务明确为空必须失败；可选 Jev 配置的启用边界由独立测试覆盖。"""
     variable = f"VOICE_AGENT_{field_name.upper()}"
     with pytest.raises(ValueError, match=variable):
         Settings.from_environment(private_environment | {variable: "  "})

@@ -9,6 +9,6 @@ wsl -d $WslDistro -- systemctl start xiaoya-livekit xiaoya-speech xiaoya-agent
 if ($LASTEXITCODE) { throw 'WSL 服务启动失败，请检查 journalctl 日志。' }
 wsl -d $WslDistro -- systemctl is-active xiaoya-livekit xiaoya-speech xiaoya-agent
 if ($LASTEXITCODE) { throw '后端未完成模型预热或 Agent 注册。' }
-Write-Output '后端已就绪。此窗口跟随日志并保持 WSL 运行，关闭窗口不会另行启动或停止 Agent。'
+Write-Output '后端已就绪。请保持此窗口打开，以跟随日志并维持 WSL 运行；关闭后 WSL 可能自动退出，服务会随实例停止。'
 wsl -d $WslDistro -- journalctl --follow --unit xiaoya-livekit --unit xiaoya-speech --unit xiaoya-agent --lines 30
 if ($LASTEXITCODE) { throw 'WSL 日志跟随退出。' }

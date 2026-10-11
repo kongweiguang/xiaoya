@@ -1,5 +1,7 @@
 import type { RemoteAudioTrack } from 'livekit-client';
 
+export type AudioEnvelope = { at: number; energy: number; onset: number };
+
 export type SessionAudio = {
   context: AudioContext;
   close: () => Promise<void>;
@@ -8,6 +10,7 @@ export type SessionAudio = {
 type AvatarAudioBridgeOptions = {
   context: AudioContext;
   onSamples: (samples: Float32Array, sampleRate: number, at: number) => void;
+  onEnvelope?: (frame: AudioEnvelope) => void;
   onSilent: () => void;
   onError?: (error: Error) => void;
 };
@@ -21,6 +24,45 @@ type Attachment = {
 };
 
 const workletModules = new WeakMap<AudioContext, Promise<void>>();
+
+/** 声音与口型借用同一个输出时钟；只取已可听窗口，后台积压不会触发补演重音。 */
+export class AudioEnvelopeTimeline {
+  private frames: AudioEnvelope[] = [];
+  private held: AudioEnvelope | null = null;
+
+  /** 容量有界且拒绝乱序窗口，输出设备延迟只影响何时取帧，不额外复制 PCM。 */
+  push(frame: AudioEnvelope): void {
+    const latest = this.frames.at(-1) ?? this.held;
+    if (
+      !Number.isFinite(frame.at) ||
+      !Number.isFinite(frame.energy) ||
+      !Number.isFinite(frame.onset) ||
+      frame.at < 0 ||
+      (latest && frame.at <= latest.at)
+    )
+      return;
+    this.frames.push({
+      at: frame.at,
+      energy: Math.min(1, Math.max(0, frame.energy)),
+      onset: Math.min(1, Math.max(0, frame.onset)),
+    });
+    if (this.frames.length > 32) this.frames.shift();
+  }
+
+  /** 120ms 后静音，既保留设备缓冲中的未来窗口，也不延续已经结束的声音。 */
+  select(at: number): AudioEnvelope {
+    while (this.frames.length && this.frames[0].at <= at) this.held = this.frames.shift()!;
+    if (!Number.isFinite(at) || !this.held || this.held.at > at || at - this.held.at > 0.12)
+      return { at, energy: 0, onset: 0 };
+    return this.held;
+  }
+
+  /** 换轨、暂停和结束清除时间锚点，新上下文可从自己的零点开始。 */
+  clear(): void {
+    this.frames = [];
+    this.held = null;
+  }
+}
 
 /** 会话拥有时钟；人物桥接只借用它，挂断时由会话集中释放以免切断仍在播放的 SDK。 */
 export function createSessionAudio(): SessionAudio {
@@ -82,6 +124,9 @@ export class AvatarAudioBridge {
   private readonly onSamples: AvatarAudioBridgeOptions['onSamples'];
   private readonly onSilent: AvatarAudioBridgeOptions['onSilent'];
   private readonly onError: AvatarAudioBridgeOptions['onError'];
+  private readonly onEnvelope: AvatarAudioBridgeOptions['onEnvelope'];
+  private energy = 0;
+  private previousEnergy = 0;
   private attachment: Attachment | null = null;
   private disposed = false;
   private playbackAvailable = false;
@@ -93,6 +138,7 @@ export class AvatarAudioBridge {
     this.onSamples = options.onSamples;
     this.onSilent = options.onSilent;
     this.onError = options.onError;
+    this.onEnvelope = options.onEnvelope;
     this.context.addEventListener('statechange', this.handleContextState);
   }
 
@@ -166,6 +212,22 @@ export class AvatarAudioBridge {
           return;
         }
         try {
+          let squares = 0;
+          for (const sample of samples) {
+            const value = Number.isFinite(sample) ? Math.min(1, Math.max(-1, sample)) : 0;
+            squares += value * value;
+          }
+          const rms = Math.sqrt(squares / samples.length);
+          const raw = Math.min(1, Math.max(0, (rms - 0.012) / 0.16));
+          const duration = samples.length / sampleRate;
+          this.energy +=
+            (raw - this.energy) * (1 - Math.exp(-duration * (raw > this.energy ? 35 : 18)));
+          this.onEnvelope?.({
+            at,
+            energy: this.energy,
+            onset: Math.max(0, raw - this.previousEnergy),
+          });
+          this.previousEnergy = raw;
           this.onSamples(samples, sampleRate, at);
         } catch (error) {
           this.releaseAttachment();
@@ -241,6 +303,8 @@ export class AvatarAudioBridge {
 
   /** 同时重置前端状态与处理器的半窗口，旧嘴型和下一批音频保持同一恢复边界。 */
   private resetSamples(): void {
+    this.energy = 0;
+    this.previousEnergy = 0;
     this.availableSince = this.context.currentTime;
     this.attachment?.worklet?.port.postMessage({ type: 'reset' });
     this.onSilent();
@@ -248,6 +312,8 @@ export class AvatarAudioBridge {
 
   /** 先使附件失效再拆图，异步消息和取消回调即使重入也只能看到空附件。 */
   private releaseAttachment(): void {
+    this.energy = 0;
+    this.previousEnergy = 0;
     const attachment = this.attachment;
     this.attachment = null;
     if (attachment) {

@@ -14,6 +14,12 @@ export type AvatarDelivery = {
   replyKey: string;
   style: AvatarStyle;
   gesture: AvatarGesture;
+  phase: 'idle' | 'listening' | 'thinking' | 'speaking';
+  turnId: string;
+  segmentKey: string;
+  gestureId: string;
+  energy: number;
+  audio?: { at: number; energy: number; onset: number };
 };
 type ExpressionName = AvatarStyle | 'listening' | 'thinking';
 type Blend = 'Add' | 'Multiply' | 'Overwrite';
@@ -72,6 +78,11 @@ function clamp(value: number, min: number, max: number, fallback = 0): number {
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
+/** 两端导数为零，让准备和收回接入主动作时不产生速度尖峰。 */
+function smooth(amount: number): number {
+  return amount * amount * (3 - 2 * amount);
+}
+
 /** 只加载本项目明确支持的表情，名字不直接变成文件路径或任意参数执行入口。 */
 export function isAvatarExpressionName(name: string): name is ExpressionName {
   return expressionNames.includes(name as ExpressionName);
@@ -114,8 +125,17 @@ export class AvatarPresentation {
   private readonly expressions: AvatarExpressions;
   private readonly weights = new Map<ExpressionName, number>();
   private readonly pose: Record<string, number> = {};
+  private readonly velocity: Record<string, number> = {};
   private readonly seenDeliveries = new Set<string>();
-  private activeGesture: { name: AvatarGesture; started: number } | null = null;
+  private readonly seenGestures = new Set<string>();
+  private activeGesture: {
+    name: AvatarGesture;
+    prepared: number;
+    stroke: number | null;
+    strength: number;
+    duration: number;
+    audioAt: number;
+  } | null = null;
   private gestureRun: {
     replyKey: string;
     name: AvatarGesture;
@@ -125,18 +145,24 @@ export class AvatarPresentation {
   private currentDelivery: string | null = null;
   private clock = 0;
   private energy = 0;
+  private selectedExpression: ExpressionName = 'neutral';
+  private expressionUntil = 0;
 
   /** 只保留无 SDK 的小状态；音频与会话所有权由外部持有，舞台重建即可彻底清空表现。 */
   constructor(expressions: AvatarExpressions = {}) {
     this.expressions = expressions;
-    for (const [id, [, , baseline]] of Object.entries(limits)) this.pose[id] = baseline;
+    for (const [id, [, , baseline]] of Object.entries(limits)) {
+      this.pose[id] = baseline;
+      this.velocity[id] = 0;
+    }
   }
 
   /** 先归档自然完成，保证同帧到达的 none 可建立间隔；取消不能冒充动作已经播完。 */
   private finishGesture() {
     if (
       !this.activeGesture ||
-      this.clock - this.activeGesture.started < gestureDurations[this.activeGesture.name]
+      this.activeGesture.stroke === null ||
+      this.clock - this.activeGesture.stroke < this.activeGesture.duration
     )
       return;
     this.activeGesture = null;
@@ -147,9 +173,9 @@ export class AvatarPresentation {
     }
   }
 
-  /** 段 ID 防重发、回复身份防连续同款；none 仅在自然完成后开放，取消保留已消费栅栏。 */
+  /** 去重只属于门控确认的当前回复；取消/null 保留已消费动作，新回复才释放旧动作身份。 */
   private accept(delivery: AvatarDelivery | null) {
-    if (!delivery || !delivery.id || !delivery.replyKey) {
+    if (!delivery || !delivery.id || !delivery.replyKey || delivery.phase !== 'speaking') {
       this.currentDelivery = null;
       this.activeGesture = null;
       if (this.gestureRun) this.gestureRun.resetAfterCompletion = false;
@@ -162,6 +188,8 @@ export class AvatarPresentation {
     if (this.seenDeliveries.size > 32)
       this.seenDeliveries.delete(this.seenDeliveries.values().next().value!);
     if (this.gestureRun?.replyKey !== delivery.replyKey) {
+      // 动作身份按回复作用域保存；舞台跨会话常驻，历史动作不能无限累计。
+      this.seenGestures.clear();
       this.activeGesture = null;
       this.gestureRun = {
         replyKey: delivery.replyKey,
@@ -170,7 +198,7 @@ export class AvatarPresentation {
         resetAfterCompletion: false,
       };
     }
-    if (delivery.gesture === 'none') {
+    if (delivery.gesture === 'none' || !delivery.gestureId) {
       if (this.gestureRun.completed) this.gestureRun.name = 'none';
       else if (this.activeGesture) this.gestureRun.resetAfterCompletion = true;
       return;
@@ -178,22 +206,42 @@ export class AvatarPresentation {
     this.gestureRun.resetAfterCompletion = false;
     if (
       delivery.gesture === this.gestureRun.name ||
+      this.seenGestures.has(delivery.gestureId) ||
       !Object.hasOwn(gestureDurations, delivery.gesture)
     )
       return;
     this.gestureRun.name = delivery.gesture;
     this.gestureRun.completed = false;
-    this.activeGesture = { name: delivery.gesture, started: this.clock };
+    this.seenGestures.add(delivery.gestureId);
+    const strength = clamp(delivery.energy, 0, 1, 0.5);
+    this.activeGesture = {
+      name: delivery.gesture,
+      prepared: this.clock,
+      stroke: null,
+      strength,
+      duration: gestureDurations[delivery.gesture] * (1.1 - strength * 0.15),
+      audioAt: delivery.audio?.at ?? -Infinity,
+    };
   }
 
-  /** 主动作压低轻摆；害羞用已有低头/收臂、摇头用左右曲线，嘴由宿主在物理后独占。 */
+  /** 表情有最短停留，紧急惊讶和结束可立即切换；同类更新延续神态而不重启淡化。 */
+  private expression(requested: ExpressionName, active: boolean): ExpressionName {
+    if (requested === this.selectedExpression) return requested;
+    if (!active || requested === 'surprised' || this.clock >= this.expressionUntil) {
+      this.selectedExpression = requested;
+      this.expressionUntil = this.clock + (requested === 'surprised' ? 0.45 : 1.1);
+    }
+    return this.selectedExpression;
+  }
+
+  /** 头身借同一阻尼连贯衔接，身体只跟随已授权姿态；主动作压低轻摆，嘴仍由真实音频独占。 */
   advance(input: AvatarPresentationInput): Record<string, number> {
     this.clock = Math.max(this.clock, clamp(input.time, 0, Number.MAX_SAFE_INTEGER, this.clock));
     const dt = clamp(input.delta, 0, 0.05);
     this.finishGesture();
     this.accept(input.delivery);
-    const thinking = input.behavior === 'thinking';
-    const listening = input.behavior === 'listening';
+    const thinking = input.delivery?.phase === 'thinking' || input.behavior === 'thinking';
+    const listening = input.delivery?.phase === 'listening' || input.behavior === 'listening';
     const confused = input.behavior === 'confused';
     const base: Record<string, number> = {};
     for (const [id, [, , baseline]] of Object.entries(limits)) base[id] = baseline;
@@ -211,16 +259,10 @@ export class AvatarPresentation {
     base.ParamBreath = (Math.sin(this.clock * 1.8) + 1) / 2;
     base.ParamLeafSwing = Math.sin(this.clock * 1.25) * 0.18;
 
-    const selected: ExpressionName =
-      input.delivery && styles.has(input.delivery.style)
-        ? input.delivery.style
-        : confused
-          ? 'concerned'
-          : thinking
-            ? 'thinking'
-            : listening
-              ? 'listening'
-              : 'neutral';
+    // 眉眼语义只来自受控 Jev 状态；生命周期保留姿态反馈，但不自行猜测情绪。
+    const requested: ExpressionName =
+      input.delivery && styles.has(input.delivery.style) ? input.delivery.style : 'neutral';
+    const selected = this.expression(requested, Boolean(input.delivery));
     const target = { ...base };
     // 各资源都对相同基准求差再交叉淡化，Multiply 与 Overwrite 不会因资源加载顺序改变结果。
     for (const name of expressionNames) {
@@ -244,9 +286,37 @@ export class AvatarPresentation {
     }
     let speechSwayWeight = 1;
     if (this.activeGesture) {
-      const { name, started } = this.activeGesture;
-      const phase = clamp((this.clock - started) / gestureDurations[name], 0, 1);
-      const envelope = Math.sin(Math.PI * phase) ** 2;
+      const action = this.activeGesture;
+      const prepared = this.clock - action.prepared;
+      const audibleEnergy = input.delivery?.audio?.energy ?? input.lip?.open ?? 0;
+      const onset = input.delivery?.audio?.onset ?? 0;
+      // 准备之后等待一个真实发声窗口；没有声音的过期动作直接作废，不用字幕猜重音。
+      if (action.stroke === null && prepared > 0.8) this.activeGesture = null;
+      if (
+        this.activeGesture &&
+        action.stroke === null &&
+        prepared >= 0.12 &&
+        audibleEnergy > 0.025 &&
+        ((onset > 0.01 && (input.delivery?.audio?.at ?? -Infinity) > action.audioAt) ||
+          prepared >= 0.32 ||
+          !input.delivery?.audio)
+      ) {
+        action.stroke = this.clock;
+      }
+      const { name, strength, duration } = action;
+      const strokePhase =
+        action.stroke === null ? 0 : clamp((this.clock - action.stroke) / duration, 0, 1);
+      const phase = strokePhase < 0.72 ? strokePhase / 0.72 : 1;
+      const preparation = clamp(prepared / 0.12, 0, 1);
+      const retraction = clamp((strokePhase - 0.72) / 0.28, 0, 1);
+      const shape = !this.activeGesture
+        ? 0
+        : action.stroke === null
+          ? 0.12 * smooth(preparation)
+          : strokePhase < 0.72
+            ? 0.12 + 0.88 * Math.sin(Math.PI * phase) ** 2
+            : 0.12 * (1 - smooth(retraction));
+      const envelope = shape * (0.55 + strength * 0.45);
       speechSwayWeight = 1 - envelope * 0.7;
       if (name === 'nod') target.ParamAngleY -= 18 * Math.sin(phase * Math.PI * 2) * envelope;
       if (name === 'tilt') target.ParamAngleZ += 15 * envelope;
@@ -269,12 +339,22 @@ export class AvatarPresentation {
     }
     // 音频包络只影响次级摆动，不猜测情绪；实际静音即关闭目标，保留轻微阻尼收尾。
     const open = clamp(input.lip?.open ?? 0, 0, 1);
-    this.energy += (open - this.energy) * (1 - Math.exp(-dt * 12));
+    const audioEnergy = clamp(input.delivery?.audio?.energy ?? open, 0, 1);
+    this.energy += (audioEnergy - this.energy) * (1 - Math.exp(-dt * 12));
     target.ParamAngleX += Math.sin(this.clock * 3.1) * this.energy * 1.8 * speechSwayWeight;
     target.ParamAngleY += Math.sin(this.clock * 4.2) * this.energy * 1.2 * speechSwayWeight;
+    // 小幅身摆跟随最终头姿态，复用现有速度与回收；不另建时钟、语义判断或动作循环。
+    target.ParamBodyAngleX = target.ParamAngleX * 0.18 + target.ParamAngleZ * 0.12;
     const output: Record<string, number> = {};
     for (const [id, [min, max]] of Object.entries(limits)) {
-      this.pose[id] += (clamp(target[id], min, max) - this.pose[id]) * (1 - Math.exp(-dt * 12));
+      const goal = clamp(target[id], min, max);
+      const displacement = this.pose[id] - goal;
+      const damping = 24;
+      const decay = Math.exp(-damping * dt);
+      const momentum = this.velocity[id] + damping * displacement;
+      this.pose[id] = clamp(goal + (displacement + momentum * dt) * decay, min, max);
+      this.velocity[id] = (this.velocity[id] - damping * momentum * dt) * decay;
+      if (this.pose[id] === min || this.pose[id] === max) this.velocity[id] = 0;
       output[id] = this.pose[id];
     }
     // 眨眼是面部最后一个遮罩，不能被快乐资源的眼睛开度重新撑开。

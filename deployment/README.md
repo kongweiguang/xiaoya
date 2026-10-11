@@ -2,12 +2,14 @@
 
 唯一常驻方式是 systemd 管理 `xiaoya-livekit`、`xiaoya-speech`、`xiaoya-agent`。Windows 启动器只启动、检查并跟随日志，不另起前台 Agent，不自动调用付费 LLM。
 
+使用 `start-wsl.ps1` 时保持日志窗口打开：它的前台日志跟随维持 WSL 实例运行。关闭最后一个 WSL 前台命令后，实例可能自动退出，三个服务也会随之停止；systemd 服务本身不维持实例存活。[Microsoft 官方说明](https://learn.microsoft.com/en-us/windows/wsl/systemd) 与当前测试的实例退出行为一致。验收脚本仅用自己持有的只读前台命令保活，不修改全局 WSL 设置或另起 Agent。
+
 ## 目录与初次部署
 
-Windows 源码为 `C:\dev\rust\xiaoya`；WSL 运行目录为 `/opt/xiaoya`。两侧 `.venv` 严格分离。先准备 NVIDIA CUDA、私有 LiveKit 二进制 `/opt/xiaoya/bin/livekit-server`、项目 `.tools/livekit.yaml` 和被忽略的 `.env.local`；模型准备脚本只下载此项目模型。
+Windows 源码为 `C:\kong\personal-projects\小芽\代码\xiaoya`；WSL 运行目录为 `/opt/xiaoya`。两侧 `.venv` 严格分离。先准备 NVIDIA CUDA、私有 LiveKit 二进制 `/opt/xiaoya/bin/livekit-server`、项目 `.tools/livekit.yaml` 和被忽略的 `.env.local`；模型准备脚本只下载此项目模型。
 
 ```powershell
-wsl -d Ubuntu-22.04 -- bash /mnt/c/dev/rust/xiaoya/deployment/wsl/deploy.sh /mnt/c/dev/rust/xiaoya
+wsl -d Ubuntu-22.04 -- bash -lc 'bash /mnt/c/kong/personal-projects/小芽/代码/xiaoya/deployment/wsl/deploy.sh /mnt/c/kong/personal-projects/小芽/代码/xiaoya'
 ```
 
 部署固定已有 SDK 和 CosyVoice 版本，不升级其他服务。`deploy.sh` 同步代码与显式配置，准备项目模型，安装三个项目单元并重启 speech／Agent。退役的本项目 Ollama 服务不会重新启用。
@@ -17,12 +19,14 @@ wsl -d Ubuntu-22.04 -- bash /mnt/c/dev/rust/xiaoya/deployment/wsl/deploy.sh /mnt
 ## 日常更新
 
 ```powershell
-wsl -d Ubuntu-22.04 -- bash /mnt/c/dev/rust/xiaoya/deployment/wsl/sync-runtime.sh /mnt/c/dev/rust/xiaoya
+wsl -d Ubuntu-22.04 -- bash -lc 'bash /mnt/c/kong/personal-projects/小芽/代码/xiaoya/deployment/wsl/sync-runtime.sh /mnt/c/kong/personal-projects/小芽/代码/xiaoya'
 wsl -d Ubuntu-22.04 -- systemctl restart xiaoya-speech xiaoya-agent
 pwsh -File deployment/start-wsl.ps1
 ```
 
 源码删除会同步到运行目录，不能手工复制单个文件留下旧实现。需要更新凭据时，先核对两侧私有配置，再显式执行 `sync-runtime.sh <repo> --configuration`。示例 MCP 默认不接入；开启前配置自己的 `mcp.local.json`。
+
+WSL 的 `bash -lc` 读取登录环境，使用户安装在 `~/.local/bin` 的 uv 可见；本次普通非登录调用实际无法找到 uv，已使用上述入口完成同步。
 
 Agent 的 `ExecStartPre` 等待 speech 最长 300 秒；整体 `TimeoutStartSec=330`。`Type=notify` 仅在 SDK 公开 `worker_registered` 事件后发送 READY；HTTP 200 或旧进程存活不能证明 Agent 已注册。重新启动 speech 后同时重启 Agent。
 
@@ -31,6 +35,7 @@ speech 与 Agent 健康接口绑定 `127.0.0.1`。LiveKit 信令与媒体必须�
 ## 安全与运维
 
 - 根配置中 STT／TTS 密钥不可留空；无鉴权填 `not-required`。DeepSeek 必须真实独立密钥，不从其他模型配置继承。
+- Jev 在根 `.env.local` 使用 `VOICE_AGENT_JEV_BASE_URL=https://api.typesafe.ai`、`VOICE_AGENT_JEV_MODEL=jev-1.13.0` 与独立 `VOICE_AGENT_JEV_API_KEY`；空 Key 保持自然表现，不影响正常对话。填 Key 后用显式配置同步并重启 Agent，密钥不下发网页。Mock 仅用于离线测试，不是部署供应商。
 - 本地语音要求 CUDA；`SPEECH_TTS_ACCELERATION` 明确为 `vllm` 或 `none`。保留 CosyVoice 实际需要的 Whisper、Matcha 等依赖。
 - 默认网页监听本机。令牌只接受浏览器 `POST {}`，服务端决定房间、身份、Agent 与最小权限，15 分钟过期，离房清理窗口为 35 秒。
 - 远程网页须经已认证网关／隧道。服务端同时配置 `TOKEN_GATEWAY_ORIGIN`、`TOKEN_GATEWAY_KEY`；网关鉴权后覆盖注入 `x-xiaoya-gateway-key`。必须拒绝客户端伪造的同名头，密钥不能下发浏览器。仅做端口转发不是鉴权。
@@ -44,6 +49,20 @@ wsl -d Ubuntu-22.04 -- journalctl -u xiaoya-agent -u xiaoya-speech -n 80 --no-pa
 ```
 
 不要停止其他服务，不要强制删除调度或使用 SDK 私有字段制造验收通过。
+
+## Jev v2 候选与整体回滚
+
+本次本机交付目录为 `.tools/releases/jev-v2-20261009/`：
+
+- `jev-v2-candidate-source.zip`：同一次工作树快照的前端、Agent、锁文件、部署脚本及现有正式运行资产。新 Editor 候选尚未通过，未混入包内。
+- `before-jev-matched-source.zip`：旧网页／资产配上更新前**实际私有 Agent 源码**。私有备份与 Git HEAD 有四个文件不同，已按实际备份重建回滚包，不能直接用 HEAD 假设运行版本。
+- `manifest.json`：包及逐文件 SHA-256、基准提交和模型未晋升状态；不含私有配置、缓存或 Key。
+
+这是已实现代码的候选源码包，不冒称正式新模型的完整发布包。解压到独立目录后按原入口 `uv sync --locked`、网页 `pnpm install --frozen-lockfile`／`pnpm build` 检查与启动。填 Key 后显式同步配置，源码更新使用受管清单。
+
+需要回滚时先结束当前会话，再把 `before-jev-matched-source.zip` 解压到本机忽略的独立目录。使用其中的 `deployment/wsl/sync-runtime.sh <解压目录的WSL绝对路径>` 镜像旧后端，重启 `xiaoya-agent` 并等待公开 worker_registered；网页同时从同一解压目录重新构建和启动，保留原有私有环境配置。旧资产也来自该包。不得只回滚 Agent 或只回滚网页，以免 v1/v2 混用；不对活动工作树执行 reset 或覆盖未提交改动。
+
+本次实际后端更新前的额外备份在 `/opt/xiaoya/releases/jev-v2-20261009-before/agent-source.tar.gz`，同目录保留两次受管同步清单。该备份只含源码与锁文件，不能单独替代配套网页／资产回滚包。模型通过全部制作门后再制作包含正式新资产的统一版本。
 
 ## 显式诊断与真实房间验证
 

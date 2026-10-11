@@ -2,11 +2,13 @@
 
 import asyncio
 import json
+import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, PropertyMock
 
 import pytest
 from livekit import rtc
+from livekit.agents import llm
 
 from xiaoya.domain.assistant import AssistantEnvironment, AssistantProfile
 from xiaoya.infrastructure import livekit_conversation
@@ -97,7 +99,7 @@ async def test_single_expressive_pipeline_has_explicit_private_presets_and_clean
     private_settings: Settings,
     boundary: SimpleNamespace,
 ) -> None:
-    """控制解析后才过滤正文，唯一 neutral TTS 直接交给会话；注册后绑定再放行就绪。"""
+    """Jev 与朗读分离，唯一 neutral TTS 直接交给会话；注册后绑定再放行就绪。"""
     vad = Mock()
     conversation = livekit_conversation.LiveKitVoiceConversation(
         room=boundary.room, settings=private_settings, vad=vad
@@ -108,7 +110,8 @@ async def test_single_expressive_pipeline_has_explicit_private_presets_and_clean
     assert arguments["stt"] is boundary.stt and arguments["llm"] is boundary.llm
     assert arguments["tts"] is boundary.voices[0]
     assert arguments["tts_text_transforms"] == [] and arguments["vad"] is vad
-    assert arguments["turn_handling"]["interruption"] == {"mode": "vad"}
+    assert arguments["aec_warmup_duration"] == 0.0
+    assert arguments["turn_handling"]["interruption"] == {"mode": "vad", "min_duration": 0.50}
     boundary.detector_factory.assert_called_once_with(version="v1-mini")
     boundary.stt_factory.assert_called_once_with(
         model=private_settings.stt_model,
@@ -137,11 +140,39 @@ async def test_single_expressive_pipeline_has_explicit_private_presets_and_clean
     assert agent.environment.channel == "web"
     agent.enable_delivery.assert_awaited_once_with(conversation._snapshot_endpoint)
     boundary.connection.bind.assert_awaited_once_with(boundary.session.room_io)
-    boundary.session.say.assert_awaited_once_with("[xiaoya:happy|wave]你好。")
+    boundary.session.say.assert_awaited_once_with("你好。")
     await asyncio.gather(conversation.close(), conversation.close())
     boundary.session.aclose.assert_awaited_once()
     for model in boundary.models:
         model.aclose.assert_awaited_once()
+
+
+def test_public_message_metrics_are_finite_and_do_not_log_content(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """计时只采用公开消息事件，拒绝非有限值及正文，避免诊断泄露用户对话。"""
+    message = llm.ChatMessage(
+        role="assistant",
+        content=["不应写入日志的私密正文"],
+        metrics={
+            "llm_node_ttft": 0.25,
+            "tts_node_ttfb": 0.4,
+            "e2e_latency": float("nan"),
+            "provider_request_ids": ["opaque"],
+        },
+    )
+    with caplog.at_level(logging.INFO, logger=livekit_conversation.__name__):
+        livekit_conversation.LiveKitVoiceConversation._on_item_metrics(
+            SimpleNamespace(item=message)
+        )
+        livekit_conversation.LiveKitVoiceConversation._on_item_metrics(
+            SimpleNamespace(item=object())
+        )
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.metrics == {"llm_node_ttft": 0.25, "tts_node_ttfb": 0.4}
+    assert record.item_id == message.id and record.role == "assistant"
+    assert "私密正文" not in str(record.__dict__) and "opaque" not in str(record.__dict__)
 
 
 @pytest.mark.parametrize(
@@ -363,7 +394,7 @@ async def test_snapshot_readiness_requires_binding_and_live_owner(
     assert method == "xiaoya.getDeliverySnapshot"
     payload = json.loads(await handler(SimpleNamespace(caller_identity="owner")))
     assert payload["instance"] == conversation._snapshot_endpoint.instance
-    assert payload["revision"] == 3 and payload["v"] == 1
+    assert payload["revision"] == 3 and payload["v"] == 2
     boundary.connection.is_owner.return_value = False
     with pytest.raises(rtc.RpcError):
         await handler(SimpleNamespace(caller_identity="owner"))
@@ -391,7 +422,7 @@ async def test_console_uses_same_voice_without_room_output_or_snapshot(
     boundary.connection.bind.assert_not_awaited()
     boundary.room.local_participant.register_rpc_method.assert_not_called()
     await conversation.say("本机测试。")
-    boundary.session.say.assert_awaited_once_with("[xiaoya:happy|wave]本机测试。")
+    boundary.session.say.assert_awaited_once_with("本机测试。")
     await conversation.close()
 
 

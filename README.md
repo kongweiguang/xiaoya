@@ -2,7 +2,7 @@
 
 一个会听、会说、会用工具的中文数字人助手。浏览器中既能语音交流，也能直接打字；Live2D 神态、短手势和口型跟随助手实际播放的声音。
 
-面向个人本机和私有环境：语音识别、合成与 LiveKit 自托管，对话使用 DeepSeek Flash。只维护一套灵动 Agent，不提供账号平台或公共语音服务回退。
+面向个人本机和私有环境：语音识别、合成与 LiveKit 自托管，对话使用 DeepSeek Flash，Jev 并行判断人物表情、动作及语气。LLM 只生成口语正文，人物节奏跟随真实音频。
 
 ![小芽桌面与移动端界面设计](docs/live2d/interface-concept.png)
 
@@ -17,7 +17,7 @@ _界面设计示意，不是实际运行或模型验收截图。当前效果与�
 | 五个内置工具   | 查询时间、十进制计算、保存／查看／删除当前会话便签             |
 | MCP 扩展       | 显式配置自己的外部工具；知识库和工单仅为独立示例，不默认加载   |
 | 完整会话操作   | 连接可取消，故障可重试；结束／重连保留草稿与历史，不自动发送   |
-| 自适应界面     | 桌面双栏、窄屏上下布局，浅色／深色／跟随系统主题               |
+| 沉浸式界面     | 全屏角色舞台、桌面对话浮层、手机历史抽屉，明暗与系统主题       |
 
 便签只保存在当前会话内存，不是跨会话记忆或定时提醒。工具结果以实际执行确认为准。
 
@@ -56,10 +56,13 @@ if (-not (Test-Path web/.env.local)) { Copy-Item web/.env.example web/.env.local
 | STT     | 显式地址、`paraformer-streaming` 与独立密钥；主 Agent 固定 WebSocket 协议          |
 | LLM     | `https://api.deepseek.com`、`deepseek-flash` 与独立真实密钥；语音模式关闭 thinking |
 | TTS     | 显式地址、`cosyvoice3-0.5b`、`default` 音色与独立密钥；支持 PCM／WAV               |
+| Jev     | `https://api.typesafe.ai`、`jev-1.13.0`；Key 留空可启动，填写后启用人物语义判断       |
 
 无鉴权的私有 STT／TTS 必须填写 `not-required`，不能留空。客户端不继承 `OPENAI_API_KEY`，不回退公共语音服务。房间模式启动前检查完整 LiveKit 凭据；console 不要求它们。
 
 网页 Secret 只由服务端读取，不能放入浏览器公开环境变量。默认令牌入口仅允许本机同源请求；远程访问必须经过已认证网关，普通端口转发不等于鉴权。
+
+Jev 的三项配置在根 `.env.local`，密钥只由 Agent 使用。无 Key、超时或限流时保持自然待机和口型，语音不等待人物判断。结构与验收见 [Jev 人物表现](docs/delivery.md)。
 
 ### 3. 选择使用方式
 
@@ -98,6 +101,7 @@ flowchart LR
     Agent --> STT[本地 Paraformer]
     Agent --> LLM[DeepSeek Flash]
     Agent --> TTS[本地 CosyVoice]
+    Agent <--> Jev[Jev 人物表现判断]
     Agent <--> Tools[内置工具与显式 MCP]
 ```
 
@@ -105,7 +109,7 @@ flowchart LR
 
 - 会话唯一持有 SDK 客户端与表现快照；启动中途失败逐项回收，不发送开场白。正常关闭由 Job 生命周期触发。
 - PCM／WAV 共用可取消链路，在线程外等待模型许可；首块前服务失败返回 503，首块后失败终止流，不重播已输出内容。
-- 表现通道校验 SID、修订号与播放许可；内部控制头仅为 `[xiaoya:<style>|<gesture>]`，普通括号正文保留。
+- 表现通道校验会话、轮次、片段身份与实际播放许可；Jev 并行提供语义判断，回复正文直接朗读，视觉修订不会重演动作。
 - Windows 启动器只管理本项目三个 systemd 单元的启动／就绪／日志，不另起前台 Agent，也不自动调用付费 LLM。
 - HTTP 转写是独立诊断接口，不承担主 Agent 的自动回退；诊断和真实房间脚本需手动运行。
 

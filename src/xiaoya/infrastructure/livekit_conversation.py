@@ -3,7 +3,9 @@
 import asyncio
 import json
 import logging
+import math
 import sys
+import time
 from collections.abc import Callable
 from contextlib import AsyncExitStack
 from dataclasses import replace
@@ -15,11 +17,12 @@ from livekit.agents import (
     InterruptionOptions,
     TurnHandlingOptions,
     inference,
+    llm,
 )
 from livekit.agents.voice.room_io import RoomOptions, TextOutputOptions
 from livekit.plugins import openai, silero
 
-from xiaoya.application.prepare_delivery import PrepareDelivery
+from xiaoya.application.presentation import PresentationController
 from xiaoya.domain.assistant import AssistantEnvironment, AssistantProfile
 from xiaoya.infrastructure.assistant_tools import AssistantToolAdapter
 from xiaoya.infrastructure.conversation_connection import ConversationConnection
@@ -44,6 +47,7 @@ class LiveKitVoiceConversation:
         tools: AssistantToolAdapter | None = None,
         mcp: MCPTools | None = None,
         on_terminal: Callable[[], None] | None = None,
+        presentation: PresentationController | None = None,
     ) -> None:
         """工具、快照端点和终止通知按 Job 隔离，运行态主动结束只在完整清理后通知宿主。"""
         self._room = room
@@ -65,9 +69,10 @@ class LiveKitVoiceConversation:
         self._connection = ConversationConnection(room, self._on_connection_end)
         self._expressive_agent: ExpressiveAgent | None = None
         self._snapshot_endpoint: DeliverySnapshotEndpoint | None = None
+        self._presentation = presentation or PresentationController()
 
     def _initialize_models(self) -> None:
-        """中间客户端只用局部变量，成功即登记唯一清理清单，下一步失败也能精确回收。"""
+        """客户端逐项登记；输入不因开场丢弃，回声由实际采集链处理并单独做设备验收。"""
         settings = self._settings
         stt = self._own_model(
             LocalStreamingSTT(
@@ -108,8 +113,10 @@ class LiveKitVoiceConversation:
                 )
             )
         self._session = AgentSession(
-            # 内部头只在公开节点解码，SDK 不能提前把带括号的正文当 Markdown 链接。
+            # 合成边界独占朗读过滤，SDK 前置变换不能改变绑定 Jev 判断的精确正文。
             tts_text_transforms=[],
+            # SDK 默认开场三秒向 STT 送静音；显式关闭，保留用户的早期回应与打断。
+            aec_warmup_duration=0.0,
             stt=stt,
             llm=llm,
             tts=tts,
@@ -118,7 +125,8 @@ class LiveKitVoiceConversation:
                 turn_detection=inference.TurnDetector(version="v1-mini"),
                 endpointing={"min_delay": 0.90, "max_delay": 1.10},
                 preemptive_generation={"enabled": True, "preemptive_tts": True},
-                interruption=InterruptionOptions(mode="vad"),
+                # 私有停顿网格支持保留 0.90/0.50；显式固定，避免 SDK 默认值改变交互。
+                interruption=InterruptionOptions(mode="vad", min_duration=0.50),
             ),
         )
 
@@ -157,6 +165,7 @@ class LiveKitVoiceConversation:
                 room=self._room,
                 voices=self._voices,
                 environment=environment,
+                presentation=self._presentation,
             )
             agent = self._expressive_agent
             await self._session.start(
@@ -208,9 +217,77 @@ class LiveKitVoiceConversation:
         for event, handler in (
             ("error", self._on_error),
             ("close", self._on_session_close),
+            ("user_state_changed", self._on_user_state),
+            ("agent_state_changed", self._on_agent_state),
+            ("user_input_transcribed", self._on_transcription),
+            ("conversation_item_added", self._on_item_metrics),
         ):
             self._session.on(event, handler)
             self._subscriptions.append((self._session, event, handler))
+
+    def _on_user_state(self, event: Any) -> None:
+        """VAD 开口事件立即撤销旧表现，实际语音中断仍由 SDK 的本地检测负责。"""
+        if not self._closed and event.new_state == "speaking":
+            self._presentation.phase("listening")
+
+    def _on_agent_state(self, event: Any) -> None:
+        """Speaking 只由放行片段授权，框架工作指示不能令人物在预生成阶段提前表演。"""
+        if self._closed:
+            return
+        if event.new_state == "thinking":
+            self._presentation.phase("thinking")
+        elif (
+            event.new_state == "listening"
+            and getattr(self._session, "user_state", "listening") != "speaking"
+        ):
+            self._presentation.phase("idle")
+
+    def _on_transcription(self, event: Any) -> None:
+        """增量文本仅提交后台表现判断，SDK 回调内不执行网络请求或业务分类。"""
+        if not self._closed:
+            if event.is_final:
+                logger.info(
+                    "语音计时",
+                    extra={
+                        "stage": "transcription_final",
+                        "turn_id": self._presentation.turn_id,
+                        "monotonic": time.monotonic(),
+                    },
+                )
+            self._presentation.transcribe(event.transcript, final=event.is_final)
+
+    @staticmethod
+    def _on_item_metrics(event: Any) -> None:
+        """使用 SDK 当前公开消息指标，只记录有限计时值，房间播放时间不冒称浏览器出声。"""
+        item = event.item
+        if not isinstance(item, llm.ChatMessage):
+            return
+        values = {
+            name: value
+            for name in (
+                "started_speaking_at",
+                "stopped_speaking_at",
+                "transcription_delay",
+                "end_of_turn_delay",
+                "on_user_turn_completed_delay",
+                "llm_node_ttft",
+                "llm_node_ttfs",
+                "tts_node_ttfb",
+                "playback_latency",
+                "e2e_latency",
+            )
+            if type(value := item.metrics.get(name)) in (int, float) and math.isfinite(value)
+        }
+        if values:
+            logger.info(
+                "语音阶段指标",
+                extra={
+                    "stage": "conversation_metrics",
+                    "item_id": item.id,
+                    "role": item.role,
+                    "metrics": values,
+                },
+            )
 
     def _on_error(self, event: Any) -> None:
         """可恢复错误留给 SDK；运行态严重错误请求终止，普通 Job 回收后的迟到事件不反向通知。"""
@@ -248,8 +325,7 @@ class LiveKitVoiceConversation:
         """固定开场白直接交给 TTS，节省一次生成并保持业务文案确定。"""
         if not self._started or self._closed or self._session is None:
             raise RuntimeError("语音会话尚未启动或已经关闭")
-        segment = PrepareDelivery().greeting(text)
-        await self._session.say(segment.intent.marker + segment.text)
+        await self._session.say(text)
 
     async def close(self) -> None:
         """重复或并发关闭共享结果，防止 SDK 主动结束与 Job 回收重复释放资源。"""
@@ -261,6 +337,7 @@ class LiveKitVoiceConversation:
         """停止 SDK 后注销唯一快照，再释放表现与模型；全部清理尝试结束后才通知 Job。"""
         try:
             async with AsyncExitStack() as cleanup:
+                cleanup.push_async_callback(self._presentation.aclose)
                 if self._mcp is not None:
                     cleanup.push_async_callback(self._mcp.close)
                 for model in self._models:

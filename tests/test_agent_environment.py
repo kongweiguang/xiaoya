@@ -43,7 +43,7 @@ async def test_expressive_agent_preserves_tools_and_refreshes_ephemeral_facts(mo
     tool = llm.FunctionToolCall(name="calculate", arguments='{"expression":"2+3"}', call_id="c")
     chunk = llm.ChatChunk(id="r", delta=llm.ChoiceDelta(tool_calls=[tool]))
     flush = FlushSentinel()
-    items = ["[xiaoya:neutral|none]纯净正文。", chunk, flush]
+    items = ["纯净正文。", chunk, flush]
     captured = []
 
     def generate(_agent, generation_context, *_args):
@@ -54,7 +54,7 @@ async def test_expressive_agent_preserves_tools_and_refreshes_ephemeral_facts(mo
     monkeypatch.setattr(Agent.default, "llm_node", generate)
     for _ in range(2):
         result = [item async for item in agent.llm_node(context, [], ModelSettings())]
-        assert result[0] == "[xiaoya:neutral|none]纯净正文。"
+        assert result[0] == "纯净正文。"
         forwarded = next(item for item in result if isinstance(item, llm.ChatChunk))
         assert forwarded.delta.tool_calls == [tool]
     assert agent.instructions == "只用短句回答。"

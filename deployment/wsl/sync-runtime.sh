@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Agent 和 speech 共用一份受管源码清单；依赖仍分别由各自 uv.lock 管理。
 set -euo pipefail
-repository="${1:-/mnt/c/dev/rust/xiaoya}"
+# 默认源码根随脚本位置解析，保留显式参数覆盖且不回退旧开发目录。
+repository="${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}"
 shift "$(( $# > 0 ? 1 : 0 ))"
 uv_command="$(command -v uv || true)"
 if [[ -z "$uv_command" ]]; then

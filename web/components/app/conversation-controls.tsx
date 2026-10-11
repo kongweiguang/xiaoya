@@ -16,7 +16,16 @@ import {
   TrackEvent,
   createLocalAudioTrack,
 } from 'livekit-client';
-import { ChevronDown, LoaderCircle, Mic, MicOff, PhoneOff, Send } from 'lucide-react';
+import {
+  ChevronDown,
+  LoaderCircle,
+  Mic,
+  MicOff,
+  Monitor,
+  NotebookText,
+  SendHorizontal,
+  Square,
+} from 'lucide-react';
 import { useMediaDeviceSelect, useTrackToggle } from '@livekit/components-react';
 import { Button } from '@/components/ui/button';
 import { microphoneError } from '@/lib/conversation-controller';
@@ -30,6 +39,8 @@ interface ConversationControlsProps {
   send: (message: string) => Promise<unknown>;
   end: () => Promise<void>;
   onMicrophoneChange: (capturing: boolean) => void;
+  historyOpen?: boolean;
+  onHistoryToggle?: () => void;
 }
 
 /** Publication 未静音不代表仍在采集；设备切换失败可能留下 ended 轨道。 */
@@ -52,12 +63,15 @@ export function ConversationControls({
   send,
   end,
   onMicrophoneChange,
+  historyOpen = false,
+  onHistoryToggle,
 }: ConversationControlsProps) {
   const [error, setError] = useState('');
   const [deviceError, setDeviceError] = useState('');
   const inFlight = useRef(false);
   const composing = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
+  const deviceMenu = useRef<HTMLDetailsElement>(null);
   const mounted = useRef(true);
   const deviceOperation = useRef(false);
   const [acquiring, setAcquiring] = useState(false);
@@ -71,6 +85,7 @@ export function ConversationControls({
   // 内容提交后即测量，不把临时 DOM 尺寸放进 React 状态或重建会话资源。
   useLayoutEffect(resizeInput, [draft, resizeInput]);
   /** 宽度由局部观察器持有；自身高度变化的通知不测量，避免回环和重复订阅。 */
+  /** 生命周期标记阻止迟到权限与发送结果改变已结束的控件。 */
   useEffect(() => {
     const element = input.current;
     if (!element) return;
@@ -97,6 +112,31 @@ export function ConversationControls({
       mounted.current = false;
     };
   }, []);
+  /** 原生设备菜单在外部点击或 Escape 时收回，保留选择器的键盘行为和焦点归还。 */
+  useEffect(() => {
+    /** 菜单之外的指针只关闭菜单，不接管用户正在操作的其他控件焦点。 */
+    function outside(event: PointerEvent) {
+      if (
+        deviceMenu.current &&
+        event.target instanceof Node &&
+        !deviceMenu.current.contains(event.target)
+      )
+        deviceMenu.current.open = false;
+    }
+    /** Escape 仅处理当前打开的菜单，避免抢占手机历史抽屉的快捷键。 */
+    function escape(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || !deviceMenu.current?.open) return;
+      deviceMenu.current.open = false;
+      deviceMenu.current.querySelector('summary')?.focus();
+    }
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    /** 同一个控件实例只持有一组全局监听，结束时彻底释放。 */
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, []);
   /** 设备失败保持文字输入可用，重试由用户主动触发。 */
   const reportDeviceError = useCallback((failure: Error) => {
     if (mounted.current) setDeviceError(microphoneError(failure));
@@ -120,6 +160,7 @@ export function ConversationControls({
   }, [microphoneEnabled, onMicrophoneChange]);
   /** 每个异步边界重新读取 SDK 可变房间状态，不能把点击时的 connected 当成持续保证。 */
   const sessionConnected = () => mounted.current && room.state === 'connected';
+  /** SDK 可能保持包装对象不变而替换原生轨道，监听器必须跟随实际轨道重绑。 */
   useEffect(() => {
     // SDK 换轨可以保持 LocalAudioTrack 包装对象不变，必须跟随原生轨道重绑监听器。
     if (!captureTrack) return;
@@ -131,6 +172,7 @@ export function ConversationControls({
     }
     media.addEventListener('ended', refreshCapture);
     captureTrack.on(TrackEvent.Restarted, refreshCapture);
+    /** 换轨和卸载都移除同一组监听，失效轨道不再参与采集状态计算。 */
     return () => {
       // 换轨和卸载都解除同一组监听器，不能仅依靠 mounted 避免旧事件写入。
       media.removeEventListener('ended', refreshCapture);
@@ -275,8 +317,9 @@ export function ConversationControls({
               {acquiring ? '麦克风准备中…' : microphoneEnabled ? '麦克风已开启' : '麦克风已关闭'}
             </span>
           </Button>
-          <details className="device-menu">
-            <summary aria-label="选择麦克风" aria-disabled={!ready}>
+          <details className="device-menu" ref={deviceMenu}>
+            <summary aria-label="选择麦克风" aria-disabled={!ready} title="选择麦克风">
+              <Monitor size={21} className="device-display-icon" />
               <ChevronDown size={18} />
             </summary>
             <div className="device-menu-content">
@@ -318,6 +361,7 @@ export function ConversationControls({
             // 全局减少动效的极短 duration 仍会插值高度；自动输入尺寸必须即时生效。
             style={{ transitionProperty: 'none' }}
             aria-label="聊天内容"
+            aria-describedby="composer-help"
             placeholder={microphoneEnabled ? '想说什么，也可以打字…' : '想聊什么，打字告诉我…'}
             rows={1}
             value={draft}
@@ -342,6 +386,9 @@ export function ConversationControls({
               }
             }}
           />
+          <span id="composer-help" className="sr-only">
+            Enter 发送，Shift + Enter 换行。中文输入法选字不会发送消息。
+          </span>
           <Button
             type="submit"
             size="icon"
@@ -349,12 +396,29 @@ export function ConversationControls({
             aria-label={error ? '重试发送' : '发送文字'}
             disabled={!ready || sending || !draft.trim()}
           >
-            {sending ? <LoaderCircle className="spin" /> : <Send size={21} />}
+            {sending ? (
+              <LoaderCircle className="spin" />
+            ) : (
+              <SendHorizontal size={23} fill="currentColor" />
+            )}
           </Button>
         </form>
-        <Button className="end-button" onClick={() => void end()}>
-          <PhoneOff size={19} />
-          结束聊天
+        {onHistoryToggle && (
+          <Button
+            variant="ghost"
+            className="history-button"
+            aria-label={historyOpen ? '收起聊天记录' : '查看聊天记录'}
+            aria-expanded={historyOpen}
+            aria-controls="chat-history"
+            onClick={onHistoryToggle}
+          >
+            <NotebookText size={22} />
+            <span>历史</span>
+          </Button>
+        )}
+        <Button className="end-button" aria-label="结束聊天" onClick={() => void end()}>
+          <Square size={19} fill="currentColor" />
+          结束
         </Button>
       </div>
     </div>

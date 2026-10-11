@@ -28,6 +28,9 @@ class Settings:
     instructions: str = AssistantProfile().instructions
     greeting: str = AssistantProfile().greeting
     mcp_config_file: str = ""
+    jev_base_url: str = "https://api.typesafe.ai"
+    jev_model: str = "jev-1.13.0"
+    jev_api_key: str = field(default="", repr=False)
 
     def __post_init__(self) -> None:
         """部署错误在客户端创建前失败，语言只接纳实际 WS 契约；官方密钥只发往 HTTPS。"""
@@ -62,6 +65,21 @@ class Settings:
             raise ValueError("VOICE_AGENT_TTS_RESPONSE_FORMAT 仅支持当前本地服务的 wav/pcm")
         if self.language not in {"zh", "en"}:
             raise ValueError("VOICE_AGENT_LANGUAGE 仅支持当前流式识别服务的 zh/en")
+        if self.jev_api_key:
+            _validate_url(self.jev_base_url, {"https"}, "VOICE_AGENT_JEV_BASE_URL")
+            jev_url = urlsplit(self.jev_base_url)
+            if (
+                jev_url.hostname != "api.typesafe.ai"
+                or jev_url.port not in {None, 443}
+                or jev_url.path not in {"", "/"}
+            ):
+                raise ValueError("VOICE_AGENT_JEV_BASE_URL 仅支持官方 HTTPS 根地址")
+            if (
+                self.jev_model != "jev-1.13.0"
+                or not self.jev_api_key.strip()
+                or self.jev_api_key.strip() == "not-required"
+            ):
+                raise ValueError("Jev 必须使用 jev-1.13.0 与独立真实密钥")
 
     @property
     def llm_extra_body(self) -> dict[str, object]:
@@ -70,7 +88,7 @@ class Settings:
 
     @classmethod
     def from_environment(cls, environ: Mapping[str, str] | None = None) -> "Settings":
-        """模型配置缺失必须失败；MCP 空路径明确表示不启用外部工具。"""
+        """核心服务缺配置必须失败；空 Jev 密钥明确省略外部增强，不能阻止基础会话。"""
         source = os.environ if environ is None else environ
         values: dict[str, str] = {}
         missing: list[str] = []
@@ -78,7 +96,11 @@ class Settings:
             variable = f"VOICE_AGENT_{item.name.upper()}"
             default = "" if item.default is MISSING else item.default
             value = source.get(variable, default).strip()
-            if not value and item.name != "mcp_config_file":
+            optional = item.name in {"mcp_config_file", "jev_api_key"} or (
+                item.name.startswith("jev_")
+                and not source.get("VOICE_AGENT_JEV_API_KEY", "").strip()
+            )
+            if not value and not optional:
                 missing.append(variable)
             values[item.name] = value
         if missing:

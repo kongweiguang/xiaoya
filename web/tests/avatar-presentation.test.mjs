@@ -31,6 +31,58 @@ test('真实 presentation 在 30／60 fps 下保持同速，后台首步有界�
   );
 });
 
+/** 全身父级需要真正收到轻微联动，避免模型有身摆绑定而页面仍像固定底座；不复制耦合公式。 */
+test('头部转向带动同向小幅身摆，视线与音频口型仍各自拥有参数', () => {
+  const right = settle(new AvatarPresentation(), { gaze: { x: 1, y: 0.4 } });
+  const left = settle(new AvatarPresentation(), { gaze: { x: -1, y: -0.4 } });
+  assert.ok(right.ParamBodyAngleX > 0.5 && right.ParamBodyAngleX < right.ParamAngleX);
+  assert.ok(left.ParamBodyAngleX < -0.5 && left.ParamBodyAngleX > left.ParamAngleX);
+  assert.ok(Math.abs(right.ParamEyeBallX - 1) < 1e-12);
+  assert.ok(Math.abs(left.ParamEyeBallX + 1) < 1e-12);
+  assert.ok(Math.abs(right.ParamEyeBallY - 0.4) < 1e-12);
+  assert.ok(Math.abs(left.ParamEyeBallY + 0.4) < 1e-12);
+  assert.equal(right.ParamMouthOpenY, 0);
+  assert.equal(left.ParamMouthOpenY, 0);
+});
+
+/** 用真实动作及取消比较节奏与收回，避免另一个全身循环在打断后继续表演。 */
+test('身摆随真实摇头在 30／60fps 下连贯，取消后与中性姿态收敛', () => {
+  const slow = new AvatarPresentation();
+  const fast = new AvatarPresentation();
+  const neutral = new AvatarPresentation();
+  let low = Infinity;
+  let high = -Infinity;
+  let cancelled;
+  let resting;
+  for (let frame = 0; frame <= 180; frame++) {
+    const time = frame / 60;
+    const delivery = time < 0.8 ? cue('body-shake', 'shake') : null;
+    const state = input({
+      time,
+      delivery,
+      lip: delivery ? { open: 0.6, form: 0 } : null,
+    });
+    const at60 = fast.advance(state);
+    resting = neutral.advance(input({ time }));
+    if (delivery) {
+      low = Math.min(low, at60.ParamBodyAngleX);
+      high = Math.max(high, at60.ParamBodyAngleX);
+    } else {
+      assert.equal(at60.ParamMouthOpenY, 0);
+      cancelled = at60;
+    }
+    if (frame % 2 === 0) {
+      const at30 = slow.advance({ ...state, delta: 1 / 30 });
+      assert.ok(Math.abs(at30.ParamBodyAngleX - at60.ParamBodyAngleX) < 0.7);
+      assert.ok(Math.abs(at30.ParamBodyAngleX) < 6);
+    }
+  }
+  assert.ok(low < -0.2 && high > 0.2, '身摆应随摇头左右往返');
+  assert.ok(Math.abs(cancelled.ParamBodyAngleX - resting.ParamBodyAngleX) < 1e-6);
+  assert.ok(Math.abs(cancelled.ParamArmL) < 1e-6);
+  assert.ok(Math.abs(cancelled.ParamArmR) < 1e-6);
+});
+
 /** 固定时间、眨眼和视线，把模型表达与浏览器调度/随机微动解耦。 */
 function input(overrides = {}) {
   return {
@@ -65,7 +117,17 @@ function settle(presentation, overrides = {}, frames = 180) {
 
 /** 测试显式区分回复与句段身份，不用段 ID 或旧版缺省字段模拟跨回复语义。 */
 function cue(id, gesture = 'nod', reply = 'reply-a', style = 'neutral') {
-  return { id, replyKey: JSON.stringify(['job-a', reply]), gesture, style };
+  return {
+    id,
+    replyKey: JSON.stringify(['job-a', reply]),
+    gesture,
+    style,
+    phase: 'speaking',
+    turnId: 'turn-a',
+    segmentKey: id,
+    gestureId: id,
+    energy: 1,
+  };
 }
 
 /** 直接读取当前 manifest 的资源，避免手写测试表情与浏览器实际表现逐渐分叉。 */
@@ -209,42 +271,185 @@ test('交叉淡化与表情加载顺序无关', () => {
   }
 });
 
-/** 一句话只能启动一次短动作；迟到重复 cue、静音恢复或过期帧都不能续演旧动作。 */
-test('短手势只启动一次，结束、打断、重发后均回中性', () => {
-  const runtime = new AvatarPresentation();
-  const delivery = cue('speech-1', 'wave');
-  runtime.advance(input({ delivery }));
+/** 同一段动作身份固定，视觉版本与强度更新不能重播或修改已经开始的主动作。 */
+test('视觉修订、重复字幕和强度变化均不重演已开始手势', () => {
+  const actual = new AvatarPresentation();
+  const control = new AvatarPresentation();
   let peak = 0;
-  for (let frame = 1; frame <= 180; frame++) {
-    const output = runtime.advance(input({ time: frame / 60, delivery }));
-    peak = Math.max(peak, output.ParamArmL);
+  for (let frame = 0; frame <= 240; frame++) {
+    const time = frame / 60;
+    const original = cue('first', 'wave');
+    const update = { ...original, id: 'revision-' + frame, energy: frame > 20 ? 0 : 1 };
+    const lip = { open: 0.5, form: 0.2 };
+    const changed = actual.advance(input({ time, delivery: update, lip }));
+    const reference = control.advance(input({ time, delivery: original, lip }));
+    assert.deepEqual(changed, reference);
+    peak = Math.max(peak, changed.ParamArmL);
+    if (frame > 170) assert.ok(changed.ParamArmL < 1e-6);
   }
-  assert.ok(peak > 0.65, `wave peak ${peak}`);
-  assert.ok(settle(runtime, { time: 4, delivery }).ParamArmL < 1e-6);
-  settle(runtime, { time: 5 });
-  assert.ok(settle(runtime, { time: 5.5, delivery }).ParamArmL < 1e-6);
-
-  const replacement = cue('speech-2', 'wave', 'reply-b');
-  runtime.advance(input({ time: 6, delivery: replacement }));
-  assert.ok(settle(runtime, { time: 6.8, delivery: replacement }, 20).ParamArmL > 0.5);
-  const firstStop = runtime.advance(input({ time: 6.9 }));
-  assert.ok(firstStop.ParamArmL > 0, '取消平滑收尾而非生硬跳回');
-  assert.ok(settle(runtime, { time: 7 }).ParamArmL < 1e-6);
+  assert.ok(peak > 0.65);
 });
 
-/** 主动作互斥；新句的点头不能继续上一句挥手，后台长暂停也不应补播动作队列。 */
-test('新动作替换旧动作，长帧间隔不补播且数值有限', () => {
+/** 真正起音到来后才发力；准备幅度很小且逾期会自然收回，不从字幕推测重音。 */
+test('准备等待实际音频，静音不发力，有起音则完成一次动作', () => {
+  const active = new AvatarPresentation();
+  const silent = new AvatarPresentation();
+  const delivery = cue('wave', 'wave');
+  let earlyPeak = 0;
+  let voicedPeak = 0;
+  let silentPeak = 0;
+  for (let frame = 0; frame <= 180; frame++) {
+    const time = frame / 60;
+    const audio = { at: time, energy: frame >= 30 ? 0.7 : 0, onset: frame === 30 ? 0.7 : 0 };
+    const voiced = active.advance(input({ time, delivery: { ...delivery, audio } }));
+    const quiet = silent.advance(
+      input({ time, delivery: { ...delivery, audio: { ...audio, energy: 0, onset: 0 } } })
+    );
+    if (frame < 30) earlyPeak = Math.max(earlyPeak, voiced.ParamArmL);
+    voicedPeak = Math.max(voicedPeak, voiced.ParamArmL);
+    silentPeak = Math.max(silentPeak, quiet.ParamArmL);
+    assert.equal(voiced.ParamMouthOpenY, 0);
+    assert.equal(voiced.ParamMouthForm, 0);
+    if (frame === 180) assert.ok(quiet.ParamArmL < 1e-6);
+  }
+  assert.ok(earlyPeak > 0 && earlyPeak < 0.12);
+  assert.ok(silentPeak < 0.12);
+  assert.ok(voicedPeak > 0.65);
+});
+
+/** 在真实帧序列检查两侧位移和双臂内收；所有五种动作必须有效且保持嘴部独占。 */
+test('五种手势准备发力收回，保留口型独占与主要运动幅度', () => {
+  for (const gesture of ['nod', 'tilt', 'wave', 'shy', 'shake']) {
+    const runtime = new AvatarPresentation();
+    const delivery = cue(gesture, gesture);
+    const peaks = { arm: 0, inward: 0, down: 0, left: 0, right: 0, tilt: 0 };
+    let last;
+    for (let frame = 0; frame <= 240; frame++) {
+      const time = frame / 60;
+      const lip = frame < 150 ? { open: 0.63, form: -0.4 } : null;
+      last = runtime.advance(input({ time, delivery, lip }));
+      peaks.arm = Math.max(peaks.arm, last.ParamArmL);
+      peaks.inward = Math.min(peaks.inward, last.ParamArmL);
+      peaks.down = Math.min(peaks.down, last.ParamAngleY);
+      peaks.left = Math.min(peaks.left, last.ParamAngleX);
+      peaks.right = Math.max(peaks.right, last.ParamAngleX);
+      peaks.tilt = Math.max(peaks.tilt, last.ParamAngleZ);
+      assert.equal(last.ParamMouthOpenY, lip?.open ?? 0);
+      assert.equal(last.ParamMouthForm, lip?.form ?? 0);
+      if (gesture === 'shy') assert.equal(last.ParamArmL, last.ParamArmR);
+    }
+    if (gesture === 'wave') assert.ok(peaks.arm > 0.65);
+    if (gesture === 'shy') assert.ok(peaks.inward < -0.5 && peaks.down < -12);
+    if (gesture === 'shake') assert.ok(peaks.left < -8 && peaks.right > 8);
+    if (gesture === 'nod') assert.ok(peaks.down < -8);
+    if (gesture === 'tilt') assert.ok(peaks.tilt > 12);
+    assert.ok(Math.abs(last.ParamArmL) < 1e-6);
+    assert.ok(Math.abs(last.ParamAngleY) < 1e-6);
+    assert.ok(Math.abs(last.ParamAngleX) < 1e-6);
+  }
+});
+
+/** 取消保留姿态和速度使手臂自然收回，嘴必须同一帧归零；迟到更新与旧动作均不能复活。 */
+test('打断立即闭嘴并自然收束，只有新回复可以再次动作', () => {
+  const actual = new AvatarPresentation();
+  const control = new AvatarPresentation();
+  let firstPeak = 0;
+  let newPeak = 0;
+  for (let frame = 0; frame <= 300; frame++) {
+    const time = frame / 60;
+    let expected = frame < 48 ? cue('first', 'wave') : null;
+    if (frame >= 180) expected = cue('new', 'wave', 'reply-b');
+    let received = expected;
+    if (frame >= 90 && frame < 180) received = cue('late-' + frame, 'wave');
+    const lip = frame < 48 || frame >= 180 ? { open: 0.5, form: 0.2 } : null;
+    const changed = actual.advance(input({ time, delivery: received, lip }));
+    const baseline = control.advance(input({ time, delivery: expected, lip }));
+    assert.deepEqual(changed, baseline);
+    if (frame < 48) firstPeak = Math.max(firstPeak, changed.ParamArmL);
+    if (frame === 48) {
+      assert.ok(changed.ParamArmL > 0);
+      assert.equal(changed.ParamMouthOpenY, 0);
+      assert.equal(changed.ParamMouthForm, 0);
+    }
+    if (frame === 120) assert.ok(changed.ParamArmL < 1e-6);
+    if (frame >= 180) newPeak = Math.max(newPeak, changed.ParamArmL);
+  }
+  assert.ok(firstPeak > 0.65 && newPeak > 0.65);
+});
+
+/** 常驻舞台跨 160 个回复复用动作名，检验实际出力与取消姿态，防止只测集合清空而漏掉旧动作复活。 */
+test('160轮回复的动作身份有作用域，取消后的迟到已执行动作不能补演', () => {
+  const actual = new AvatarPresentation();
+  const control = new AvatarPresentation();
+  for (let reply = 0; reply < 160; reply++) {
+    const wave = { ...cue(`wave-${reply}`, 'wave', `reply-${reply}`), gestureId: 'wave' };
+    const nod = { ...cue(`nod-${reply}`, 'nod', `reply-${reply}`), gestureId: 'nod' };
+    let peak = 0;
+    for (let frame = 0; frame <= 240; frame++) {
+      const time = reply * 5 + frame / 60;
+      const expected = frame < 110 ? wave : frame < 120 ? nod : null;
+      const received = frame >= 160 ? { ...wave, id: `late-${reply}-${frame}` } : expected;
+      const lip = frame < 120 ? { open: 0.5, form: 0 } : null;
+      const observed = actual.advance(input({ time, delivery: received, lip }));
+      const reference = control.advance(input({ time, delivery: expected, lip }));
+      assert.deepEqual(observed, reference, `reply ${reply}, frame ${frame}`);
+      if (frame < 110) peak = Math.max(peak, observed.ParamArmL);
+      if (frame >= 120) assert.equal(observed.ParamMouthOpenY, 0);
+    }
+    assert.ok(peak > 0.65, `reply ${reply} must execute its own new wave`);
+    assert.equal(actual.seenGestures.size, 2, 'only this reply owns its consumed wave and nod');
+  }
+});
+
+/** 相同动作连续分句合并；完成后的静止间隔允许下一次动作，取消不能冒充完成。 */
+test('连续同款合并且none间隔只在自然完成后开放', () => {
+  for (const cancelled of [false, true]) {
+    const runtime = new AvatarPresentation();
+    let latePeak = 0;
+    for (let frame = 0; frame <= 300; frame++) {
+      let delivery = cue('first', 'wave');
+      if (frame >= 20) delivery = cue('quiet', 'none');
+      if (frame >= 45 && frame < 170) delivery = cancelled ? null : cue('quiet', 'none');
+      if (frame >= 170 && frame < 190) delivery = cue('late-none', 'none');
+      if (frame >= 190) delivery = cue('next', 'wave');
+      const output = runtime.advance(
+        input({ time: frame / 60, delivery, lip: { open: 0.5, form: 0 } })
+      );
+      if (frame >= 190) latePeak = Math.max(latePeak, output.ParamArmL);
+    }
+    if (cancelled) assert.ok(latePeak < 1e-6);
+    else assert.ok(latePeak > 0.65);
+  }
+});
+
+/** 按相同实际时间采样，允许离散起音检测一帧误差；后台大跳跃作废等待动作且数值有界。 */
+test('30和60fps动作节奏一致，长暂停不补播且损坏输入有界', () => {
+  const samples = [];
+  for (const fps of [30, 60]) {
+    const runtime = new AvatarPresentation();
+    const trajectory = [];
+    for (let frame = 0; frame <= fps * 3; frame++) {
+      const time = frame / fps;
+      const output = runtime.advance(
+        input({ time, delta: 1 / fps, delivery: cue('wave', 'wave'), lip: { open: 0.5, form: 0 } })
+      );
+      if (frame % (fps / 10) === 0) trajectory.push(output.ParamArmL);
+    }
+    samples.push(trajectory);
+  }
+  for (let index = 0; index < samples[0].length; index++) {
+    assert.ok(Math.abs(samples[0][index] - samples[1][index]) < 0.055, 'same-time arm amplitude');
+  }
   const runtime = new AvatarPresentation();
-  const wave = cue('wave', 'wave');
-  runtime.advance(input({ delivery: wave }));
-  settle(runtime, { time: 0.8, delivery: wave });
-  const nod = cue('nod');
-  runtime.advance(input({ time: 1, delivery: nod }));
-  const output = settle(runtime, { time: 1.3, delivery: nod });
-  assert.ok(output.ParamArmL < 1e-6);
-  assert.ok(output.ParamAngleY < -5);
-  const resumed = settle(runtime, { time: 100, delta: 60, delivery: nod });
-  assert.ok(Math.abs(resumed.ParamAngleY) < 1e-6);
+  runtime.advance(input({ delivery: cue('paused', 'wave') }));
+  const paused = runtime.advance(
+    input({ time: 100, delta: 60, delivery: cue('paused', 'wave'), lip: { open: 0.6, form: 0 } })
+  );
+  assert.ok(Math.abs(paused.ParamArmL) < 0.12);
+  assert.ok(
+    settle(runtime, { time: 100.5, delivery: cue('paused', 'wave'), lip: { open: 0.6, form: 0 } })
+      .ParamArmL < 1e-6
+  );
   const malformed = runtime.advance(
     input({
       time: NaN,
@@ -255,252 +460,40 @@ test('新动作替换旧动作，长帧间隔不补播且数值有限', () => {
   );
   assert.ok(Object.values(malformed).every(Number.isFinite));
   assert.equal(malformed.ParamMouthOpenY, 0);
-  assert.equal(malformed.ParamMouthForm, 0);
 });
 
-/** 微动响应的是实际音频包络，不根据“正在说话”的布尔状态生成假动作或假口型。 */
-test('没有实际口型音频时 speaking 状态不产生说话轻摆', () => {
-  const silent = new AvatarPresentation();
-  const speaking = new AvatarPresentation();
-  const silentOutput = settle(silent, { time: 0.7 });
-  const audibleOutput = settle(speaking, { time: 0.7, lip: { open: 0.8, form: 0 } });
-  assert.equal(silentOutput.ParamAngleX, 0);
-  assert.ok(Math.abs(audibleOutput.ParamAngleX) > 0.5);
-  assert.ok(Math.abs(settle(speaking, { time: 0.7 }).ParamAngleX) < 1e-6);
-});
-
-/** 换风格仅改变面部，五种手势沿用原时钟；害羞和摇头也不得因自然结束后的同款段补演。 */
-test('同回复连续同款在进行中、结束后和风格改变时均只演一次', () => {
-  const { expressions } = resourceExpressions();
-  for (const gesture of ['nod', 'tilt', 'wave', 'shy', 'shake']) {
-    const actual = new AvatarPresentation(expressions);
-    const control = new AvatarPresentation(expressions);
-    for (let frame = 0; frame <= 220; frame++) {
-      const style = frame < 18 ? 'neutral' : frame < 140 ? 'happy' : 'gentle';
-      const id = frame < 18 ? 'first' : frame < 140 ? 'second' : 'third';
-      assert.deepEqual(
-        actual.advance(input({ time: frame / 60, delivery: cue(id, gesture, 'reply-a', style) })),
-        control.advance(
-          input({ time: frame / 60, delivery: cue('first', gesture, 'reply-a', style) })
-        ),
-        `${gesture}/${frame}`
-      );
-    }
-  }
-});
-
-/** 害羞复用同一短动作生命周期，双臂同步向内且嘴独立，不能因新分句或取消再补演。 */
-test('害羞低头收拢双臂，自然结束与取消后回落且新回复可重新动作', () => {
-  const runtime = new AvatarPresentation(resourceExpressions().expressions);
-  const first = cue('first-shy', 'shy', 'reply-a', 'shy');
-  let peak;
-  for (let frame = 0; frame <= 180; frame++) {
-    const output = runtime.advance(
-      input({ time: frame / 60, delivery: first, lip: { open: 0.63, form: -0.4 } })
-    );
-    assert.equal(output.ParamArmL, output.ParamArmR);
-    assert.equal(output.ParamMouthOpenY, 0.63);
-    assert.equal(output.ParamMouthForm, -0.4);
-    if (!peak || output.ParamArmL < peak.ParamArmL) peak = output;
-  }
-  assert.ok(peak.ParamArmL < -0.5);
-  assert.ok(peak.ParamAngleY < -12);
-  assert.ok(peak.ParamAngleX < -4);
-  const finished = settle(runtime, { time: 3.5, delivery: first });
-  assert.ok(Math.abs(finished.ParamArmL) < 1e-6);
-  assert.ok(Math.abs(finished.ParamArmR) < 1e-6);
-  const repeated = cue('next-shy', 'shy', 'reply-a', 'shy');
-  assert.ok(Math.abs(settle(runtime, { time: 4, delivery: repeated }).ParamArmL) < 1e-6);
-
-  const next = cue('new-shy', 'shy', 'reply-b', 'shy');
-  runtime.advance(input({ time: 5, delivery: next }));
-  assert.ok(settle(runtime, { time: 5.9, delivery: next }, 30).ParamArmL < -0.5);
-  const interrupted = runtime.advance(input({ time: 5.95 }));
-  assert.ok(interrupted.ParamArmL < 0, '取消保留阻尼回落而非肢体跳变');
-  const closed = settle(runtime, { time: 6.5 });
-  assert.ok(Math.abs(closed.ParamArmL) < 1e-6);
-  assert.ok(Math.abs(closed.ParamArmR) < 1e-6);
-  assert.ok(Math.abs(closed.ParamEyeBallX) < 1e-6);
-  assert.ok(Math.abs(closed.ParamEyeBallY) < 1e-6);
-  const late = cue('late-shy', 'shy', 'reply-b', 'neutral');
-  const cancelled = settle(runtime, { time: 7, delivery: late });
-  assert.ok(Math.abs(cancelled.ParamArmL) < 1e-6);
-  assert.ok(Math.abs(cancelled.ParamArmR) < 1e-6);
-  assert.equal(cancelled.ParamMouthOpenY, 0);
-  assert.equal(cancelled.ParamMouthForm, 0);
-});
-
-/** 摇头须真正向两边移动且只完成一次往返；取消保留短阻尼尾，不重播，嘴和手臂不参与。 */
-test('摇头短曲线覆盖左右，自然结束和取消后回正且不抢口型', () => {
-  const runtime = new AvatarPresentation();
-  const first = cue('first-shake', 'shake');
-  let left = 0;
-  let right = 0;
-  for (let frame = 0; frame <= 180; frame++) {
-    const output = runtime.advance(input({ time: frame / 60, delivery: first }));
-    left = Math.min(left, output.ParamAngleX);
-    right = Math.max(right, output.ParamAngleX);
-    assert.equal(output.ParamArmL, 0);
-    assert.equal(output.ParamArmR, 0);
-    assert.equal(output.ParamMouthOpenY, 0);
-    assert.equal(output.ParamMouthForm, 0);
-  }
-  assert.ok(left < -12 && right > 12);
-  assert.ok(Math.abs(settle(runtime, { time: 3.5, delivery: first }).ParamAngleX) < 1e-6);
-  const repeated = cue('same-reply-shake', 'shake');
-  assert.ok(Math.abs(settle(runtime, { time: 4, delivery: repeated }).ParamAngleX) < 1e-6);
-  const next = cue('new-reply-shake', 'shake', 'reply-b');
-  runtime.advance(input({ time: 5, delivery: next }));
-  const active = settle(runtime, { time: 5.45, delivery: next }, 30);
-  assert.ok(active.ParamAngleX > 12);
-  const stopped = runtime.advance(input({ time: 5.5 }));
-  assert.ok(stopped.ParamAngleX > 0 && stopped.ParamAngleX < active.ParamAngleX);
-  const late = cue('late-shake', 'shake', 'reply-b');
-  const cancelled = settle(runtime, { time: 6.5, delivery: late });
-  assert.ok(Math.abs(cancelled.ParamAngleX) < 1e-6);
-  const speaking = settle(runtime, {
-    time: 7,
-    delivery: late,
-    lip: { open: 0.71, form: 0.25 },
+/** 语义表情至少保持短时间；同一动作期间的神态更新不会触碰肢体或口型通道。 */
+test('短时间不同表情保持稳定，到保持期限后才淡化更新', () => {
+  const runtime = new AvatarPresentation({
+    happy: expression([{ Id: 'ParamBrowLY', Value: 0.3, Blend: 'Add' }]),
+    concerned: expression([{ Id: 'ParamBrowLY', Value: -0.3, Blend: 'Add' }]),
   });
-  assert.equal(speaking.ParamMouthOpenY, 0.71);
-  assert.equal(speaking.ParamMouthForm, 0.25);
-});
-
-/** closed 会撤销当前动作，但同一回复下一段仍是已消费手势，不能把关闭间隔当新回复。 */
-test('关闭间隔后同回复新段不补演，新回复仍可使用同款手势', () => {
-  const actual = new AvatarPresentation();
-  const control = new AvatarPresentation();
-  let newReplyPeak = 0;
-  for (let frame = 0; frame <= 260; frame++) {
-    const first = frame < 20 ? cue('first', 'wave') : null;
-    const next = frame >= 150 ? cue('next-reply', 'wave', 'reply-b') : null;
-    const delivery = next ?? (frame >= 40 ? cue('same-reply-next-segment', 'wave') : first);
-    const output = actual.advance(input({ time: frame / 60, delivery }));
-    assert.deepEqual(output, control.advance(input({ time: frame / 60, delivery: next ?? first })));
-    if (frame >= 150) newReplyPeak = Math.max(newReplyPeak, output.ParamArmL);
+  let output;
+  for (let frame = 0; frame <= 120; frame++) {
+    const time = frame / 60;
+    const style = frame < 30 ? 'happy' : 'concerned';
+    output = runtime.advance(
+      input({ time, delivery: cue('frame-' + frame, 'none', 'reply-a', style) })
+    );
+    if (frame === 60) assert.ok(output.ParamBrowLY > 0.25);
   }
-  assert.ok(newReplyPeak > 0.65);
+  assert.ok(output.ParamBrowLY < -0.25);
 });
 
-/** none 不硬切正在进行的动作；完成前又收到同款即取消间隔，旧 none 重发也不能解锁。 */
-test('进行中的none与重复同款不重启，只有完成后的新none重新开放', () => {
-  const actual = new AvatarPresentation();
-  const control = new AvatarPresentation();
-  let secondPeak = 0;
-  for (let frame = 0; frame <= 290; frame++) {
-    let delivery = cue('first', 'wave');
-    if (frame >= 20) delivery = cue('old-none', 'none');
-    if (frame >= 25) delivery = cue('second', 'wave');
-    if (frame === 150) delivery = cue('old-none', 'none');
-    if (frame > 150) delivery = cue('third', 'wave');
-    if (frame === 180) delivery = cue('new-none', 'none');
-    if (frame > 180) delivery = cue('after-none', 'wave');
-    const expected =
-      frame < 180
-        ? cue('first', 'wave')
-        : frame === 180
-          ? cue('new-none', 'none')
-          : cue('after-none', 'wave');
-    const output = actual.advance(input({ time: frame / 60, delivery }));
-    assert.deepEqual(output, control.advance(input({ time: frame / 60, delivery: expected })));
-    if (frame > 180) secondPeak = Math.max(secondPeak, output.ParamArmL);
-  }
-  assert.ok(secondPeak > 0.65);
-});
-
-/** 连续安静语义可等待短动作自然结束后开放下一次动作，不要求额外计时器或任意限流。 */
-test('none持续到自然完成后允许同款新动作，完成边界同帧也成立', () => {
-  for (const noneFrame of [20, 99]) {
+/** 缺失当前协议身份不允许启动动作，默认 neutral 也不能成为旧调用的隐式兼容层。 */
+test('缺少phase、gestureId或replyKey的调用不启动手势', () => {
+  for (const missing of ['phase', 'gestureId', 'replyKey']) {
     const runtime = new AvatarPresentation();
-    let secondPeak = 0;
-    for (let frame = 0; frame <= 225; frame++) {
-      const delivery =
-        frame < noneFrame
-          ? cue('first', 'wave')
-          : frame < 110
-            ? cue('none', 'none')
-            : cue('second', 'wave');
-      const output = runtime.advance(input({ time: frame / 60, delivery }));
-      if (frame >= 110) secondPeak = Math.max(secondPeak, output.ParamArmL);
+    const delivery = cue('invalid', 'wave');
+    delete delivery[missing];
+    let peak = 0;
+    for (let frame = 0; frame <= 120; frame++) {
+      const output = runtime.advance(
+        input({ time: frame / 60, delivery, lip: { open: 0.6, form: 0 } })
+      );
+      peak = Math.max(peak, output.ParamArmL);
     }
-    assert.ok(secondPeak > 0.65, `none frame ${noneFrame}`);
-  }
-});
-
-/** 中途取消不是自然完成；即使后来有 none 且时钟越过原时长，也不能复活已取消的同款。 */
-test('取消清除待完成none间隔，迟到none和同款新段不能补演', () => {
-  const actual = new AvatarPresentation();
-  const control = new AvatarPresentation();
-  for (let frame = 0; frame <= 220; frame++) {
-    let delivery = frame < 25 ? cue('first', 'wave') : null;
-    if (frame >= 20 && frame < 25) delivery = cue('pending-none', 'none');
-    if (frame >= 130) delivery = cue('late-none', 'none');
-    if (frame >= 140) delivery = cue('late-wave', 'wave');
-    assert.deepEqual(
-      actual.advance(input({ time: frame / 60, delivery })),
-      control.advance(
-        input({ time: frame / 60, delivery: frame < 25 ? cue('first', 'wave') : null })
-      )
-    );
-  }
-});
-
-/** 旧段去重先于状态改变，否则旧回复重发会取消新回复；再次取消后旧段也不能自我复活。 */
-test('迟到旧cue不抢走新回复动作，取消后旧cue和同回复新段都不恢复', () => {
-  const actual = new AvatarPresentation();
-  const control = new AvatarPresentation();
-  for (let frame = 0; frame <= 190; frame++) {
-    const expected =
-      frame < 20
-        ? cue('old', 'wave')
-        : frame < 40 || frame >= 70
-          ? null
-          : cue('current', 'nod', 'reply-b');
-    let delivery = expected;
-    if (frame === 55) delivery = cue('old', 'wave');
-    if (frame >= 80) delivery = cue('current', 'nod', 'reply-b');
-    if (frame >= 90) delivery = cue('current-late', 'nod', 'reply-b');
-    assert.deepEqual(
-      actual.advance(input({ time: frame / 60, delivery })),
-      control.advance(input({ time: frame / 60, delivery: expected }))
-    );
-  }
-});
-
-/** 新协议要求显式回复身份，缺字段不能退回按句段猜回复的旧行为。 */
-test('缺少replyKey的调用不启动手势', () => {
-  const runtime = new AvatarPresentation();
-  const output = settle(runtime, {
-    time: 0.8,
-    delivery: { id: 'invalid', style: 'neutral', gesture: 'wave' },
-  });
-  assert.equal(output.ParamArmL, 0);
-});
-
-/** 固定相位只隔离主动作包络：次级X/Y在峰值保留30%，端点恢复，嘴和主动作始终原值。 */
-test('主手势平滑压低音频轻摆但不改变真实口型和主曲线', () => {
-  const action = new AvatarPresentation();
-  const silentAction = new AvatarPresentation();
-  const control = new AvatarPresentation();
-  const delivery = cue('wave', 'wave');
-  const lip = { open: 0.63, form: -0.4 };
-  for (const [time, weight] of [
-    [0, 1],
-    [0.4125, 0.65],
-    [0.825, 0.3],
-    [1.65, 1],
-  ]) {
-    const plain = settle(control, { time, lip });
-    const output = settle(action, { time, delivery, lip });
-    const primary = settle(silentAction, { time, delivery });
-    for (const id of ['ParamAngleX', 'ParamAngleY']) {
-      assert.ok(Math.abs(output[id] - plain[id] * weight) < 1e-6, `${id}/${time}`);
-    }
-    assert.equal(output.ParamMouthOpenY, lip.open);
-    assert.equal(output.ParamMouthForm, lip.form);
-    assert.equal(output.ParamArmL, primary.ParamArmL);
-    assert.equal(output.ParamAngleZ, primary.ParamAngleZ);
+    assert.equal(peak, 0);
   }
 });
 
@@ -542,7 +535,10 @@ test('正式七风格拥有不同面部特征，害羞避开视线且惊讶提�
   const signatures = new Set();
   const outputs = {};
   for (const style of ['happy', 'gentle', 'concerned', 'curious', 'shy', 'surprised', 'neutral']) {
-    const output = settle(runtime, { delivery: cue(style, 'none', 'reply-a', style) });
+    const output = settle(runtime, {
+      time: Object.keys(outputs).length * 2,
+      delivery: cue(style, 'none', 'reply-a', style),
+    });
     outputs[style] = output;
     const signature = [];
     for (const id of [
@@ -591,8 +587,8 @@ test('正式七风格拥有不同面部特征，害羞避开视线且惊讶提�
   for (const behavior of ['listening', 'thinking']) {
     const output = settle(runtime, { behavior });
     assert.ok(output.ParamEyeSmile < 1e-6);
-    assert.ok(Math.abs(output.ParamBrowLAngle) > 0.1);
-    assert.ok(Math.abs(output.ParamBrowRAngle) > 0.1);
+    assert.ok(Math.abs(output.ParamBrowLAngle) < 1e-6);
+    assert.ok(Math.abs(output.ParamBrowRAngle) < 1e-6);
   }
 });
 

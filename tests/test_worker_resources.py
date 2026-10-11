@@ -1,4 +1,4 @@
-"""容量校正只适用于已支持 WSL 宿主的 v1 根组，离线测试不探测真实宿主。"""
+"""容量校正只适用于已支持 WSL 的无限额层级，离线测试不探测真实宿主。"""
 
 from collections.abc import Iterator
 from subprocess import TimeoutExpired
@@ -211,6 +211,37 @@ def test_combined_root_controllers_are_supported(unlimited_v1: dict[str, str | E
     """内核允许合并控制器挂载，分行格式不应成为人为限制。"""
     unlimited_v1[CGROUPS] = "2:cpu,cpuacct:/\n0::/\n"
     assert worker_resources.configure_worker_cpu_budget() == 32.0
+
+
+def test_unlimited_systemd_service_uses_host_capacity(
+    unlimited_v1: dict[str, str | Exception],
+) -> None:
+    """真实 WSL 的 systemd CPU 子组无限额且计量根组，不能让 SDK 误用两核容量。"""
+    unlimited_v1[CGROUPS] = "3:cpuacct:/\n2:cpu:/system.slice/xiaoya-agent.service\n"
+    for directory in ("system.slice", "system.slice/xiaoya-agent.service"):
+        unlimited_v1[f"/sys/fs/cgroup/cpu/{directory}/cpu.cfs_quota_us"] = "-1\n"
+        unlimited_v1[f"/sys/fs/cgroup/cpu/{directory}/cpu.cfs_period_us"] = "100000\n"
+    assert worker_resources.configure_worker_cpu_budget() == 32.0
+
+
+@pytest.mark.parametrize("directory", ["system.slice", "system.slice/xiaoya-agent.service"])
+@pytest.mark.parametrize("quota", ["200000", "invalid", None])
+def test_systemd_finite_or_unknown_ancestor_keeps_conservative_budget(
+    unlimited_v1: dict[str, str | Exception],
+    directory: str,
+    quota: str | None,
+) -> None:
+    """任何一级限额或缺失证据都保留 SDK 保护，不能只凭根组无限额扩大子组预算。"""
+    unlimited_v1[CGROUPS] = "3:cpuacct:/\n2:cpu:/system.slice/xiaoya-agent.service\n"
+    for ancestor in ("system.slice", "system.slice/xiaoya-agent.service"):
+        unlimited_v1[f"/sys/fs/cgroup/cpu/{ancestor}/cpu.cfs_quota_us"] = "-1\n"
+        unlimited_v1[f"/sys/fs/cgroup/cpu/{ancestor}/cpu.cfs_period_us"] = "100000\n"
+    if quota is None:
+        del unlimited_v1[f"/sys/fs/cgroup/cpu/{directory}/cpu.cfs_quota_us"]
+    else:
+        unlimited_v1[f"/sys/fs/cgroup/cpu/{directory}/cpu.cfs_quota_us"] = quota
+    assert worker_resources.configure_worker_cpu_budget() is None
+    assert "NUM_CPUS" not in worker_resources.os.environ
 
 
 @pytest.mark.parametrize("path", [QUOTA, PERIOD, CGROUPS, V2_STAT])
