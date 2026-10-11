@@ -1,9 +1,13 @@
 # 隐藏子进程只继承本次 WSL 地址；启动成功须由新进程存活与 HTTP 就绪共同证明。
-param([ValidateRange(1, 65535)][int]$Port = 3000, [string]$WslDistro = 'Ubuntu-22.04')
+param(
+    [ValidateRange(1, 65535)][int]$Port = 3000,
+    [string]$WslDistro = 'Ubuntu-22.04',
+    [switch]$Production
+)
 $ErrorActionPreference = 'Stop'
 
 function Get-XiaoyaProcessTree {
-    <# Next dev 的监听者是子进程；按创建时间和父子关系确认本次启动拥有的完整进程树。 #>
+    <# Next 的监听者可能是子进程；开发与生产都按创建时间和父子关系确认本次进程树。 #>
     param([int]$RootPid, [DateTime]$StartedAt)
     $processes = @(Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId, CreationDate)
     $rootRecord = $processes | Where-Object { [int]$_.ProcessId -eq $RootPid }
@@ -75,15 +79,16 @@ $nextScript = Join-Path $webRoot 'node_modules/next/dist/bin/next'
 try {
     $env:LIVEKIT_URL = $livekitUrl
     # 同项目并行端口不能共享 Next 写缓存，避免另一进程破坏已运行页面的 SSR 模块。
-    $env:NEXT_DIST_DIR = ".next-dev-$Port"
-    # 角色 SDK 产物不纳入源码，在直接运行 Next 前同样执行唯一构建入口。
+    $env:NEXT_DIST_DIR = if ($Production) { ".next-production-$Port" } else { ".next-dev-$Port" }
+    # 生产构建包含 SDK 生成；启动前失败不会创建网页进程，开发缓存保持独立。
     Push-Location $webRoot
     try {
-        pnpm sdk:build
-        if ($LASTEXITCODE) { throw '角色 SDK 构建失败。' }
+        if ($Production) { pnpm build } else { pnpm sdk:build }
+        if ($LASTEXITCODE) { throw '网页或角色 SDK 构建失败。' }
     } finally { Pop-Location }
+    $nextMode = if ($Production) { 'start' } else { 'dev' }
     $webProcess = Start-Process -FilePath (Get-Command node.exe).Source `
-        -ArgumentList @("`"$nextScript`"", 'dev', '--hostname', '127.0.0.1', '--port', $Port) `
+        -ArgumentList @("`"$nextScript`"", $nextMode, '--hostname', '127.0.0.1', '--port', $Port) `
         -WorkingDirectory $webRoot -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput $stdoutLog `
         -RedirectStandardError $stderrLog

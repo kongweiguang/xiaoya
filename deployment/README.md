@@ -30,12 +30,21 @@ WSL 的 `bash -lc` 读取登录环境，使用户安装在 `~/.local/bin` 的 uv
 
 Agent 的 `ExecStartPre` 等待 speech 最长 300 秒；整体 `TimeoutStartSec=330`。`Type=notify` 仅在 SDK 公开 `worker_registered` 事件后发送 READY；HTTP 200 或旧进程存活不能证明 Agent 已注册。重新启动 speech 后同时重启 Agent。
 
+日常使用的网页可启动生产模式：
+
+```powershell
+pwsh -File deployment/start-web.ps1 -Production
+```
+
+该入口在 `.next-production-<端口>` 完成生产构建后运行 `next start`，默认只监听 `127.0.0.1:3000`；省略 `-Production` 仍为开发模式。两种模式都读取当前 WSL 地址、核对监听进程归属并按端口保存日志／PID。切换前先结束会话并停止已有网页进程，端口被占用时入口会停止操作。构建失败不会创建新网页进程，也不覆盖开发缓存。
+
 speech 与 Agent 健康接口绑定 `127.0.0.1`。LiveKit 信令与媒体必须保持 Windows 可达，不能一起改成回环。网页启动器读取 WSL eth0 地址，只传入本次子进程环境，不反复改写 `web/.env.local`。启动失败只清理本次创建的网页进程。
 
 ## 安全与运维
 
 - 根配置中 STT／TTS 密钥不可留空；无鉴权填 `not-required`。DeepSeek 必须真实独立密钥，不从其他模型配置继承。
-- Jev 在根 `.env.local` 使用 `VOICE_AGENT_JEV_BASE_URL=https://api.typesafe.ai`、`VOICE_AGENT_JEV_MODEL=jev-1.13.0` 与独立 `VOICE_AGENT_JEV_API_KEY`；空 Key 保持自然表现，不影响正常对话。填 Key 后用显式配置同步并重启 Agent，密钥不下发网页。Mock 仅用于离线测试，不是部署供应商。
+- Jev 在根 `.env.local` 使用 `VOICE_AGENT_JEV_BASE_URL=https://api.typesafe.ai`、`VOICE_AGENT_JEV_MODEL=jev-1.13.0` 与独立 `VOICE_AGENT_JEV_API_KEY`；空 Key 保持自然表现，不影响正常对话。填 Key 后用显式配置同步并重启 Agent，密钥不下发网页。Mock 仅用于离线或受管验收，不是部署供应商。
+- 2026-10-11 的房间验收临时向同一 Agent 注入 Mock Jev，保留真实私有识别、对话和合成；受管结束恢复正式入口，未改变私有 Key。严格帧观测使用独立开发诊断端口，生产页面另做真实链路检查，两份证据分别记录。
 - 本地语音要求 CUDA；`SPEECH_TTS_ACCELERATION` 明确为 `vllm` 或 `none`。保留 CosyVoice 实际需要的 Whisper、Matcha 等依赖。
 - 默认网页监听本机。令牌只接受浏览器 `POST {}`，服务端决定房间、身份、Agent 与最小权限，15 分钟过期，离房清理窗口为 35 秒。
 - 远程网页须经已认证网关／隧道。服务端同时配置 `TOKEN_GATEWAY_ORIGIN`、`TOKEN_GATEWAY_KEY`；网关鉴权后覆盖注入 `x-xiaoya-gateway-key`。必须拒绝客户端伪造的同名头，密钥不能下发浏览器。仅做端口转发不是鉴权。
@@ -59,6 +68,8 @@ wsl -d Ubuntu-22.04 -- journalctl -u xiaoya-agent -u xiaoya-speech -n 80 --no-pa
 - `manifest.json`：包及逐文件 SHA-256、基准提交和模型未晋升状态；不含私有配置、缓存或 Key。
 
 这是已实现代码的候选源码包，不冒称正式新模型的完整发布包。解压到独立目录后按原入口 `uv sync --locked`、网页 `pnpm install --frozen-lockfile`／`pnpm build` 检查与启动。填 Key 后显式同步配置，源码更新使用受管清单。
+
+以上两个包是 10 月 9 日的历史快照。10 月 11 日当前部署以提交 `45cd6a9` 的业务源码为基准，另加入生产网页入口；更新前后端快照保存在本机 `/opt/xiaoya/releases/current-20261011-45cd6a9/backend-before.tar.gz`，对应源码 ZIP、生产构建与本轮验收记录在 `.tools/deployment-current-20261011/`。新模型技术验收已通过，但真实 FREE 门尚未完成，当前部署继续使用现行资产。
 
 需要回滚时先结束当前会话，再把 `before-jev-matched-source.zip` 解压到本机忽略的独立目录。使用其中的 `deployment/wsl/sync-runtime.sh <解压目录的WSL绝对路径>` 镜像旧后端，重启 `xiaoya-agent` 并等待公开 worker_registered；网页同时从同一解压目录重新构建和启动，保留原有私有环境配置。旧资产也来自该包。不得只回滚 Agent 或只回滚网页，以免 v1/v2 混用；不对活动工作树执行 reset 或覆盖未提交改动。
 

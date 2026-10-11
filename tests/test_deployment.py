@@ -455,8 +455,8 @@ function wsl {
     '2: eth0 inet 172.16.0.2/20 scope global eth0'
 }
 function pnpm {
-    # 隔离实际构建，检查启动器仍调用唯一 SDK 构建入口。
-    $global:deploymentCalls.Add('sdk')
+    # 生产完整构建与开发 SDK 生成分开记录，不能假定生产也从源码热更新。
+    $global:deploymentCalls.Add([string]$args[0])
     $global:LASTEXITCODE = 0
 }
 function Get-NetTCPConnection {
@@ -479,6 +479,7 @@ function Start-Process {
         throw '带空格路径未单独引用'
     }
     $global:deploymentCalls.Add('start')
+    $global:childMode = $ArgumentList[1]
     $global:childUrl = $env:LIVEKIT_URL
     $global:childDistDir = $env:NEXT_DIST_DIR
     $global:stdoutPath = $RedirectStandardOutput
@@ -537,7 +538,8 @@ function Start-Sleep {
 $succeeded = $false
 $failure = ''
 try {
-    & $env:XIAOYA_TEST_SCRIPT -Port ([int]$env:XIAOYA_TEST_PORT)
+    & $env:XIAOYA_TEST_SCRIPT -Port ([int]$env:XIAOYA_TEST_PORT) `
+        -Production:($env:XIAOYA_TEST_PRODUCTION -eq '1')
     $succeeded = $true
 } catch { $failure = $_.Exception.Message }
 [PSCustomObject]@{
@@ -545,6 +547,7 @@ try {
     calls = @($global:deploymentCalls); stopped = @($global:stoppedIds)
     parentUrl = $env:LIVEKIT_URL; childUrl = $global:childUrl
     parentDistDir = $env:NEXT_DIST_DIR; childDistDir = $global:childDistDir
+    childMode = $global:childMode
     stdoutPath = $global:stdoutPath; stderrPath = $global:stderrPath
 } | ConvertTo-Json -Compress
 """
@@ -554,8 +557,11 @@ try {
     "scenario", ["normal", "foreign", "ownership-changed", "exited", "reused-child", "reused-root"]
 )
 @pytest.mark.parametrize("port", [3000, 3002])
-def test_web_launcher_verifies_listener_and_cleans_only_owned_tree(tmp_path, scenario, port):
-    """执行真实脚本验证端口缓存与记录隔离、父环境恢复及 PID 归属，失败不能污染原网页。"""
+@pytest.mark.parametrize("production", [False, True])
+def test_web_launcher_verifies_listener_and_cleans_only_owned_tree(
+    tmp_path, scenario, port, production
+):
+    """两种模式都核对缓存、构建入口及 PID 归属，生产不能误用热更新或关闭别的进程。"""
     pwsh = shutil.which("pwsh")
     if pwsh is None:
         pytest.skip("未安装 PowerShell 7")
@@ -568,6 +574,7 @@ def test_web_launcher_verifies_listener_and_cleans_only_owned_tree(tmp_path, sce
         "XIAOYA_TEST_SCRIPT": str(script),
         "XIAOYA_TEST_SCENARIO": scenario,
         "XIAOYA_TEST_PORT": str(port),
+        "XIAOYA_TEST_PRODUCTION": "1" if production else "0",
     }
     result = subprocess.run(
         [pwsh, "-NoProfile", "-NonInteractive", "-Command", POWERSHELL_WEB_STUBS],
@@ -582,10 +589,12 @@ def test_web_launcher_verifies_listener_and_cleans_only_owned_tree(tmp_path, sce
     assert report["parentUrl"] == "before-test"
     assert report["childUrl"] == "ws://172.16.0.2:7880"
     assert report["parentDistDir"] == "before-dist-test"
-    assert report["childDistDir"] == f".next-dev-{port}"
+    build_mode = "production" if production else "dev"
+    assert report["childDistDir"] == f".next-{build_mode}-{port}"
+    assert report["childMode"] == ("start" if production else "dev")
     assert Path(report["stdoutPath"]).name == f"web-{port}.stdout.log"
     assert Path(report["stderrPath"]).name == f"web-{port}.stderr.log"
-    assert report["calls"][:2] == ["sdk", "start"]
+    assert report["calls"][:2] == ["build" if production else "sdk:build", "start"]
     if scenario == "normal":
         assert report["succeeded"] and report["stopped"] == []
         assert (scripts.parent / f".tools/logs/web-{port}.pid").read_text() == "4100"

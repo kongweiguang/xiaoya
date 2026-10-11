@@ -28,6 +28,7 @@
     "**/*.tsx",
     ".next-build/types/**/*.ts",
     ".next-dev-3000/types/**/*.ts",
+    ".next-production-3000/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts"
   ],

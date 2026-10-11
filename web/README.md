@@ -14,9 +14,11 @@ pwsh -File deployment/start-wsl.ps1
 pwsh -File deployment/start-web.ps1
 ```
 
+日常使用生产构建时，将第二条命令改为 `pwsh -File deployment/start-web.ps1 -Production`。它先构建，再运行 `next start`；默认开发模式保持可用，切换前需结束会话并停止原端口的网页进程。
+
 浏览器访问 `http://127.0.0.1:3000`。启动脚本将当前 WSL 地址传入子进程环境；手动执行 `pnpm dev` 前需自行核对 `.env.local` 中的服务地址。开发和生产网页服务默认只绑定回环地址。
 
-启动器按端口使用 `.next-dev-<端口>` 缓存，并保存 `.tools/logs/web-<端口>.stdout.log`、同名 stderr 日志及 PID。并行诊断其他端口不会覆盖当前网页的缓存或进程记录，且子进程配置不会改写 `.env.local`。
+启动器按模式和端口使用 `.next-dev-<端口>` 或 `.next-production-<端口>` 缓存，并保存 `.tools/logs/web-<端口>.stdout.log`、同名 stderr 日志及 PID。并行诊断其他端口不会覆盖当前网页的缓存或进程记录，且子进程配置不会改写 `.env.local`。
 
 首次准备网页依赖，在 `web/` 中执行：
 

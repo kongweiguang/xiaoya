@@ -4,9 +4,9 @@
 
 面向个人本机和私有环境：语音识别、合成与 LiveKit 自托管，对话使用 DeepSeek Flash，Jev 并行判断人物表情、动作及语气。LLM 只生成口语正文，人物节奏跟随真实音频。
 
-![小芽桌面与移动端界面设计](docs/live2d/interface-concept.png)
+![小芽当前生产版桌面界面](docs/live2d/interface-desktop-20261011.png)
 
-_界面设计示意，不是实际运行或模型验收截图。当前效果与未完成项见 [分层验收记录](docs/delivery-acceptance.md)。_
+_2026-10-11 实际生产页面；[查看手机深色界面](docs/live2d/interface-mobile-20261011.png)。当前效果与验收边界见 [分层验收记录](docs/delivery-acceptance.md)。_
 
 ## 能做什么
 
@@ -56,7 +56,7 @@ if (-not (Test-Path web/.env.local)) { Copy-Item web/.env.example web/.env.local
 | STT     | 显式地址、`paraformer-streaming` 与独立密钥；主 Agent 固定 WebSocket 协议          |
 | LLM     | `https://api.deepseek.com`、`deepseek-flash` 与独立真实密钥；语音模式关闭 thinking |
 | TTS     | 显式地址、`cosyvoice3-0.5b`、`default` 音色与独立密钥；支持 PCM／WAV               |
-| Jev     | `https://api.typesafe.ai`、`jev-1.13.0`；Key 留空可启动，填写后启用人物语义判断       |
+| Jev     | `https://api.typesafe.ai`、`jev-1.13.0`；Key 留空可启动，填写后启用人物语义判断    |
 
 无鉴权的私有 STT／TTS 必须填写 `not-required`，不能留空。客户端不继承 `OPENAI_API_KEY`，不回退公共语音服务。房间模式启动前检查完整 LiveKit 凭据；console 不要求它们。
 
@@ -84,10 +84,10 @@ console 使用本机麦克风和扬声器，`Ctrl+C` 退出；`uv run xiaoya con
 
 ```powershell
 pwsh -File deployment/start-wsl.ps1
-pwsh -File deployment/start-web.ps1
+pwsh -File deployment/start-web.ps1 -Production
 ```
 
-打开 `http://127.0.0.1:3000`，选择“开始聊天”或“用文字聊聊”。文字入口不需要麦克风权限；语音入口需允许浏览器采集。只有用户发起会话后才创建连接和媒体资源。
+网页入口先构建后启动；省略 `-Production` 可使用开发模式。打开 `http://127.0.0.1:3000`，选择“开始聊天”或“用文字聊聊”。文字入口不需要麦克风权限；语音入口需允许浏览器采集。只有用户发起会话后才创建连接和媒体资源。
 
 需要热重载开发时，可分别运行 `uv run xiaoya dev` 与 `pnpm --dir web dev`。不要与 WSL 常驻 Agent 同时启动第二份 Agent；网页手动启动前须核对私有服务地址。
 
@@ -163,7 +163,13 @@ node assets/avatar/xiaoya/tooling/validate-model.mjs --output .tools/logs/model-
 | [分层验收](docs/delivery-acceptance.md)    | 离线、私有接口、完整房间、模型工程和真人设备的独立结果 |
 | [开发约束](AGENTS.md)                      | 轻量 DDD、依赖方向、函数注释与运行边界                 |
 
-代码检查与自动房间链路已经过验收；新稳定版模型的 19 普通参数／0 BlendShape、组合绑定与官方工程往返，以及真人麦克风／扬声器、回声和自然度仍未完成。当前运行包保留，候选未通过前不混用或替换；不能把离线测试、合成音频或设计示意图当成这些验收通过。
+2026-10-11 已将当前源码同步到本机 WSL，并将 `http://127.0.0.1:3000` 切换为生产构建。后端 922 项、前端 149 项测试和相关静态检查通过；实际桌面、手机与横屏五种尺寸的控件均在可见范围内。最新语音、Mock Jev、打断与恢复结果见 [本次部署验收](docs/delivery-acceptance.md#2026-10-11-当前版本部署与生产页补验)。
+
+新稳定版模型的 **19 有效普通参数／0 BlendShape、官方工程往返、334 张静态图与 70 组动态组合**已通过技术验收；**真实 FREE 保存仍待验，因此没有替换现行运行资产**。真人麦克风、扬声器、回声与自然度尚未验收，合成音频不能替代真人设备。
+
+Jev 本次仅在受管验收中使用 Mock，结束后恢复正式 Agent；没有把 Mock 写入部署配置。当前空 Key 保持自然表现与正常口型，真实 Jev 中文效果和网络延迟留待启用真实服务后验收。
+
+本次当前版本已通过 20 次启停、连续 10 分钟、断线恢复及正式生产页面的合成语音链路。延迟抽测：三次文字提交到出声为 1.44～2.27 秒；正式入口下，单次合成语音说完到浏览器实际出声约 2.38 秒、打断约 0.65 秒。样本量有限，不能替代真人麦克风／扬声器体验或总体性能结论；完整计时、日志异常与原始失败边界见上述验收记录。
 
 ## 提交与许可
 
