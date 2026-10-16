@@ -442,7 +442,7 @@ async def test_listener_failure_does_not_skip_other_unsubscriptions(monkeypatch)
 async def test_real_connection_protocol_closes_single_expressive_adapter(
     monkeypatch, private_settings
 ):
-    """同一连接认证和快照登记贯通唯一语音链，结束清理必须注销端点且不留监听。"""
+    """快照与动作回执共用连接授权，结束清理必须逐项注销且不留监听。"""
     room, on_terminal = MemoryRoom(), Mock()
     session = Mock(
         start=AsyncMock(),
@@ -474,10 +474,13 @@ async def test_real_connection_protocol_closes_single_expressive_adapter(
     session.aclose.assert_awaited_once()
     on_terminal.assert_called_once_with()
     assert not any(room.handlers.values())
-    room.local_participant.register_rpc_method.assert_called_once()
-    room.local_participant.unregister_rpc_method.assert_called_once_with(
-        "xiaoya.getDeliverySnapshot"
-    )
+    assert [call.args[0] for call in room.local_participant.register_rpc_method.call_args_list] == [
+        "xiaoya.getDeliverySnapshot",
+        "xiaoya.ackPresentation",
+    ]
+    assert [
+        call.args[0] for call in room.local_participant.unregister_rpc_method.call_args_list
+    ] == ["xiaoya.getDeliverySnapshot", "xiaoya.ackPresentation"]
 
 
 async def test_owner_query_requires_confirmed_identity_and_current_sid(boundary):

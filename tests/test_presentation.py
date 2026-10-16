@@ -9,6 +9,7 @@ from xiaoya.domain.delivery import DeliveryIntent
 from xiaoya.domain.presentation import (
     PresentationContext,
     PresentationDecision,
+    UserPresentationDecision,
     choose_presentation,
 )
 
@@ -35,6 +36,10 @@ class ControlledDecider:
             raise
         return PresentationDecision(DeliveryIntent("curious", "tilt"), 0.99, 0.99, 0.99, 0.7)
 
+    async def decide_user(self, context):
+        """无指令的用户判断独立返回，回复竞争测试不把用户授权混进同一队列。"""
+        return UserPresentationDecision(PresentationDecision(DeliveryIntent(), 1, 1, 0, 0.5))
+
     async def aclose(self):
         """计数确保并发关闭仍仅回收本端口一次。"""
         self.closed += 1
@@ -57,7 +62,7 @@ def test_jev_is_only_semantic_source_and_does_not_rewrite_committed_voice():
     assert context.voice_style == "gentle"
 
 
-@pytest.mark.parametrize("phase", ["listening", "thinking"])
+@pytest.mark.parametrize("phase", ["thinking"])
 def test_non_speaking_never_executes_gesture(phase):
     """倾听和思考可调整表情，却不能因高分动作分类而偷取说话播放许可。"""
     context = PresentationContext(phase, "turn", 1)
@@ -102,12 +107,13 @@ async def test_latest_slot_and_final_revision_replace_pending_requests():
     controller = PresentationController(port)
     try:
         controller.complete_turn("第一条")
+        controller.prepare_reply("当前回复。")
         await asyncio.wait_for(port.started.wait(), 0.3)
         for text in ("第二条", "第三条", "最后一条"):
             controller.transcribe(text, final=True)
         port.release.set()
         await asyncio.sleep(0.02)
-        assert [context.text for context in port.contexts] == ["第一条", "最后一条"]
+        assert [context.user_text for context in port.contexts] == ["第一条", "最后一条"]
     finally:
         await controller.aclose()
 
@@ -118,6 +124,8 @@ async def test_close_cancels_request_and_isolates_another_room():
     a, b = PresentationController(first), PresentationController(second)
     a.complete_turn("第一房间")
     b.complete_turn("第二房间")
+    a.prepare_reply("第一房间的回复。")
+    b.prepare_reply("第二房间的回复。")
     await asyncio.gather(first.started.wait(), second.started.wait())
     await asyncio.gather(a.aclose(), a.aclose())
     assert first.closed == 1 and first.cancelled
@@ -179,7 +187,11 @@ class SequencedDecider:
             self.cancelled.append(context)
             raise
         finally:
-            self.finished.put_nowait(context)
+            self.finished.put_nowait((context, future))
+
+    async def decide_user(self, context):
+        """用户许可即时确认，句段预判保留独立Future，避免测试把两种语义来源混淆。"""
+        return UserPresentationDecision(PresentationDecision(DeliveryIntent(), 1, 1, 0, 0.5))
 
     async def aclose(self):
         """保留关闭次数，证明关闭路径没有替其他房间回收资源。"""
@@ -190,12 +202,37 @@ class SequencedDecider:
         return await asyncio.wait_for(self.calls.get(), 0.5)
 
     async def resolve(self, future, decision=None):
-        """等待当前 worker 走完同步采纳区间，再让测试读取最终可见状态。"""
-        future.set_result(
-            decision
-            or PresentationDecision(DeliveryIntent("curious", "tilt"), 0.99, 0.99, 0.99, 0.7)
-        )
-        return await asyncio.wait_for(self.finished.get(), 0.5)
+        """端口完成后让独立调度任务采纳；取消的旧请求也要观察完成，但不能强行恢复 Future。"""
+        if not future.done():
+            future.set_result(
+                decision
+                or PresentationDecision(DeliveryIntent("curious", "tilt"), 0.99, 0.99, 0.99, 0.7)
+            )
+        while True:
+            context, completed = await asyncio.wait_for(self.finished.get(), 0.5)
+            if completed is future:
+                break
+        await asyncio.sleep(0)
+        return context
+
+
+async def test_reply_preview_preserves_first_sentence_before_queued_next():
+    """快速生成的下一句不能抢占先播放句；用户授权另有任务，不阻塞这两个有界槽位。"""
+    port = SequencedDecider()
+    controller = PresentationController(port)
+    try:
+        controller.complete_turn("摇摇头")
+        controller.prepare_reply("第一句。")
+        old, future = await port.next_call()
+        controller.prepare_reply("好呀。")
+        assert old not in port.cancelled and not future.cancelled()
+        await port.resolve(future)
+        cue = controller.speak("reply", "segment", DeliveryIntent(), "第一句。")
+        assert cue.intent.gesture == "tilt"
+        preview, _ = await port.next_call()
+        assert preview.text == "好呀。" and preview.user_text == "摇摇头"
+    finally:
+        await controller.aclose()
 
 
 async def test_inflight_preview_promotes_to_current_playback_without_duplicate_request():
@@ -329,9 +366,7 @@ async def test_user_only_decision_cannot_be_reused_as_identical_assistant_previe
     controller = PresentationController(port)
     try:
         controller.complete_turn("你好。")
-        context, user_future = await port.next_call()
-        assert not context.reply_preview
-        await port.resolve(user_future)
+        await asyncio.sleep(0)
         cue = controller.speak("reply", "segment", DeliveryIntent(), "你好。")
         assert cue.intent.gesture == "none"
         reply_context, _ = await port.next_call()
@@ -467,8 +502,11 @@ def test_style_and_gesture_thresholds_have_independent_inclusive_boundaries(
 @pytest.mark.parametrize("preview_finishes_first", [True, False])
 async def test_future_preview_does_not_change_playing_cue_and_survives_finish(
     preview_finishes_first,
+    monkeypatch,
 ):
-    """未来句决策只供合成采样；不论在旧句结束前后到达，都只在下一句播放时执行。"""
+    """未来预判不改当前身份；下一句即使已知语义，也必须等实际started后的原3秒冷却。"""
+    clock = [100.0]
+    monkeypatch.setattr("xiaoya.application.presentation.monotonic", lambda: clock[0])
     port = SequencedDecider()
     controller = PresentationController(port)
     cues = []
@@ -483,6 +521,7 @@ async def test_future_preview_does_not_change_playing_cue_and_survives_finish(
         )
         current_cue = cues[-1]
         assert current_cue.gesture_id == "reply:first:wave"
+        assert controller.acknowledge(current_cue.turn_id, current_cue.gesture_id, "started")
         current_context = controller._context
         count_before = len(cues)
         controller.prepare_reply("第二句话。")
@@ -498,7 +537,8 @@ async def test_future_preview_does_not_change_playing_cue_and_survives_finish(
             assert controller._context == current_context
             assert cues[-1] == current_cue and len(cues) == count_before
         closed = controller.finish("reply", "first")
-        assert closed.phase == "idle" and closed.intent == DeliveryIntent()
+        assert closed.phase == "idle" and closed.intent == DeliveryIntent("happy")
+        assert controller.acknowledge(current_cue.turn_id, current_cue.gesture_id, "completed")
         if not preview_finishes_first:
             await port.resolve(future, decision)
         assert len(cues) == count_before
@@ -506,6 +546,12 @@ async def test_future_preview_does_not_change_playing_cue_and_survives_finish(
         next_cue = controller.speak(
             "reply", "second", controller.voice_for(preview.text), preview.text
         )
+        assert next_cue.intent == DeliveryIntent("gentle") and next_cue.gesture_id == ""
+        assert controller._natural_pending.gesture_id == "reply:second:nod"
+        assert controller._natural_pending.segment_id == next_cue.segment_id == "second"
+        clock[0] = 103.0
+        controller._resume_natural(controller._natural_pending)
+        next_cue = cues[-1]
         assert next_cue.intent == DeliveryIntent("gentle", "nod")
         assert next_cue.gesture_id == "reply:second:nod" and next_cue.energy == 0.3
         assert next_cue.turn_id == current_cue.turn_id

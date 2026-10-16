@@ -18,6 +18,7 @@ from xiaoya.domain.presentation import PresentationCue
 
 DELIVERY_TOPIC = "xiaoya.delivery"
 DELIVERY_SNAPSHOT_RPC = "xiaoya.getDeliverySnapshot"
+PRESENTATION_ACK_RPC = "xiaoya.ackPresentation"
 TRANSCRIPTION_TOPIC = "lk.transcription"
 _T = TypeVar("_T")
 _LOGGER = logging.getLogger(__name__)
@@ -37,8 +38,10 @@ class DeliveryState:
     phase: Literal["idle", "listening", "thinking", "speaking"] = "idle"
     turn_id: str = ""
     gesture_id: str = ""
+    gesture_source: Literal["none", "dialogue", "command"] = "none"
+    command_feedback: Literal["none", "retry", "clarify"] = "none"
     energy: float = 0.5
-    v: int = 2
+    v: int = 3
 
     def to_json(self) -> str:
         """小型控制消息不带正文，重连快照无需读取或泄露聊天记录。"""
@@ -55,22 +58,27 @@ class DeliverySnapshotEndpoint:
         ready: Callable[[str], bool],
         state: Callable[[], DeliveryState | None],
         instance: str | None = None,
+        acknowledge: Callable[[str, str, str, bool | None], bool] | None = None,
     ) -> None:
         """注册失败交由会话启动传播；稳定中性实例让关闭表现的会话仍能证明真实就绪。"""
         self._room = room
         self._participant = room.local_participant
         self._ready = ready
         self._state = state
+        self._acknowledge = acknowledge
         self._fallback = DeliveryState(instance=instance or uuid4().hex)
         self._registered = False
         self._closed = False
         try:
             self._participant.register_rpc_method(DELIVERY_SNAPSHOT_RPC, self._snapshot)
+            self._participant.register_rpc_method(PRESENTATION_ACK_RPC, self._ack)
         except Exception:
             # SDK 可能先保存回调再注册 FFI；只清理本入口，已捕获的回调也必须永远关门。
             self._closed = True
             with contextlib.suppress(Exception):
                 self._participant.unregister_rpc_method(DELIVERY_SNAPSHOT_RPC)
+            with contextlib.suppress(Exception):
+                self._participant.unregister_rpc_method(PRESENTATION_ACK_RPC)
             raise
         self._registered = True
 
@@ -105,6 +113,46 @@ class DeliverySnapshotEndpoint:
             _LOGGER.warning("读取表现状态失败，返回中性快照（%s）", type(error).__name__)
             return self._fallback.to_json()
 
+    async def _ack(self, data: rtc.RpcInvocationData) -> str:
+        """同一v3只附可选真实stroke布尔；缺字段仍是未知，非法值和非所有者不能解除预算。"""
+        identity = data.caller_identity
+        if (
+            not self.registered
+            or identity not in self._room.remote_participants
+            or not self._ready(identity)
+        ):
+            raise rtc.RpcError(2001, "当前参与者无权确认人物动作")
+        try:
+            if len(data.payload) > 1024:
+                raise ValueError("回执过大")
+            body = json.loads(data.payload)
+            if (
+                not isinstance(body, dict)
+                or set(body)
+                not in (
+                    {"instance", "turn_id", "gesture_id", "status"},
+                    {"instance", "turn_id", "gesture_id", "status", "stroke_started"},
+                )
+                or any(
+                    not isinstance(body[key], str) or not body[key]
+                    for key in ("instance", "turn_id", "gesture_id", "status")
+                )
+                or ("stroke_started" in body and type(body["stroke_started"]) is not bool)
+                or body["instance"] != self.instance
+                or body["status"] not in {"started", "completed", "canceled", "unavailable"}
+                or (
+                    body.get("stroke_started") is False
+                    and body["status"] in {"started", "completed"}
+                )
+            ):
+                raise ValueError("回执身份或状态非法")
+            accepted = self._acknowledge is not None and self._acknowledge(
+                body["turn_id"], body["gesture_id"], body["status"], body.get("stroke_started")
+            )
+            return json.dumps({"accepted": accepted}, separators=(",", ":"))
+        except (ValueError, TypeError, KeyError) as error:
+            raise rtc.RpcError(2002, "人物回执无效") from error
+
     async def aclose(self) -> None:
         """同步撤销授权后仅注销一次，无网络等待，也不让单点失败阻止其他资源回收。"""
         if self._closed:
@@ -112,10 +160,11 @@ class DeliverySnapshotEndpoint:
         self._closed = True
         registered, self._registered = self._registered, False
         if registered:
-            try:
-                self._participant.unregister_rpc_method(DELIVERY_SNAPSHOT_RPC)
-            except Exception as error:
-                _LOGGER.warning("注销会话快照失败（%s）", type(error).__name__)
+            for name in (DELIVERY_SNAPSHOT_RPC, PRESENTATION_ACK_RPC):
+                try:
+                    self._participant.unregister_rpc_method(name)
+                except Exception as error:
+                    _LOGGER.warning("注销会话表现入口失败（%s）", type(error).__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,11 +261,15 @@ class DeliveryTextOutput(io.TextOutput):
         """思考预判保留同轮未开流候选；实际空闲、倾听或换轮同步撤销旧播放身份。"""
         if not self._accepting:
             return
-        if cue.phase == "speaking" and (
-            self._playback_binding is None
-            or (cue.reply_id, cue.segment_id)
-            != (self._playback_binding.reply_id, self._playback_binding.segment_id)
-            or cue.reply_id in self._cancelled_replies
+        if (
+            cue.gesture_source != "command"
+            and cue.phase == "speaking"
+            and (
+                self._playback_binding is None
+                or (cue.reply_id, cue.segment_id)
+                != (self._playback_binding.reply_id, self._playback_binding.segment_id)
+                or cue.reply_id in self._cancelled_replies
+            )
         ):
             return
         binding = self._playback_binding
@@ -240,12 +293,14 @@ class DeliveryTextOutput(io.TextOutput):
             revision=self._state.revision + 1,
             reply_id=cue.reply_id,
             segment_id=cue.segment_id,
-            state="closed" if cue.phase == "idle" else "active",
+            state="closed" if cue.phase == "idle" and cue.gesture_source != "command" else "active",
             style=cue.intent.style,
             gesture=cue.intent.gesture,
             phase=cue.phase,
             turn_id=cue.turn_id,
             gesture_id=cue.gesture_id,
+            gesture_source=cue.gesture_source,
+            command_feedback=cue.command_feedback,
             energy=cue.energy,
         )
 
@@ -282,13 +337,15 @@ class DeliveryTextOutput(io.TextOutput):
         await asyncio.shield(done)
 
     async def finish_reply(self, reply_id: str) -> None:
-        """公开SpeechHandle正常done只结束自己的最终片段，旧回调不会收掉后来回复。"""
+        """公开SpeechHandle正常done封存完整对话，片段切换或取消不提前提交最近一轮事实。"""
         binding = self._playback_binding
-        if not self._accepting or binding is None or binding.reply_id != reply_id:
+        if not self._accepting or reply_id in self._cancelled_replies:
             return
-        if self._bound == binding:
-            self._bound = None
-        await self._close_expression(binding)
+        if binding is not None and binding.reply_id == reply_id:
+            if self._bound == binding:
+                self._bound = None
+            await self._close_expression(binding)
+        self._presentation.complete_reply(reply_id)
 
     async def drain(self) -> None:
         """仅在验证或显式关闭边界等待队列，正常音频路径不依赖消息发送耗时。"""
@@ -364,29 +421,26 @@ class DeliveryTextOutput(io.TextOutput):
         elif self._playback_binding != binding:
             await self._close_expression(binding)
 
+    def _can_open_bound_segment(self, binding: _Binding) -> bool:
+        """只给仍拥有播放许可的绑定开新流；不检查正文_bound，避免正常flush撤销短句。"""
+        return (
+            self._accepting
+            and self._snapshot_endpoint.registered
+            and self._playback_binding == binding
+            and binding.turn_id == self._presentation.turn_id
+            and binding.reply_id not in self._cancelled_replies
+        )
+
     async def _open_segment(self, segment: _Segment, text: str) -> None:
-        """放行片段检查独立播放身份；字幕已完成也可开正常短句，旧轮次绝不重开。"""
+        """尚未开流的绑定须在发布前后仍获许可；已开writer的尾词与无绑定字幕另循原路径。"""
         binding = segment.binding
+        if binding.reply_id and not self._can_open_bound_segment(binding):
+            return
         attributes = {
             "lk.segment_id": binding.segment_id,
             "lk.transcription_final": "false",
         }
-        closed_header = DeliveryState(
-            instance=self._state.instance,
-            revision=self._state.revision,
-            reply_id=binding.reply_id,
-            segment_id=binding.segment_id,
-            turn_id=binding.turn_id,
-        ).to_json()
-        if binding.reply_id and self._snapshot_endpoint.registered:
-            # 过期字幕仍携带自己的身份，但 closed 头不能授予任何表现许可。
-            attributes[DELIVERY_TOPIC] = closed_header
-        if (
-            binding.reply_id
-            and self._snapshot_endpoint.registered
-            and self._playback_binding == binding
-            and binding.turn_id == self._presentation.turn_id
-        ):
+        if binding.reply_id:
             self._set_cue(
                 self._presentation.speak(
                     binding.reply_id, binding.segment_id, binding.intent, binding.text or text
@@ -396,21 +450,14 @@ class DeliveryTextOutput(io.TextOutput):
             success = await self._publish_state()
             if (
                 not success
-                or binding.reply_id in self._cancelled_replies
-                or self._playback_binding != binding
+                or not self._can_open_bound_segment(binding)
+                or self._state.phase != "speaking"
+                or (self._state.reply_id, self._state.segment_id)
+                != (binding.reply_id, binding.segment_id)
             ):
                 await self._close_expression(binding)
-            # await 期间新轮次可同步换快照；旧字幕只能保留自己的身份，不能借用新快照。
-            attributes[DELIVERY_TOPIC] = (
-                speaking_header
-                if success
-                and binding.turn_id == self._presentation.turn_id
-                and self._state.phase == "speaking"
-                and (self._state.reply_id, self._state.segment_id)
-                == (binding.reply_id, binding.segment_id)
-                and self._playback_binding == binding
-                else closed_header
-            )
+                return
+            attributes[DELIVERY_TOPIC] = speaking_header
         if binding.reply_id in self._cancelled_replies:
             return
         success, writer = await self._network(

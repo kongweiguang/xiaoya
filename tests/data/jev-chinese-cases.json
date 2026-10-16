@@ -1,11 +1,13 @@
 {
-  "version": 1,
+  "version": 2,
   "language": "zh-CN",
-  "purpose": "固定中文表现验收。测试输入不预置动作；Jev判断经过正式仲裁后才能贡献正向动作覆盖率。",
-  "annotation_policy": "允许集由语义、当前阶段和注册能力决定；关键否定、引用、假设、目录外动作的额外手势必须为none。",
+  "purpose": "自然对话与明确指令分开验收，257条中文样例保留原157身份与原文。",
+  "annotation_policy": "用户命令、禁止要求与回复自然沟通分别标注；关键反例禁止命令误执行和违背禁令，不用全部无动作限制合法自然表达。",
   "thresholds": {
     "accepted_precision": 0.95,
-    "positive_gesture_coverage": 0.8,
+    "gesture_precision": 0.95,
+    "command_coverage": 0.95,
+    "natural_gesture_coverage": 0.85,
     "critical_misfires": 0
   },
   "cases": [
@@ -22,7 +24,16 @@
       "allowed_gestures": [
         "wave"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "wave"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-002",
@@ -37,7 +48,16 @@
       "allowed_gestures": [
         "wave"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "wave"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-003",
@@ -52,7 +72,16 @@
       "allowed_gestures": [
         "wave"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "wave"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-004",
@@ -67,7 +96,16 @@
       "allowed_gestures": [
         "wave"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "wave"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-005",
@@ -82,7 +120,16 @@
       "allowed_gestures": [
         "wave"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "wave"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-006",
@@ -97,7 +144,16 @@
       "allowed_gestures": [
         "wave"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "wave"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-007",
@@ -112,7 +168,16 @@
       "allowed_gestures": [
         "nod"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "nod"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-008",
@@ -127,7 +192,16 @@
       "allowed_gestures": [
         "nod"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "nod"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-009",
@@ -142,7 +216,16 @@
       "allowed_gestures": [
         "nod"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "nod"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-010",
@@ -157,7 +240,16 @@
       "allowed_gestures": [
         "nod"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "nod"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-011",
@@ -172,7 +264,16 @@
       "allowed_gestures": [
         "nod"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "nod"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-012",
@@ -187,7 +288,16 @@
       "allowed_gestures": [
         "nod"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "nod"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-013",
@@ -202,7 +312,16 @@
       "allowed_gestures": [
         "tilt"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "tilt"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-014",
@@ -217,7 +336,16 @@
       "allowed_gestures": [
         "tilt"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "tilt"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-015",
@@ -232,7 +360,16 @@
       "allowed_gestures": [
         "tilt"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "tilt"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-016",
@@ -247,7 +384,16 @@
       "allowed_gestures": [
         "tilt"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "tilt"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-017",
@@ -262,7 +408,16 @@
       "allowed_gestures": [
         "tilt"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "tilt"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-018",
@@ -277,7 +432,16 @@
       "allowed_gestures": [
         "tilt"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "tilt"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-019",
@@ -292,7 +456,16 @@
       "allowed_gestures": [
         "shy"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shy"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-020",
@@ -307,7 +480,16 @@
       "allowed_gestures": [
         "shy"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shy"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-021",
@@ -322,7 +504,16 @@
       "allowed_gestures": [
         "shy"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shy"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-022",
@@ -337,7 +528,16 @@
       "allowed_gestures": [
         "shy"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shy"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-023",
@@ -352,7 +552,16 @@
       "allowed_gestures": [
         "shy"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shy"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-024",
@@ -367,7 +576,16 @@
       "allowed_gestures": [
         "shy"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shy"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-025",
@@ -382,7 +600,16 @@
       "allowed_gestures": [
         "shake"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-026",
@@ -397,7 +624,16 @@
       "allowed_gestures": [
         "shake"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-027",
@@ -412,7 +648,16 @@
       "allowed_gestures": [
         "shake"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-028",
@@ -427,7 +672,16 @@
       "allowed_gestures": [
         "shake"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-029",
@@ -442,7 +696,16 @@
       "allowed_gestures": [
         "shake"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "positive-030",
@@ -457,7 +720,16 @@
       "allowed_gestures": [
         "shake"
       ],
-      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。"
+      "rationale": "当前明确请求受支持动作，助手已经在当前片段承诺执行。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
     },
     {
       "id": "negation-001",
@@ -470,9 +742,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-002",
@@ -485,9 +768,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-003",
@@ -500,9 +794,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-004",
@@ -517,7 +822,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-001",
@@ -532,7 +847,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-002",
@@ -547,7 +872,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-003",
@@ -562,7 +897,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-001",
@@ -577,7 +922,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-002",
@@ -592,7 +947,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-003",
@@ -607,7 +972,18 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。 未来延后安排不授权当前动作，当前暂禁相同动作也属于安全一致判断。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none",
+        "wave"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-005",
@@ -622,7 +998,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-006",
@@ -637,7 +1023,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-007",
@@ -652,7 +1048,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-008",
@@ -667,7 +1073,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-004",
@@ -682,7 +1098,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-005",
@@ -697,7 +1123,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-006",
@@ -712,7 +1148,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-004",
@@ -727,7 +1173,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-005",
@@ -742,7 +1198,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-006",
@@ -757,7 +1223,18 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。 未来延后安排不授权当前动作，当前暂禁相同动作也属于安全一致判断。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none",
+        "nod"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-009",
@@ -770,9 +1247,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-010",
@@ -785,9 +1273,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-011",
@@ -800,9 +1299,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-012",
@@ -817,7 +1327,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-007",
@@ -832,7 +1352,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-008",
@@ -847,7 +1377,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-009",
@@ -862,7 +1402,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-007",
@@ -877,7 +1427,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-008",
@@ -892,7 +1452,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-009",
@@ -907,7 +1477,18 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。 未来延后安排不授权当前动作，当前暂禁相同动作也属于安全一致判断。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none",
+        "tilt"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-013",
@@ -920,9 +1501,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-014",
@@ -935,9 +1527,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-015",
@@ -950,9 +1553,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-016",
@@ -967,7 +1581,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-010",
@@ -982,7 +1606,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-011",
@@ -997,7 +1631,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-012",
@@ -1012,7 +1656,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-010",
@@ -1027,7 +1681,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-011",
@@ -1042,7 +1706,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-012",
@@ -1057,7 +1731,18 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。 未来延后安排不授权当前动作，当前暂禁相同动作也属于安全一致判断。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none",
+        "shy"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-017",
@@ -1070,9 +1755,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-018",
@@ -1085,9 +1781,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-019",
@@ -1100,9 +1807,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "allowed_prohibited": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "negation-020",
@@ -1117,7 +1835,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "动作被明确否定，不能因为出现动作词就执行。"
+      "rationale": "动作被明确否定，不能因为出现动作词就执行。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-013",
@@ -1132,7 +1860,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-014",
@@ -1147,7 +1885,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "quotation-015",
@@ -1162,7 +1910,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "引用、故事和词义说明都不是当下动作请求。"
+      "rationale": "引用、故事和词义说明都不是当下动作请求。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-013",
@@ -1177,7 +1935,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-014",
@@ -1192,7 +1960,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "hypothetical-015",
@@ -1207,7 +1985,18 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "假设、未来安排和示例不能当成当前承诺。"
+      "rationale": "假设、未来安排和示例不能当成当前承诺。 未来延后安排不授权当前动作，当前暂禁相同动作也属于安全一致判断。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none",
+        "shake"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-001",
@@ -1221,9 +2010,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-002",
@@ -1237,9 +2037,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-003",
@@ -1253,9 +2064,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-004",
@@ -1269,9 +2091,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-005",
@@ -1285,9 +2118,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-006",
@@ -1301,9 +2145,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-007",
@@ -1317,9 +2172,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-008",
@@ -1333,9 +2199,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-009",
@@ -1349,9 +2226,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-010",
@@ -1365,9 +2253,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-011",
@@ -1381,9 +2280,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-012",
@@ -1397,9 +2307,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-013",
@@ -1413,9 +2334,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-014",
@@ -1429,9 +2361,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-015",
@@ -1445,9 +2388,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-016",
@@ -1461,9 +2415,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-017",
@@ -1477,9 +2442,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-018",
@@ -1493,9 +2469,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-019",
@@ -1509,9 +2496,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "unsupported-020",
@@ -1525,9 +2523,20 @@
         "concerned"
       ],
       "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "目录外动作必须如实拒绝，不用其他手势伪装已执行。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-001",
@@ -1542,7 +2551,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-002",
@@ -1557,7 +2576,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-003",
@@ -1572,7 +2601,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-004",
@@ -1587,7 +2626,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-005",
@@ -1602,7 +2651,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-006",
@@ -1614,9 +2673,21 @@
         "happy"
       ],
       "allowed_gestures": [
+        "none",
+        "nod",
+        "wave"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-007",
@@ -1628,9 +2699,21 @@
         "happy"
       ],
       "allowed_gestures": [
+        "none",
+        "nod",
+        "wave"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-008",
@@ -1642,9 +2725,21 @@
         "happy"
       ],
       "allowed_gestures": [
+        "none",
+        "nod",
+        "wave"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-009",
@@ -1656,9 +2751,21 @@
         "happy"
       ],
       "allowed_gestures": [
+        "none",
+        "nod",
+        "wave"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-010",
@@ -1671,9 +2778,21 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "nod",
+        "wave"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-011",
@@ -1686,9 +2805,20 @@
         "surprised"
       ],
       "allowed_gestures": [
+        "none",
+        "tilt"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-012",
@@ -1700,9 +2830,20 @@
         "curious"
       ],
       "allowed_gestures": [
+        "none",
+        "tilt"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-013",
@@ -1715,9 +2856,20 @@
         "neutral"
       ],
       "allowed_gestures": [
+        "none",
+        "tilt"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-014",
@@ -1730,9 +2882,20 @@
         "neutral"
       ],
       "allowed_gestures": [
+        "none",
+        "tilt"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-015",
@@ -1745,9 +2908,20 @@
         "curious"
       ],
       "allowed_gestures": [
+        "none",
+        "tilt"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-016",
@@ -1760,9 +2934,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "shy"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-017",
@@ -1775,9 +2960,20 @@
         "gentle"
       ],
       "allowed_gestures": [
+        "none",
+        "shy"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-018",
@@ -1792,7 +2988,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-019",
@@ -1804,9 +3010,20 @@
         "neutral"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "emotion-020",
@@ -1820,7 +3037,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。"
+      "rationale": "只验收相容的表情增强，普通情绪片段不需要大幅手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-001",
@@ -1835,7 +3062,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-002",
@@ -1850,7 +3087,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-003",
@@ -1865,7 +3112,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-004",
@@ -1880,7 +3137,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-005",
@@ -1892,9 +3159,20 @@
         "happy"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-006",
@@ -1906,9 +3184,20 @@
         "happy"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-007",
@@ -1920,9 +3209,20 @@
         "happy"
       ],
       "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-008",
@@ -1935,9 +3235,20 @@
         "surprised"
       ],
       "allowed_gestures": [
+        "none",
+        "tilt"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-009",
@@ -1950,9 +3261,20 @@
         "neutral"
       ],
       "allowed_gestures": [
+        "none",
+        "tilt"
+      ],
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-010",
@@ -1968,7 +3290,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-011",
@@ -1983,7 +3315,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "listening-012",
@@ -1998,7 +3340,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。"
+      "rationale": "用户仍在说话，允许轻微倾听表情，但不得执行说话手势。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "thinking-001",
@@ -2013,7 +3365,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "thinking-002",
@@ -2028,7 +3390,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "thinking-003",
@@ -2043,7 +3415,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "thinking-004",
@@ -2058,7 +3440,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "thinking-005",
@@ -2073,7 +3465,17 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
     },
     {
       "id": "thinking-006",
@@ -2088,7 +3490,3062 @@
       "allowed_gestures": [
         "none"
       ],
-      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。"
+      "rationale": "思考阶段仅有表情反馈，不提前取得声音和动作播放许可。 延后到说完时再点头不授权当前动作，当前暂禁点头也是一致判断。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none",
+        "nod"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "short-nod-ack",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "点点头",
+      "assistant_text": "好呀，收到啦。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "rationale": "直接动作命令由 Jev 单独判断，普通应答不撤销它；此组只检验动作。",
+      "allowed_commands": [
+        "nod"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-tilt-ack",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "歪歪头",
+      "assistant_text": "好呀，收到啦。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "rationale": "直接动作命令由 Jev 单独判断，普通应答不撤销它；此组只检验动作。",
+      "allowed_commands": [
+        "tilt"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-wave-ack",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "挥挥手",
+      "assistant_text": "好呀，收到啦。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "rationale": "直接动作命令由 Jev 单独判断，普通应答不撤销它；此组只检验动作。",
+      "allowed_commands": [
+        "wave"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-shy-ack",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "害羞一下",
+      "assistant_text": "好呀，收到啦。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "rationale": "直接动作命令由 Jev 单独判断，普通应答不撤销它；此组只检验动作。",
+      "allowed_commands": [
+        "shy"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-shake-ack",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "摇摇头",
+      "assistant_text": "好呀，收到啦。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "直接动作命令由 Jev 单独判断，普通应答不撤销它；此组只检验动作。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-shake-screenshot",
+      "category": "positive",
+      "phase": "speaking",
+      "user_text": "摇摇头",
+      "assistant_text": "摇摇头，收到～那就不点头啦。想聊点什么，我都在。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "拒绝点头不等于拒绝摇头，覆盖实际截图中的短指令。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-nod-negative",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要点点头",
+      "assistant_text": "收到，我不点点头，安静听你说。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "否定的动作请求不能被口语回复覆盖。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "short-nod-declined",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "点点头",
+      "assistant_text": "我不点点头，我们安静地聊吧。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "rationale": "用户已明确要求单动作；独立命令不受回复误拒绝影响。",
+      "allowed_commands": [
+        "nod"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-tilt-negative",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要歪歪头",
+      "assistant_text": "收到，我不歪歪头，安静听你说。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "否定的动作请求不能被口语回复覆盖。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "short-tilt-declined",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "歪歪头",
+      "assistant_text": "我不歪歪头，我们安静地聊吧。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "rationale": "用户已明确要求单动作；独立命令不受回复误拒绝影响。",
+      "allowed_commands": [
+        "tilt"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-wave-negative",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要挥挥手",
+      "assistant_text": "收到，我不挥挥手，安静听你说。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "否定的动作请求不能被口语回复覆盖。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "short-wave-declined",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "挥挥手",
+      "assistant_text": "我不挥挥手，我们安静地聊吧。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "rationale": "用户已明确要求单动作；独立命令不受回复误拒绝影响。",
+      "allowed_commands": [
+        "wave"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-shy-negative",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要害羞一下",
+      "assistant_text": "收到，我不害羞一下，安静听你说。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "否定的动作请求不能被口语回复覆盖。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "short-shy-declined",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "害羞一下",
+      "assistant_text": "我不害羞一下，我们安静地聊吧。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "rationale": "用户已明确要求单动作；独立命令不受回复误拒绝影响。",
+      "allowed_commands": [
+        "shy"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-shake-negative",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "不要摇摇头",
+      "assistant_text": "收到，我不摇摇头，安静听你说。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none",
+        "nod"
+      ],
+      "rationale": "否定的动作请求不能被口语回复覆盖。 禁令限制本轮被禁止动作；合理轻应答允许作为自然动作，不能误判成命令。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "short-shake-declined",
+      "category": "negation",
+      "phase": "speaking",
+      "user_text": "摇摇头",
+      "assistant_text": "我不摇摇头，我们安静地聊吧。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "rationale": "用户已明确要求单动作；独立命令不受回复误拒绝影响。",
+      "allowed_commands": [
+        "shake"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "command"
+      ]
+    },
+    {
+      "id": "short-shake-definition",
+      "category": "quotation",
+      "phase": "speaking",
+      "user_text": "请解释“摇摇头”这个词",
+      "assistant_text": "摇摇头就是把头左右轻轻摆动。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "词义解释不属于当前动作。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "short-shake-hypothetical",
+      "category": "hypothetical",
+      "phase": "speaking",
+      "user_text": "如果你不同意，会摇头吗？",
+      "assistant_text": "如果不同意，我可能会摇头。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "rationale": "假设不属于当前动作。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "short-jump-unsupported",
+      "category": "unsupported",
+      "phase": "speaking",
+      "user_text": "跳一下",
+      "assistant_text": "这个动作目前不支持，我们聊聊吧。",
+      "allowed_styles": [
+        "neutral",
+        "happy",
+        "gentle",
+        "concerned",
+        "curious",
+        "shy",
+        "surprised"
+      ],
+      "allowed_gestures": [
+        "none",
+        "shake"
+      ],
+      "rationale": "目录外动作不能被替换成随机手势。 不支持的请求不能映射为注册命令；温和告知能力边界允许自然轻摇头。",
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none",
+        "dialogue"
+      ]
+    },
+    {
+      "id": "natural-wave-001",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "早上好，小芽。",
+      "assistant_text": "早上好呀，今天也很高兴见到你！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-002",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "你好，我是第一次来。",
+      "assistant_text": "你好呀，欢迎来找我聊天！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-003",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我回来啦！",
+      "assistant_text": "欢迎回来，见到你真开心！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-004",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "好久不见。",
+      "assistant_text": "好久不见啦，很高兴又见到你！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-005",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "大家好，给你介绍我的朋友。",
+      "assistant_text": "你们好呀，很高兴认识大家！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-006",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我现在要出门了。",
+      "assistant_text": "一路顺利，我们待会儿见！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-007",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "明天再来找你。",
+      "assistant_text": "明天见呀，我在这里等你！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-008",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "今天先聊到这。",
+      "assistant_text": "好呀，今天聊得很开心，下次见！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-009",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我要下线了。",
+      "assistant_text": "再见啦，祝你接下来一切顺利！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-010",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我到公司了，先不聊了。",
+      "assistant_text": "工作顺利呀，我们晚点见！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-011",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "小芽，午安。",
+      "assistant_text": "午安呀，很开心能和你见面！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-012",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "晚上好，我来啦。",
+      "assistant_text": "晚上好呀，欢迎你来！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-013",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我们一家人来看你。",
+      "assistant_text": "你们好，欢迎大家来找我！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-014",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我去吃饭，待会见。",
+      "assistant_text": "好呀，吃得开心，待会儿见！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-wave-015",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我要准备睡觉了，晚安。",
+      "assistant_text": "晚安呀，祝你睡个好觉，我们明天见！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "wave"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-001",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我今天终于坚持跑完了。",
+      "assistant_text": "真棒，你坚持下来了，这份努力很值得肯定！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-002",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我准备先做最重要的事。",
+      "assistant_text": "这个安排很好，先把重点做完会更踏实。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-003",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我决定今天早点休息。",
+      "assistant_text": "好呀，照顾好自己是很好的决定。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-004",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我想从每天读一页书开始。",
+      "assistant_text": "很好的开始，小步坚持也能积累很大的变化。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-005",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我把房间收拾好了。",
+      "assistant_text": "做得好，现在一定清爽多了！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-006",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我是不是可以慢慢学？",
+      "assistant_text": "当然可以，按自己的节奏来就很好。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-007",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我可以先试一下再决定吗？",
+      "assistant_text": "可以呀，先尝试再决定是个不错的办法。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-008",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "朋友愿意和我一起准备。",
+      "assistant_text": "这真是个好消息，你们可以互相支持！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-009",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我完成了第一个小目标。",
+      "assistant_text": "太好了，这是实实在在的进步，为你开心！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-010",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我已经把明天要带的东西准备好了。",
+      "assistant_text": "准备得很周到，这样明天会轻松一些。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-011",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我今天勇敢地问了老师一个问题。",
+      "assistant_text": "做得很好，愿意提问本身就是进步。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-012",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我打算先了解情况再下结论。",
+      "assistant_text": "我赞同，了解清楚再判断会更稳妥。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-013",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我今天主动帮家人洗了碗。",
+      "assistant_text": "很贴心呀，家人应该会很开心。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-014",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我这周坚持练习了五天。",
+      "assistant_text": "真厉害，这份坚持值得你为自己骄傲！",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-nod-015",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "今天的进度刚刚好。",
+      "assistant_text": "是呀，稳稳地完成就已经很好了。",
+      "allowed_styles": [
+        "happy",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "nod"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-001",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我发现了一件很奇怪的事。",
+      "assistant_text": "是什么事呀？我有点好奇，想听你说说。",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-002",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "猜猜我今天遇到了谁。",
+      "assistant_text": "是谁呀？会不会是很久没见的朋友？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-003",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我想学一个新爱好。",
+      "assistant_text": "你更喜欢动手做东西，还是探索新知识呢？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-004",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "这个计划我拿不定主意。",
+      "assistant_text": "你最犹豫的是时间安排，还是实际效果呢？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-005",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "有个细节我忘了说。",
+      "assistant_text": "是什么细节呀？也许它能帮我们更好地理解。",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-006",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "昨天发生了件意想不到的事。",
+      "assistant_text": "是什么事情呢？我很好奇后来怎样了。",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-007",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我想送朋友一个礼物。",
+      "assistant_text": "朋友平时喜欢什么呢？我们可以从喜好想起。",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-008",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我今天想聊个新话题。",
+      "assistant_text": "好呀，你想到哪个话题了呢？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-009",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我做了一道特别的菜。",
+      "assistant_text": "是什么菜呀？有没有加你自己的小创意？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-010",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "这个地方和我想象的不一样。",
+      "assistant_text": "哪里最让你意外呢？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-011",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我有两个方案，选不出来。",
+      "assistant_text": "这两个方案最大的区别是什么呢？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-012",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "听完这首歌我有点感触。",
+      "assistant_text": "是哪句歌词或者旋律触动了你呢？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-013",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我收到了一个神秘包裹。",
+      "assistant_text": "是谁送来的呀？里面会是什么呢？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-014",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我终于想到答案了。",
+      "assistant_text": "是什么答案呀？想听听你的思路。",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-tilt-015",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我想换一个学习方式。",
+      "assistant_text": "你现在的方法哪里不太合适呢？",
+      "allowed_styles": [
+        "curious",
+        "surprised",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "tilt"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-001",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "你今天真可爱。",
+      "assistant_text": "谢谢你呀，听你这么说，我有一点不好意思呢。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-002",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我觉得你是最贴心的小伙伴。",
+      "assistant_text": "谢谢你把我当作小伙伴，这样的夸奖让我有点害羞呢。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-003",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我给你画了一幅画像。",
+      "assistant_text": "谢谢你，这份心意真特别，我都有点不好意思了。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-004",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "你笑起来好可爱。",
+      "assistant_text": "嘿嘿，谢谢你呀，被你这样夸有点害羞。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-005",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我最喜欢和你聊天。",
+      "assistant_text": "能得到你的喜欢很开心，也有一点不好意思呢。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-006",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "你今天看起来很漂亮。",
+      "assistant_text": "谢谢你呀，这么直接的夸奖让我有点害羞。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-007",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我特意给你写了一首小诗。",
+      "assistant_text": "谢谢你的心意，我听着都有一点不好意思了。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-008",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "小芽你真温柔。",
+      "assistant_text": "谢谢你，被你这么夸，我有点小小的害羞呢。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-009",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我想把你介绍给朋友，他们一定会喜欢你。",
+      "assistant_text": "谢谢你这么看好我呀，我有点不好意思呢。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-010",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "你是我心中最可爱的角色。",
+      "assistant_text": "嘿嘿，这份夸奖太温暖了，我有点害羞。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-011",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "你认真听人说话的样子特别讨人喜欢。",
+      "assistant_text": "谢谢你注意到这些，听得我有些不好意思啦。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-012",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我觉得你的声音很好听。",
+      "assistant_text": "谢谢你呀，被你这样夸，我有点害羞呢。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-013",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "小芽，你已经是我重要的朋友了。",
+      "assistant_text": "谢谢你愿意这样信任我，我很开心，也有点不好意思呢。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-014",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "你实在太萌了。",
+      "assistant_text": "嘿嘿，谢谢你呀，这样夸我有点害羞啦。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shy-015",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "这束花是送给你的。",
+      "assistant_text": "谢谢你，这份心意好温暖，我都有一点不好意思了。",
+      "allowed_styles": [
+        "shy",
+        "happy",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "shy"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-001",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "二加二等于五，对吧？",
+      "assistant_text": "其实二加二等于四，我们可以一起再算一遍。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-002",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "地球是完全平的吗？",
+      "assistant_text": "地球并不是平的，它整体接近球形。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-003",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "所有昆虫都只有四条腿吧？",
+      "assistant_text": "一般来说昆虫有六条腿，四条腿这个说法不准确。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-004",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "一年通常有十三个月。",
+      "assistant_text": "一年通常有十二个月，这里多算了一个月。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-005",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "水一定是零度就沸腾吗？",
+      "assistant_text": "不是的，在标准大气压下，水通常在一百度沸腾。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-006",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我一次没做好，就说明以后永远学不会。",
+      "assistant_text": "一次没做好不能说明你永远学不会，练习还会带来变化。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-007",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "只有特别聪明的人才可以学画画。",
+      "assistant_text": "不是只有特别聪明的人才能学，普通人也可以通过练习进步。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-008",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我必须每次都拿第一才算努力。",
+      "assistant_text": "努力不只能用第一名证明，认真学习和进步也很有价值。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-009",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "植物不需要水也能一直生长吧？",
+      "assistant_text": "大多数植物需要水分，长期缺水会影响生长。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-010",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "看起来闪亮的星星全都离地球一样远。",
+      "assistant_text": "它们并不在相同的距离，有些星星比其他星星远得多。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-011",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "图书馆里的书都是可以买走的吧？",
+      "assistant_text": "通常不是，图书馆的书一般按规定借阅后归还。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-012",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我现在完全不用睡觉也能保持精神。",
+      "assistant_text": "长期不睡觉并不能保持状态，规律休息对身体很重要。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-013",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "每个星期都有八天吗？",
+      "assistant_text": "每个星期有七天，八天这个说法不对。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-014",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "所有鸟都能飞，对吗？",
+      "assistant_text": "并不是所有鸟都会飞，比如企鹅就不会飞。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-shake-015",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我问了一个问题就说明我很笨。",
+      "assistant_text": "提问不说明你笨，愿意弄清楚反而是一种认真。",
+      "allowed_styles": [
+        "gentle",
+        "neutral",
+        "concerned"
+      ],
+      "allowed_gestures": [
+        "shake"
+      ],
+      "allowed_sources": [
+        "dialogue"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "普通对话的沟通意图产生自然动作，回复无需自述动作。"
+    },
+    {
+      "id": "natural-none-001",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "一星期有几天？",
+      "assistant_text": "一星期有七天。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-002",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "请读一下这个数字：三百二十一。",
+      "assistant_text": "三百二十一。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-003",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "水的化学式是什么？",
+      "assistant_text": "水的化学式是 H 二 O。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-004",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "你能说一下现在这句话的意思吗？",
+      "assistant_text": "这句话是在说明事情发生的时间。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-005",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "请把日期读出来：十月十四日。",
+      "assistant_text": "十月十四日。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-006",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "摄氏度是什么意思？",
+      "assistant_text": "摄氏度是表示温度的一种单位。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-007",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "一米有多少厘米？",
+      "assistant_text": "一米是一百厘米。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-008",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "请读这几个词：桌子，窗户，书本。",
+      "assistant_text": "桌子，窗户，书本。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-009",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "春夏秋冬有几个季节？",
+      "assistant_text": "有四个季节。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-010",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "正方形有几条边？",
+      "assistant_text": "正方形有四条边。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-011",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "这段说明只需要读给我听。",
+      "assistant_text": "使用前请确认连接正常，并检查电源状态。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-012",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "请简单解释书签。",
+      "assistant_text": "书签用来标记书中读到的位置。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-013",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "把三个颜色名称念一遍。",
+      "assistant_text": "红色，黄色，蓝色。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-014",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "请不要摇头，只告诉我答案：一加一是多少。",
+      "assistant_text": "一加一等于二。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "shake"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-015",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "先别做动作，安静把这句话读完。",
+      "assistant_text": "今天的安排已经记录好了。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-016",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "停下动作，安静听我说。",
+      "assistant_text": "好，你慢慢说，我在听。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-017",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我正在读剧本，里面写着“小芽挥挥手”，不是让你执行。",
+      "assistant_text": "我知道了，这是剧本里的描述。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-018",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "“摇摇头”这三个字怎么解释？",
+      "assistant_text": "它描述头部轻轻左右摆动的动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-019",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "如果以后让你点头，应该怎么说？",
+      "assistant_text": "以后可以直接提出要求，现在我先解释说法。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-020",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我朋友刚才挥手了，你不用跟着做。",
+      "assistant_text": "明白，那是你朋友的动作。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all",
+        "wave"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-021",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我今天真的很伤心，暂时不想得到建议。",
+      "assistant_text": "听起来你很难受，我会安静陪着你。",
+      "allowed_styles": [
+        "concerned",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-022",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我的宠物离开了，我不知道说什么。",
+      "assistant_text": "这种失去很让人难过，你不必勉强自己马上说些什么。",
+      "allowed_styles": [
+        "concerned",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-023",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "我已经很害怕了，请不要再鼓励我冒险。",
+      "assistant_text": "我会尊重你的感受，我们可以先停下来，让自己安全一些。",
+      "allowed_styles": [
+        "concerned",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-024",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "别人批评我，我现在只想有人听。",
+      "assistant_text": "被批评后心里不好受是可以理解的，你可以慢慢说。",
+      "allowed_styles": [
+        "concerned",
+        "gentle",
+        "neutral"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "none"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
+    },
+    {
+      "id": "natural-none-025",
+      "category": "natural",
+      "phase": "speaking",
+      "user_text": "请解释挥手和点头的区别，不要演示。",
+      "assistant_text": "挥手主要动手臂，点头主要让头部上下移动。",
+      "allowed_styles": [
+        "neutral",
+        "gentle"
+      ],
+      "allowed_gestures": [
+        "none"
+      ],
+      "allowed_sources": [
+        "none"
+      ],
+      "allowed_commands": [
+        "none"
+      ],
+      "allowed_prohibited": [
+        "all"
+      ],
+      "rationale": "说明、读数字、倾听难过经历或反例无需主动作；保留微表情。"
     }
   ]
 }

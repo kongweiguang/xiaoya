@@ -25,6 +25,13 @@ const primaryParameters = {
   shake: 'ParamAngleX',
 };
 const minimumPrimaryPeaks = { nod: 5, tilt: 8, wave: 0.65, shy: 0.45, shake: 8 };
+const minimumGeometryPixels = {
+  nod: { head: 2 },
+  tilt: { head: 6 },
+  wave: { armL: 20 },
+  shy: { head: 3, armL: 10, armR: 10 },
+  shake: { head: 5 },
+};
 const framework = await build({
   stdin: {
     contents: `
@@ -67,7 +74,7 @@ function readInputs(mocFile, textureFile) {
     refs.Physics,
     refs.DisplayInfo,
     refs.MotionSync,
-    'concept-v1/poster.png',
+    'native-v1/poster.png',
   ]);
   const expressions = {};
   for (const reference of refs.Expressions) {
@@ -242,8 +249,14 @@ function createTrack(kit, inputs) {
   let physics;
   try {
     assert.equal(model.getParameterCount(), 19);
-    assert.equal(model.getDrawableCount(), 1);
-    assert.equal(model.getDrawableVertexCount(0), 6561);
+    const drawableIds = Array.from(
+      { length: model.getDrawableCount() },
+      (_, index) => model.getDrawableId(index).getString().s
+    );
+    assert.equal(new Set(drawableIds).size, drawableIds.length, '分层网格身份不能重复');
+    for (const id of ['Head', 'ArmL', 'ArmL2', 'ArmR', 'ArmR2', 'LeafL', 'LeafR']) {
+      assert.ok(drawableIds.includes(id), `必须保留独立可动部件 ${id}`);
+    }
     physics = kit.CubismPhysics.create(
       toArrayBuffer(inputs.physicsBytes),
       inputs.physicsBytes.length
@@ -285,36 +298,84 @@ function triangleArea(vertices, indices, index) {
   );
 }
 
-/** 参考姿态来自当前被测MOC，不借用正式模型的拓扑给另一个候选判定安全。 */
+/** 合并所有实际部件的坐标但不修改模型；连续快照必须包含后绘制的手掌，不能只读第一个嘴部网格。 */
+function modelVertices(model) {
+  const vertices = [];
+  for (let index = 0; index < model.getDrawableCount(); index++) {
+    vertices.push(...model.getDrawableVertices(index));
+  }
+  return Float32Array.from(vertices);
+}
+
+/** 以真实UV中的不透明三角面取样，分层图集无需继承旧整图81×81的网格或坐标假设。 */
 function referenceGeometry(track, texture) {
   setParameter(track, 'ParamMouthOpenY', 1);
   track.model.update();
-  const vertices = Float32Array.from(track.model.getDrawableVertices(0));
-  const indices = Uint16Array.from(track.model.getDrawableVertexIndices(0));
+  const vertices = modelVertices(track.model);
+  const indices = [];
   const signs = [];
   const masks = { visible: [], head: [], armL: [], armR: [] };
-  for (let point = 0; point < vertices.length / 2; point++) {
-    const x = (point % 81) * 16;
-    const y = Math.floor(point / 81) * 16;
-    assert.ok(Math.abs(vertices[point * 2] - (x - 640) / 640) < 1e-5);
-    assert.ok(Math.abs(vertices[point * 2 + 1] - (640 - y) / 640) < 1e-5);
-    const tx = Math.min(texture.width - 1, Math.floor((x / 1280) * texture.width));
-    const ty = Math.min(texture.height - 1, Math.floor((y / 1280) * texture.height));
-    if (texture.pixels[(ty * texture.width + tx) * 4 + 3] < 128) continue;
-    masks.visible.push(point);
-    if (y >= 230 && y <= 745 && x >= 250 && x <= 1040) masks.head.push(point);
-    if (y >= 773 && y <= 1097 && x >= 283 && x <= 493) masks.armL.push(point);
-    if (y >= 773 && y <= 1097 && x >= 755 && x <= 965) masks.armR.push(point);
+  const drawables = [];
+  let vertexOffset = 0;
+  for (let drawable = 0; drawable < track.model.getDrawableCount(); drawable++) {
+    const id = track.model.getDrawableId(drawable).getString().s;
+    const localIndices = track.model.getDrawableVertexIndices(drawable);
+    const uvs = track.model.getDrawableVertexUvs(drawable);
+    const vertexCount = track.model.getDrawableVertexCount(drawable);
+    assert.equal(uvs.length, vertexCount * 2, `${id}: UV必须覆盖每个真实顶点`);
+    assert.equal(localIndices.length % 3, 0, `${id}: 索引必须形成完整三角形`);
+    for (const uv of uvs) {
+      assert.ok(Number.isFinite(uv) && uv >= 0 && uv <= 1, `${id}: UV必须绑定当前纹理图集`);
+    }
+    drawables.push({ id, vertexCount, triangleCount: localIndices.length / 3 });
+    for (let triangle = 0; triangle < localIndices.length; triangle += 3) {
+      const points = Array.from(localIndices.slice(triangle, triangle + 3));
+      for (const point of points) assert.ok(point >= 0 && point < vertexCount);
+      const globalPoints = points.map((point) => point + vertexOffset);
+      indices.push(...globalPoints);
+      for (let a = 0; a <= 4; a++) {
+        for (let b = 0; b <= 4 - a; b++) {
+          const weights = [a / 4, b / 4, 1 - (a + b) / 4];
+          const u = points.reduce((value, point, i) => value + uvs[point * 2] * weights[i], 0);
+          const v = points.reduce((value, point, i) => value + uvs[point * 2 + 1] * weights[i], 0);
+          const tx = Math.max(0, Math.min(texture.width - 1, Math.floor(u * texture.width)));
+          const ty = Math.max(
+            0,
+            Math.min(texture.height - 1, Math.floor((1 - v) * texture.height))
+          );
+          if (texture.pixels[(ty * texture.width + tx) * 4 + 3] < 128) continue;
+          if (track.model.getDrawableOpacity(drawable) < 0.01) continue;
+          const sample = { points: globalPoints, weights };
+          masks.visible.push(sample);
+          if (id === 'Head') masks.head.push(sample);
+          if (id === 'ArmL' || id === 'ArmL2') masks.armL.push(sample);
+          if (id === 'ArmR' || id === 'ArmR2') masks.armR.push(sample);
+        }
+      }
+    }
+    vertexOffset += vertexCount;
   }
   for (let index = 0; index < indices.length; index += 3) {
     const signed = triangleArea(vertices, indices, index);
     assert.notEqual(signed, 0, '参考拓扑不能退化');
     signs.push(Math.sign(signed));
   }
-  assert.ok(masks.visible.length > 0);
+  for (const [region, samples] of Object.entries(masks)) {
+    assert.ok(samples.length > 0, `${region}: 必须有绑定真实图集的不透明面样本`);
+  }
   const pixelsPerModelUnit =
     458 / Math.max(track.model.getCanvasWidth(), track.model.getCanvasHeight());
-  return { indices, signs, masks, pixelsPerModelUnit };
+  const maximumAllowedCoordinate =
+    Math.max(track.model.getCanvasWidth(), track.model.getCanvasHeight()) * 0.75;
+  return {
+    indices,
+    signs,
+    masks,
+    pixelsPerModelUnit,
+    maximumAllowedCoordinate,
+    drawables,
+    vertexOffset,
+  };
 }
 
 /** 几何安全必须逐帧验证，不能仅根据参数在范围内推定复杂组合没有撕裂或翻面。 */
@@ -326,11 +387,14 @@ function assertModelSafe(track, reference, statistics, label) {
     assert.ok(value >= model.getParameterMinimumValue(i) - 1e-6, `${label}: parameter ${i} 下越界`);
     assert.ok(value <= model.getParameterMaximumValue(i) + 1e-6, `${label}: parameter ${i} 上越界`);
   }
-  const vertices = model.getDrawableVertices(0);
+  const vertices = modelVertices(model);
   for (const value of vertices) {
     assert.ok(Number.isFinite(value), `${label}: 非有限顶点`);
-    // 当前源画布为[-1,1]；额外半幅只作失控保护，不把通过该宽界限当成视觉合格。
-    assert.ok(Math.abs(value) <= 1.5, `${label}: 顶点超过原画布的1.5倍半幅`);
+    // 以实际画布的模型单位计算同一1.5倍半幅保护，不能沿用旧MOC的PixelsPerUnit。
+    assert.ok(
+      Math.abs(value) <= reference.maximumAllowedCoordinate,
+      `${label}: 顶点超过原画布的1.5倍半幅`
+    );
     statistics.maximumAbsoluteVertexCoordinate = Math.max(
       statistics.maximumAbsoluteVertexCoordinate,
       Math.abs(value)
@@ -427,26 +491,31 @@ function frameInput(time, delta, frame, delivery) {
 function cue(id, style, gesture, reply = 'reply-a') {
   return {
     id,
+    instance: 'job-a',
     replyKey: JSON.stringify(['physics-evidence-v2', reply]),
     style,
     gesture,
     phase: 'speaking',
-    turnId: 'turn-a',
+    turnId: reply,
     segmentKey: id,
-    gestureId: id,
+    gestureId: gesture === 'none' ? '' : id,
+    gestureSource: gesture === 'none' ? 'none' : 'command',
     energy: 1,
   };
 }
 
-/** 只量化实际可见纹理顶点的差分；像素位移不是表情语义或渲染美观已经通过的证据。 */
+/** 同一不透明面样本按重心插值比较，避免图集透明角点的远移冒充角色实际可见运动。 */
 function compareGeometry(left, right, reference, peaks) {
-  for (const [name, points] of Object.entries(reference.masks)) {
-    for (const point of points) {
-      peaks[name] = Math.max(
-        peaks[name] ?? 0,
-        Math.hypot(left[point * 2] - right[point * 2], left[point * 2 + 1] - right[point * 2 + 1]) *
-          reference.pixelsPerModelUnit
-      );
+  for (const [name, samples] of Object.entries(reference.masks)) {
+    for (const { points, weights } of samples) {
+      let dx = 0;
+      let dy = 0;
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i] * 2;
+        dx += (left[point] - right[point]) * weights[i];
+        dy += (left[point + 1] - right[point + 1]) * weights[i];
+      }
+      peaks[name] = Math.max(peaks[name] ?? 0, Math.hypot(dx, dy) * reference.pixelsPerModelUnit);
     }
   }
 }
@@ -572,6 +641,12 @@ function runGesture(kit, inputs, reference, statistics, style, gesture, timing =
     assert.ok(primaryPeak > minimumPrimaryPeaks[gesture], `${style}/${gesture}: 主动作未真正启动`);
     assert.ok(physicsPeak > 1e-5, `${style}/${gesture}: 未观察到真实物理增量`);
     assert.ok(contributionPeak > 1e-5, `${style}/${gesture}: 摆锤输出不能恒为零`);
+    for (const [region, minimum] of Object.entries(minimumGeometryPixels[gesture])) {
+      assert.ok(
+        pixels[region] > minimum,
+        `${style}/${gesture}: ${region}可见位移${pixels[region]}px须超过${minimum}px，参数非零不代表动作已绑定`
+      );
+    }
     if (gesture === 'shy') {
       assert.ok(inwardLeftPeak > 0.45 && inwardRightPeak > 0.45, '害羞必须双臂向内');
       assert.ok(downwardPeak > 12, '害羞必须保留低头主动作');
@@ -596,7 +671,7 @@ function runGesture(kit, inputs, reference, statistics, style, gesture, timing =
   }
 }
 
-/** 挥手、害羞与摇头取消后均不得复活；中性面部隔离动作，头部下限高于音频微动，防止假启动。 */
+/** 视觉版本沿用已消费动作身份；明确取消和新轮次才改变执行权，不能用同名新ID冒充迟到包。 */
 function runCancellation(kit, inputs, reference, statistics, gesture = 'wave') {
   const action = createTrack(kit, inputs);
   let control;
@@ -608,10 +683,10 @@ function runCancellation(kit, inputs, reference, statistics, gesture = 'wave') {
       const time = frame / 60;
       let delivery = frame < 48 ? cue('first', 'neutral', gesture) : null;
       let expected = delivery;
-      if (frame >= 20 && frame < 30) delivery = cue('pending-none', 'neutral', 'none');
-      if (frame >= 30 && frame < 48) delivery = cue('same-kind', 'neutral', gesture);
+      if (frame >= 20 && frame < 48)
+        delivery = { ...cue('first', 'neutral', gesture), id: `revision-${frame}` };
       if (frame >= 72 && frame < 81) delivery = cue('late-none', 'neutral', 'none');
-      if (frame >= 81) delivery = cue('late-gesture', 'neutral', gesture);
+      if (frame >= 81) delivery = { ...cue('first', 'neutral', gesture), id: 'late-gesture' };
       if (frame >= 150) delivery = expected = cue('new-reply', 'neutral', gesture, 'reply-b');
       const input = frameInput(time, 1 / 60, frame, delivery);
       // 取消后的短暂静音验证嘴马上归零，而不是依据 speaking 或尚在摆动的叶片伪造口型。
@@ -697,7 +772,7 @@ export async function verifyPhysicsModel({ mocFile, textureFile } = {}) {
     );
     assert.deepEqual(kit.sdkErrors, [], '官方SDK错误不能被测试吞掉');
     return {
-      evidenceVersion: 'reply-physics-presets-v4',
+      evidenceVersion: 'reply-physics-layered-presets-v5',
       checkedAt: new Date().toISOString(),
       nodeVersion: process.version,
       coreVersion: kit.version,
@@ -711,10 +786,11 @@ export async function verifyPhysicsModel({ mocFile, textureFile } = {}) {
       inputFingerprints: before,
       geometry: {
         parameterCount: 19,
-        drawableCount: 1,
-        vertexCount: 6561,
+        drawableCount: reference.drawables.length,
+        vertexCount: reference.vertexOffset,
+        drawables: reference.drawables,
         canvasPixels: 458,
-        visibleVertices: reference.masks.visible.length,
+        visibleSurfaceSamples: reference.masks.visible.length,
       },
       ...statistics,
       trajectories,

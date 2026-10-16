@@ -17,7 +17,7 @@ const { DeliveryGate, parseDelivery, groupReplyMessages } = await import(
 /** 固定实例与单调序号只描述协议边界，测试不伪造实际播放完成。 */
 function state(revision, overrides = {}) {
   return {
-    v: 2,
+    v: 3,
     instance: 'job-a',
     revision,
     reply_id: 'reply-a',
@@ -26,9 +26,12 @@ function state(revision, overrides = {}) {
     style: 'happy',
     gesture: overrides.state === 'closed' ? 'none' : 'nod',
     phase: overrides.state === 'closed' ? 'idle' : 'speaking',
-    turn_id: 'turn-a',
+    turn_id: overrides.turn_id || overrides.reply_id || 'turn-a',
     gesture_id:
       overrides.state === 'closed' || overrides.gesture === 'none' ? '' : `gesture-${revision}`,
+    gesture_source:
+      overrides.state === 'closed' || overrides.gesture === 'none' ? 'none' : 'dialogue',
+    command_feedback: 'none',
     energy: 0.55,
     ...overrides,
   };
@@ -131,7 +134,8 @@ test('shy和surprised/shake经过原有音频门控并保留取消栅栏', () =>
     const shy = state(1, { style, gesture });
     assert.deepEqual(parseDelivery(JSON.stringify(shy)), shy);
     const gate = new DeliveryGate();
-    gate.snapshot(shy);
+    gate.snapshot(state(0, { state: 'closed' }));
+    gate.receive(shy);
     gate.offer([message(shy)], 'agent-a');
     assert.equal(gate.read(false, true), null);
     assert.equal(gate.read(true, false), null);
@@ -425,9 +429,16 @@ test('新回复开始后迟到旧回复仍无法复活，两个gate互不影响'
   assert.ok(other.read(true, true));
 });
 
-/** v2 每个新增字段都经过校验，未知版本和越界强度不能进入动画数值通道。 */
-test('v2必填字段及受控动作规则严格校验', () => {
-  for (const field of ['phase', 'turn_id', 'gesture_id', 'energy']) {
+/** v3 每个新增字段都经过校验，未知版本和越界强度不能进入动画数值通道。 */
+test('v3必填字段及受控动作规则严格校验', () => {
+  for (const field of [
+    'phase',
+    'turn_id',
+    'gesture_id',
+    'gesture_source',
+    'command_feedback',
+    'energy',
+  ]) {
     const missing = state(1);
     delete missing[field];
     assert.equal(parseDelivery(JSON.stringify(missing)), null);
@@ -440,7 +451,7 @@ test('v2必填字段及受控动作规则严格校验', () => {
     { energy: 1.1 },
     { energy: null },
     { gesture_id: '' },
-    { phase: 'listening' },
+    { phase: 'thinking' },
   ])
     assert.equal(parseDelivery(JSON.stringify(state(1, overrides))), null);
   const pureListening = state(1, {
@@ -451,4 +462,128 @@ test('v2必填字段及受控动作规则严格校验', () => {
     gesture_id: '',
   });
   assert.deepEqual(parseDelivery(JSON.stringify(pureListening)), pureListening);
+});
+
+/** 指令执行权独立于语音阶段；同一身份在结束回复后仍然可执行而不借用声音。 */
+test('指令跨thinking、speaking与idle保持身份，无声和播放受阻仍有效', () => {
+  const gate = new DeliveryGate();
+  gate.snapshot(state(0, { state: 'closed' }));
+  for (const [index, phase] of ['thinking', 'speaking', 'idle'].entries()) {
+    const current = state(index + 1, {
+      phase,
+      reply_id: '',
+      segment_id: '',
+      turn_id: 'command-turn',
+      gesture: 'wave',
+      gesture_source: 'command',
+      gesture_id: 'command-a',
+    });
+    assert.ok(parseDelivery(JSON.stringify(current)));
+    gate.receive(current);
+    gate.invalidatePlayback();
+    assert.equal(gate.read(false, false)?.gestureId, 'command-a');
+    assert.equal(gate.audibleSpeechAuthorized, false);
+  }
+  gate.interrupt();
+  gate.receive(
+    state(4, { gesture_source: 'command', gesture_id: 'command-a', turn_id: 'command-turn' })
+  );
+  assert.equal(gate.read(false, false), null);
+});
+
+/** 快照恢复神态但不恢复执行机会，更高修订重复同一动作身份仍不能补演。 */
+test('快照中的倾听、说话及指令动作全部只恢复神态', () => {
+  for (const [phase, source] of [
+    ['listening', 'dialogue'],
+    ['speaking', 'dialogue'],
+    ['idle', 'command'],
+  ]) {
+    const gate = new DeliveryGate();
+    const current = state(1, { phase, gesture_source: source, gesture: 'tilt' });
+    gate.snapshot(current);
+    gate.offer([message(current)], 'agent-a');
+    assert.equal(gate.read(true, true)?.gesture, 'none');
+    assert.equal(gate.read(true, true)?.style, 'happy');
+    gate.receive({ ...current, revision: 2 });
+    gate.offer([message(current)], 'agent-a');
+    assert.equal(gate.read(true, true)?.gesture, 'none');
+    gate.receive({ ...current, revision: 3, turn_id: 'new-turn', gesture_id: 'new-gesture' });
+    gate.offer([message({ ...current, turn_id: 'new-turn' })], 'agent-a');
+    assert.equal(gate.read(true, true)?.gesture, 'tilt');
+  }
+});
+
+/** 真实指令可以独立于字幕执行，嘴部授权仍要求同片段字幕和实际PCM。 */
+test('无字幕指令不会绕过口型播放门，取消说话只关闭嘴部', () => {
+  const gate = new DeliveryGate();
+  gate.snapshot(state(0, { state: 'closed' }));
+  const current = state(1, { gesture_source: 'command' });
+  gate.receive(current);
+  assert.equal(gate.read(true, true)?.gesture, 'nod');
+  assert.equal(gate.audibleSpeechAuthorized, false);
+  gate.offer([message(current)], 'agent-a');
+  gate.read(true, true);
+  assert.equal(gate.audibleSpeechAuthorized, true);
+  gate.interruptSpeaking();
+  assert.equal(gate.read(true, true)?.gesture, 'nod');
+  assert.equal(gate.audibleSpeechAuthorized, false);
+});
+
+/** 明确执行终态不可重复或回退；未知和快照动作不能伪造确认。 */
+test('指令回执幂等并保留最近实时指令供主动重试', () => {
+  const gate = new DeliveryGate();
+  const received = [];
+  gate.setAcknowledgmentSink((ack) => received.push(ack));
+  gate.snapshot(state(0, { state: 'closed' }));
+  const current = state(1, { gesture: 'shake', gesture_source: 'command' });
+  gate.receive(current);
+  const ack = {
+    instance: current.instance,
+    turn_id: current.turn_id,
+    gesture_id: current.gesture_id,
+  };
+  gate.acknowledge({ ...ack, status: 'completed' });
+  gate.acknowledge({ ...ack, gesture_id: 'unknown', status: 'started' });
+  assert.equal(received.length, 0);
+  for (const status of ['started', 'started', 'completed', 'completed', 'canceled'])
+    gate.acknowledge({ ...ack, status });
+  assert.deepEqual(
+    received.map((ack) => ack.status),
+    ['started', 'completed']
+  );
+  gate.receive(state(2, { gesture: 'none', command_feedback: 'retry' }));
+  assert.deepEqual(gate.getFeedback(), { feedback: 'retry', gesture: 'shake' });
+});
+
+/** 未知判断没有动作授权，保持 retry 也不能借用上一轮的指令；新轮已知动作仍可恢复。 */
+test('本轮已知指令可以重试，跨轮未知反馈不继承上一动作', () => {
+  const gate = new DeliveryGate();
+  gate.snapshot(state(0, { state: 'closed' }));
+  gate.receive(state(1, { gesture: 'wave', gesture_source: 'command', turn_id: 'previous-turn' }));
+  gate.receive(state(2, { gesture: 'none', command_feedback: 'retry', turn_id: 'previous-turn' }));
+  assert.deepEqual(gate.getFeedback(), { feedback: 'retry', gesture: 'wave' });
+  gate.receive(
+    state(3, { gesture: 'none', command_feedback: 'retry', turn_id: 'unknown-current-turn' })
+  );
+  assert.deepEqual(gate.getFeedback(), { feedback: 'retry', gesture: null });
+  gate.receive(
+    state(4, { gesture: 'nod', gesture_source: 'command', turn_id: 'unknown-current-turn' })
+  );
+  gate.receive(
+    state(5, { gesture: 'none', command_feedback: 'retry', turn_id: 'unknown-current-turn' })
+  );
+  assert.deepEqual(gate.getFeedback(), { feedback: 'retry', gesture: 'nod' });
+});
+
+/** 连接换代可保留本轮已知重试，但同名轮次属于另一个 Agent 时不能继承旧指令。 */
+test('重连保留相同实例轮次的重试，跨实例同名轮次不串动作', () => {
+  const first = new DeliveryGate();
+  first.snapshot(state(0, { state: 'closed' }));
+  first.receive(state(1, { gesture: 'shake', gesture_source: 'command' }));
+  const sameOwner = new DeliveryGate(first);
+  sameOwner.snapshot(state(2, { gesture: 'none', command_feedback: 'retry' }));
+  assert.deepEqual(sameOwner.getFeedback(), { feedback: 'retry', gesture: 'shake' });
+  const nextOwner = new DeliveryGate(first);
+  nextOwner.snapshot(state(2, { instance: 'job-b', gesture: 'none', command_feedback: 'retry' }));
+  assert.deepEqual(nextOwner.getFeedback(), { feedback: 'retry', gesture: null });
 });

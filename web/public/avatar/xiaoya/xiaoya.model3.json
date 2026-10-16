@@ -1,30 +1,72 @@
 {
   "Version": 3,
   "FileReferences": {
-    "Moc": "concept-v1/xiaoya.moc3",
-    "Textures": ["concept-v1/texture.png"],
-    "Physics": "xiaoya.physics3.json",
-    "DisplayInfo": "xiaoya.cdi3.json",
-    "MotionSync": "xiaoya.motionsync3.json",
+    "Moc": "native-v1/xiaoya-native-final19-20261011.moc3",
+    "Textures": ["native-v1/xiaoya-native-final19-20261011.2048/texture_00.png"],
+    "DisplayInfo": "native-v1/xiaoya-native-final19-20261011.cdi3.json",
+    "MotionSync": "native-v1/xiaoya.motionsync3.json",
     "Expressions": [
-      { "Name": "listening", "File": "expressions/listening.exp3.json" },
-      { "Name": "thinking", "File": "expressions/thinking.exp3.json" },
-      { "Name": "happy", "File": "expressions/happy.exp3.json" },
-      { "Name": "concerned", "File": "expressions/concerned.exp3.json" },
-      { "Name": "gentle", "File": "expressions/gentle.exp3.json" },
-      { "Name": "curious", "File": "expressions/curious.exp3.json" },
-      { "Name": "shy", "File": "expressions/shy.exp3.json" },
-      { "Name": "surprised", "File": "expressions/surprised.exp3.json" }
+      {
+        "Name": "concerned",
+        "File": "native-v1/expressions/concerned.exp3.json"
+      },
+      {
+        "Name": "curious",
+        "File": "native-v1/expressions/curious.exp3.json"
+      },
+      {
+        "Name": "gentle",
+        "File": "native-v1/expressions/gentle.exp3.json"
+      },
+      {
+        "Name": "happy",
+        "File": "native-v1/expressions/happy.exp3.json"
+      },
+      {
+        "Name": "listening",
+        "File": "native-v1/expressions/listening.exp3.json"
+      },
+      {
+        "Name": "shy",
+        "File": "native-v1/expressions/shy.exp3.json"
+      },
+      {
+        "Name": "surprised",
+        "File": "native-v1/expressions/surprised.exp3.json"
+      },
+      {
+        "Name": "thinking",
+        "File": "native-v1/expressions/thinking.exp3.json"
+      }
     ],
+    "Physics": "native-v1/xiaoya.physics3.json",
     "Motions": {
-      "Idle": [{ "File": "motions/idle.motion3.json", "FadeInTime": 0.6, "FadeOutTime": 0.6 }],
+      "Idle": [
+        {
+          "File": "native-v1/motions/idle.motion3.json",
+          "FadeInTime": 0.6,
+          "FadeOutTime": 0.6
+        }
+      ],
       "Speaking": [
-        { "File": "motions/speaking.motion3.json", "FadeInTime": 0.4, "FadeOutTime": 0.4 }
+        {
+          "File": "native-v1/motions/speaking.motion3.json",
+          "FadeInTime": 0.4,
+          "FadeOutTime": 0.4
+        }
       ]
     }
   },
   "Groups": [
-    { "Target": "Parameter", "Name": "EyeBlink", "Ids": ["ParamEyeLOpen", "ParamEyeROpen"] },
-    { "Target": "Parameter", "Name": "LipSync", "Ids": ["ParamMouthOpenY"] }
+    {
+      "Target": "Parameter",
+      "Name": "EyeBlink",
+      "Ids": ["ParamEyeLOpen", "ParamEyeROpen"]
+    },
+    {
+      "Target": "Parameter",
+      "Name": "LipSync",
+      "Ids": ["ParamMouthOpenY"]
+    }
   ]
 }

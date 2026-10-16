@@ -7,6 +7,7 @@ import {
   RoomEvent,
 } from 'livekit-client';
 import { DeliveryGate, type DeliveryMessage, parseDelivery } from './avatar/delivery';
+import type { PresentationAck } from './avatar/presentation';
 
 /** 房间和两端 SID 共同界定控制通道；就绪和动画共享一次权威快照与取消边界。 */
 export class DeliveryChannel {
@@ -21,6 +22,7 @@ export class DeliveryChannel {
   private messages: readonly DeliveryMessage[] = [];
   private playbackUnavailable: boolean;
   private hidden: boolean;
+  private userSpeaking: boolean;
 
   /** 先订阅后读快照，确保开场在 presence 广播和 RPC 交错时也不会丢失或补演。 */
   constructor(
@@ -32,8 +34,10 @@ export class DeliveryChannel {
     this.localSid = room.localParticipant.sid;
     this.agentSid = agent.sid;
     this.gate = new DeliveryGate(previous);
+    this.gate.setAcknowledgmentSink(this.acknowledge);
     this.playbackUnavailable = !room.canPlaybackAudio;
     this.hidden = document.hidden;
+    this.userSpeaking = room.localParticipant.isSpeaking;
     this.ready = new Promise((resolve) => {
       this.finishReady = resolve;
     });
@@ -70,6 +74,7 @@ export class DeliveryChannel {
     this.controller.abort();
     this.complete(false);
     this.gate.interrupt();
+    this.gate.setAcknowledgmentSink(undefined);
     this.room.off(RoomEvent.DataReceived, this.receive);
     this.room.off(RoomEvent.ConnectionStateChanged, this.connectionChanged);
     this.room.off(RoomEvent.ParticipantDisconnected, this.participantLeft);
@@ -169,6 +174,19 @@ export class DeliveryChannel {
     }
   };
 
+  /** 渲染回执只发往仍然拥有同一 SID 的 Agent，失败不重发或暴露 SDK 请求正文。 */
+  private acknowledge = (ack: PresentationAck): void => {
+    if (this.controller.signal.aborted || !this.isReady || !this.currentConnection()) return;
+    void this.room.localParticipant
+      .performRpc({
+        destinationIdentity: this.agent.identity,
+        method: 'xiaoya.ackPresentation',
+        payload: JSON.stringify(ack),
+        responseTimeout: 1_000,
+      })
+      .catch(() => undefined);
+  };
+
   /** 真正离开 connected 就撤销快照；恢复必须重新建立控制通道。 */
   private connectionChanged = (state: ConnectionState): void => {
     if (state !== ConnectionState.Connected) {
@@ -185,9 +203,11 @@ export class DeliveryChannel {
     }
   };
 
-  /** 用户开口先截断动作，不等待转写或模型响应。 */
+  /** 起声先取消旧执行，但后端先到的当前倾听不因 SDK 的迟到 VU 通知被封存。 */
   private activeSpeakers = (): void => {
-    if (this.room.localParticipant.isSpeaking) this.gate.interruptSpeaking();
+    const speaking = this.room.localParticipant.isSpeaking;
+    if (speaking && !this.userSpeaking) this.gate.interruptForSpeech();
+    this.userSpeaking = speaking;
   };
 
   /** 播放许可丢失和恢复都划定新的表现边界，恢复后不追赶旧手势。 */

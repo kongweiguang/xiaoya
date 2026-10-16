@@ -7,6 +7,10 @@ from urllib.parse import urlsplit
 
 from xiaoya.domain.assistant import AssistantProfile
 
+JEV_BASE_URL = "https://openrouter.ai"
+JEV_MODEL = "typesafe/jev-1.13"
+JEV_PROXY_URL = "http://127.0.0.1:10808"
+
 
 @dataclass(frozen=True, slots=True)
 class Settings:
@@ -28,12 +32,13 @@ class Settings:
     instructions: str = AssistantProfile().instructions
     greeting: str = AssistantProfile().greeting
     mcp_config_file: str = ""
-    jev_base_url: str = "https://api.typesafe.ai"
-    jev_model: str = "jev-1.13.0"
+    jev_base_url: str = JEV_BASE_URL
+    jev_model: str = JEV_MODEL
     jev_api_key: str = field(default="", repr=False)
+    jev_proxy_url: str = JEV_PROXY_URL
 
     def __post_init__(self) -> None:
-        """部署错误在客户端创建前失败，语言只接纳实际 WS 契约；官方密钥只发往 HTTPS。"""
+        """部署错误在客户端创建前失败；Jev 显式走独立代理，不改变语音服务的出口。"""
         for service in ("stt", "tts"):
             _validate_url(
                 getattr(self, f"{service}_base_url"),
@@ -66,20 +71,9 @@ class Settings:
         if self.language not in {"zh", "en"}:
             raise ValueError("VOICE_AGENT_LANGUAGE 仅支持当前流式识别服务的 zh/en")
         if self.jev_api_key:
-            _validate_url(self.jev_base_url, {"https"}, "VOICE_AGENT_JEV_BASE_URL")
-            jev_url = urlsplit(self.jev_base_url)
-            if (
-                jev_url.hostname != "api.typesafe.ai"
-                or jev_url.port not in {None, 443}
-                or jev_url.path not in {"", "/"}
-            ):
-                raise ValueError("VOICE_AGENT_JEV_BASE_URL 仅支持官方 HTTPS 根地址")
-            if (
-                self.jev_model != "jev-1.13.0"
-                or not self.jev_api_key.strip()
-                or self.jev_api_key.strip() == "not-required"
-            ):
-                raise ValueError("Jev 必须使用 jev-1.13.0 与独立真实密钥")
+            validate_jev_configuration(
+                self.jev_base_url, self.jev_model, self.jev_api_key, self.jev_proxy_url
+            )
 
     @property
     def llm_extra_body(self) -> dict[str, object]:
@@ -108,6 +102,20 @@ class Settings:
                 f"缺少配置：{', '.join(missing)}。请在 .env.local 填写模型服务地址和参数。"
             )
         return cls(**values)
+
+
+def validate_jev_configuration(base_url: str, model: str, key: str, proxy_url: str) -> None:
+    """运行与线上验收共用精确供应商契约；代理失败不能回退直连或泄露配置原文。"""
+    _validate_url(base_url, {"https"}, "VOICE_AGENT_JEV_BASE_URL")
+    url = urlsplit(base_url)
+    if url.hostname != "openrouter.ai" or url.port not in {None, 443} or url.path not in {"", "/"}:
+        raise ValueError("VOICE_AGENT_JEV_BASE_URL 仅支持 https://openrouter.ai 根地址")
+    if model != JEV_MODEL or not key.strip() or key.strip() == "not-required":
+        raise ValueError("Jev 必须使用 typesafe/jev-1.13 与独立 OpenRouter 密钥")
+    _validate_url(proxy_url, {"http"}, "VOICE_AGENT_JEV_PROXY_URL")
+    proxy = urlsplit(proxy_url)
+    if proxy.port is None or proxy.path not in {"", "/"}:
+        raise ValueError("VOICE_AGENT_JEV_PROXY_URL 必须显式填写 HTTP 代理地址和端口")
 
 
 def load_agent_name(environ: Mapping[str, str] | None = None) -> str:

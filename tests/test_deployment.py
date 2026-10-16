@@ -7,6 +7,8 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import time
 import wave
 from pathlib import Path
 from types import SimpleNamespace
@@ -416,6 +418,7 @@ function wsl {
     if ($operation -eq 'show') {
         if ($env:XIAOYA_TEST_FAILURE -eq 'type') { 'simple' } else { 'notify' }
     }
+    if ($operation -eq 'active') { 'active'; 'active'; 'active' }
 }
 $succeeded = $false
 try { & $env:XIAOYA_TEST_SCRIPT; $succeeded = $true } catch { }
@@ -439,6 +442,304 @@ try { & $env:XIAOYA_TEST_SCRIPT; $succeeded = $true } catch { }
     }
     assert report["calls"] == expected[failure]
     assert report["succeeded"] is (failure == "none")
+
+
+POWERSHELL_WSL_STUBS = r"""
+$global:wslCalls = [Collections.Generic.List[string]]::new()
+$global:sideEffects = [Collections.Generic.List[string]]::new()
+function uv {
+    # 配置读取由固定结果替代，不读取本机密钥或执行Python环境管理。
+    $global:LASTEXITCODE = 0
+    '1'
+}
+function wsl {
+    # 真实启动器的所有WSL入口都被拦截，来源探测和注册状态之外不访问真实实例。
+    $global:LASTEXITCODE = 0
+    if ($args -contains 'route') { 'default via 172.17.0.1 dev eth0'; return }
+    if ($args -contains 'addr') { '2: eth0 inet 172.17.5.91/20 scope global eth0'; return }
+    if ($args -contains '-c') {
+        $global:wslCalls.Add('proxy')
+        if ($env:XIAOYA_TEST_PROXY_CODE) {
+            [IO.File]::WriteAllText($env:XIAOYA_TEST_PROXY_CODE,
+                [string]$args[[Array]::IndexOf($args, '-c') + 1])
+        }
+        if ($env:XIAOYA_TEST_SCENARIO -eq 'changed') { '1' } else { '0' }
+        return
+    }
+    $operation = if ($args -contains 'show') { 'show' }
+        elseif ($args -contains 'restart') { 'restart' }
+        elseif ($args -contains 'start') { 'start' }
+        elseif ($args -contains 'is-active') { 'active' } else { 'logs' }
+    $global:wslCalls.Add($operation)
+    if ($operation -in @('start', 'restart')) { $global:sideEffects.Add($operation) }
+    if ($operation -eq 'show') { 'notify' }
+    if ($operation -eq 'active') {
+        # systemctl多单元只要一个active就可退出0，不能把混合状态伪造成退出1掩盖入口缺口。
+        switch ($env:XIAOYA_TEST_SCENARIO) {
+            'inactive' { $global:LASTEXITCODE = 1; 'inactive'; 'inactive'; 'inactive' }
+            'partial' { 'active'; 'active'; 'inactive' }
+            'missing' { 'active'; 'active' }
+            'extra' { 'active'; 'active'; 'active'; 'active' }
+            default { 'active'; 'active'; 'active' }
+        }
+    }
+    if ($operation -eq 'logs' -and $env:XIAOYA_TEST_HOLD_FILE) {
+        [IO.File]::WriteAllText($env:XIAOYA_TEST_HOLD_FILE, 'holding')
+        while (-not [IO.File]::Exists($env:XIAOYA_TEST_RELEASE_FILE)) {
+            Start-Sleep -Milliseconds 20
+        }
+    }
+}
+function Get-NetIPAddress {
+    # 不查询真实网络，固定网卡足以执行启动器的NAT来源校验。
+    param($AddressFamily, $IPAddress, $ErrorAction)
+    [PSCustomObject]@{ IPAddress = '172.17.0.1' }
+}
+function Get-NetTCPConnection {
+    # 10818始终由替身占有；不同冲突必须在代理字段写入和服务操作之前被拒绝。
+    param($State, $LocalPort, $ErrorAction)
+    if ($LocalPort -eq 10808) {
+        [PSCustomObject]@{ LocalAddress = '127.0.0.1'; OwningProcess = 900 }
+    } elseif ($env:XIAOYA_TEST_SCENARIO -ne 'no-bridge') {
+        $address = if ($env:XIAOYA_TEST_SCENARIO -eq 'foreign-listen') { '0.0.0.0' }
+            else { '172.17.0.1' }
+        [PSCustomObject]@{ LocalAddress = $address; OwningProcess = 901 }
+    }
+}
+function Get-CimInstance {
+    # 只返回可控归属快照，命令行必须包含真实复制脚本的绝对路径且无多余参数。
+    param($ClassName, $Filter, $Property, $ErrorAction)
+    $folder = Split-Path $env:XIAOYA_TEST_SCRIPT -Parent
+    $script = [IO.Path]::GetFullPath((Join-Path $folder 'jev_proxy_bridge.py'))
+    $executable = [IO.Path]::GetFullPath((Join-Path $folder 'test python/python.exe'))
+    $peer = if ($env:XIAOYA_TEST_SCENARIO -eq 'wrong-peer') { '172.17.5.92' }
+        else { '172.17.5.91' }
+    $gateway = if ($env:XIAOYA_TEST_SCENARIO -eq 'wrong-gateway') { '172.17.0.2' }
+        else { '172.17.0.1' }
+    if ($env:XIAOYA_TEST_SCENARIO -eq 'foreign-script') { $script += '.foreign.py' }
+    $name = if ($env:XIAOYA_TEST_SCENARIO -eq 'foreign-executable') { 'node.exe' }
+        else { 'python.exe' }
+    $line = '"{0}" "{1}" --listen-host {2} --allowed-peer {3} --ready-file "old ready.json"' -f
+        $executable, $script, $gateway, $peer
+    if ($env:XIAOYA_TEST_SCENARIO -eq 'extra-peer') { $line += ' --allowed-peer 172.17.5.91' }
+    [PSCustomObject]@{ Name = $name; ExecutablePath = $executable; CommandLine = $line }
+}
+function Start-Process {
+    # 离线验收中任何实际派生都是失败，不能让测试碰到用户VPN或WSL常驻进程。
+    $global:sideEffects.Add('spawn')
+    throw '离线测试禁止创建真实代理。'
+}
+function Get-Process {
+    # 借用返回值必须没有Owned记录，因此成功复用不能触碰任何PID清理入口。
+    $global:sideEffects.Add('read-process')
+    throw '离线测试禁止读取待关闭的真实进程。'
+}
+function Stop-Process {
+    # 双重拦截保证回归失误也不会停止实际用户进程。
+    $global:sideEffects.Add('stop')
+    throw '离线测试禁止停止真实进程。'
+}
+function Remove-Item {
+    # 旧桥的ready文件不归借用者；这里记录任何误删而不删除磁盘内容。
+    $global:sideEffects.Add('remove-ready')
+}
+$succeeded = $false
+$messages = @()
+$errorType = ''
+try { $messages = @(& $env:XIAOYA_TEST_SCRIPT); $succeeded = $true }
+catch { $errorType = $_.Exception.GetType().Name }
+[PSCustomObject]@{
+    succeeded = $succeeded; calls = @($global:wslCalls)
+    effects = @($global:sideEffects); messages = @($messages); errorType = $errorType
+} | ConvertTo-Json -Compress
+"""
+
+
+def wsl_launcher_fixture(tmp_path: Path, *, configured: bool = True) -> Path:
+    """复制真实入口到含空格的独立项目，既验证绝对路径引用又隔离真实运行锁和私有配置。"""
+    scripts = tmp_path / "offline project with spaces" / "deployment"
+    scripts.mkdir(parents=True)
+    script = scripts / "start-wsl.ps1"
+    shutil.copy2(ROOT / "deployment/start-wsl.ps1", script)
+    if configured:
+        (scripts.parent / ".env.local").write_text("# offline placeholder\n", encoding="utf-8")
+    return script
+
+
+def wsl_launcher_process(script: Path, scenario: str, **environment: str):
+    """执行实际PowerShell控制流，仅系统副作用由替身截断；进程锁仍是操作系统真实互斥量。"""
+    pwsh = shutil.which("pwsh")
+    if pwsh is None:
+        pytest.skip("未安装 PowerShell 7")
+    return subprocess.Popen(
+        [pwsh, "-NoProfile", "-NonInteractive", "-Command", POWERSHELL_WSL_STUBS],
+        env=os.environ
+        | {"XIAOYA_TEST_SCRIPT": str(script), "XIAOYA_TEST_SCENARIO": scenario}
+        | environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+
+
+def wsl_launcher_report(process):
+    """输出最后一行是结构回执，失败不能靠退出码被误判为成功；超时也回收测试自己的进程。"""
+    try:
+        stdout, stderr = process.communicate(timeout=15)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate(timeout=5)
+        raise
+    assert process.returncode == 0, stderr
+    return json.loads(stdout.strip().splitlines()[-1])
+
+
+@pytest.mark.parametrize(
+    "scenario", ["matched", "changed", "inactive", "partial", "missing", "extra"]
+)
+def test_wsl_launcher_borrows_matching_old_bridge_without_spawn_or_cleanup(tmp_path, scenario):
+    """借用只核实三单元全就绪，混合状态退出0或缺少状态也不能宣称注册成功或触碰旧桥。"""
+    script = wsl_launcher_fixture(tmp_path)
+    report = wsl_launcher_report(wsl_launcher_process(script, scenario))
+    expected = ["proxy", "show", *(["restart"] if scenario == "changed" else []), "active"]
+    assert report["calls"] == expected
+    assert report["effects"] == (["restart"] if scenario == "changed" else [])
+    assert report["succeeded"] is (scenario in {"matched", "changed"})
+    if scenario in {"matched", "changed"}:
+        assert "原有日志窗口" in "".join(report["messages"])
+    else:
+        assert report["messages"] == []
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "foreign-listen",
+        "foreign-script",
+        "foreign-executable",
+        "wrong-gateway",
+        "wrong-peer",
+        "extra-peer",
+    ],
+)
+def test_wsl_launcher_rejects_foreign_bridge_before_configuration_or_service_change(
+    tmp_path, scenario
+):
+    """同端口不代表本项目，错误进程、参数或来源均应在代理写入、服务变更和清理之前失败。"""
+    script = wsl_launcher_fixture(tmp_path)
+    report = wsl_launcher_report(wsl_launcher_process(script, scenario))
+    assert not report["succeeded"]
+    assert report["calls"] == report["effects"] == report["messages"] == []
+
+
+def test_wsl_launcher_proxy_update_preserves_unchanged_file(tmp_path, monkeypatch):
+    """执行从真实入口捕获的Python更新表达式，以实际写入调用证明相同地址不会改写env。"""
+    script = wsl_launcher_fixture(tmp_path)
+    expression = tmp_path / "proxy-expression.py"
+    report = wsl_launcher_report(
+        wsl_launcher_process(script, "matched", XIAOYA_TEST_PROXY_CODE=str(expression))
+    )
+    assert report["succeeded"]
+    updates = []
+    configured = {"VOICE_AGENT_JEV_PROXY_URL": "http://172.17.0.1:10818"}
+    fake_dotenv = SimpleNamespace(
+        dotenv_values=lambda _path: configured,
+        set_key=lambda *args, **kwargs: updates.append((args, kwargs)),
+    )
+    monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)
+    monkeypatch.setattr(sys, "argv", ["proxy-update", "http://172.17.0.1:10818"])
+    exec(compile(expression.read_text(encoding="utf-8"), str(expression), "exec"), {})
+    assert updates == []
+    configured["VOICE_AGENT_JEV_PROXY_URL"] = "http://127.0.0.1:10808"
+    exec(compile(expression.read_text(encoding="utf-8"), str(expression), "exec"), {})
+    assert len(updates) == 1
+    assert updates[0][0] == (
+        "/opt/xiaoya/agent/.env.local",
+        "VOICE_AGENT_JEV_PROXY_URL",
+        "http://172.17.0.1:10818",
+    )
+
+
+def test_wsl_launcher_mutex_excludes_second_window_and_releases_after_log_exit(tmp_path):
+    """真实两个PowerShell进程争同一项目锁，重复窗口不探测服务；原日志退出后可再次正常启动。"""
+    script = wsl_launcher_fixture(tmp_path, configured=False)
+    holding, released = tmp_path / "holding", tmp_path / "release"
+    first = wsl_launcher_process(
+        script,
+        "no-bridge",
+        XIAOYA_TEST_HOLD_FILE=str(holding),
+        XIAOYA_TEST_RELEASE_FILE=str(released),
+    )
+    try:
+        deadline = time.monotonic() + 5
+        while not holding.exists() and time.monotonic() < deadline:
+            assert first.poll() is None
+            time.sleep(0.02)
+        assert holding.exists(), "原测试日志窗口未进入持锁状态"
+        duplicate = wsl_launcher_report(wsl_launcher_process(script, "no-bridge"))
+        assert duplicate["succeeded"]
+        assert duplicate["calls"] == duplicate["effects"] == []
+        assert "已有启动窗口" in "".join(duplicate["messages"])
+        assert "就绪" not in "".join(duplicate["messages"])
+        released.write_text("exit", encoding="utf-8")
+        original = wsl_launcher_report(first)
+        assert original["calls"] == ["show", "start", "active", "logs"]
+        again = wsl_launcher_report(wsl_launcher_process(script, "no-bridge"))
+        assert again["succeeded"] and again["calls"] == original["calls"]
+    finally:
+        if first.poll() is None:
+            first.kill()
+            first.communicate(timeout=5)
+
+
+def test_wsl_launcher_recovers_actual_abandoned_operating_system_mutex(tmp_path):
+    """线程持真实项目锁退出制造原生AbandonedMutex异常，启动器必须取得锁而非误判另一个窗口。"""
+    pwsh = shutil.which("pwsh")
+    if pwsh is None:
+        pytest.skip("未安装 PowerShell 7")
+    script = wsl_launcher_fixture(tmp_path, configured=False)
+    command = (
+        POWERSHELL_WSL_STUBS
+        + r"""
+# 点源仍执行真实入口但WSL已拦截，随后可调用其原始锁函数而不复制锁算法。
+$null = . $env:XIAOYA_TEST_SCRIPT
+$original = Enter-XiaoyaLauncherMutex
+if (-not $original) { throw '离线项目锁没有取得' }
+$original.ReleaseMutex()
+Add-Type -TypeDefinition @'
+using System.Threading;
+public static class OfflineMutexOwner {
+    // 持锁线程退出而保留句柄，操作系统产生真正的放弃状态，无需结束任何外部进程。
+    public static void Abandon(Mutex mutex) {
+        var thread = new Thread(() => { mutex.WaitOne(); });
+        thread.Start();
+        thread.Join();
+    }
+}
+'@
+$recovered = $null
+try {
+    [OfflineMutexOwner]::Abandon($original)
+    $recovered = Enter-XiaoyaLauncherMutex
+    if (-not $recovered) { throw '放弃的互斥量没有恢复所有权' }
+    [PSCustomObject]@{ recovered = $true } | ConvertTo-Json -Compress
+} finally {
+    if ($recovered) { $recovered.ReleaseMutex(); $recovered.Dispose() }
+    $original.Dispose()
+}
+"""
+    )
+    result = subprocess.run(
+        [pwsh, "-NoProfile", "-NonInteractive", "-Command", command],
+        env=os.environ | {"XIAOYA_TEST_SCRIPT": str(script), "XIAOYA_TEST_SCENARIO": "no-bridge"},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout.strip().splitlines()[-1]) == {"recovered": True}
 
 
 POWERSHELL_WEB_STUBS = r"""

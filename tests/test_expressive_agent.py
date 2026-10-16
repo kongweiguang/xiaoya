@@ -92,8 +92,29 @@ async def test_streaming_node_preserves_tool_metadata_and_boundaries(monkeypatch
     assert chunks[1].delta.content == "下一步"
 
 
+@pytest.mark.parametrize("use_chunks", [False, True])
+async def test_first_content_timing_precedes_complete_sentence_without_consuming_text(
+    monkeypatch, use_chunks
+):
+    """首内容与首句独立计时且只计一次，空白和元数据不能伪装首响或改变原文提交。"""
+    pieces = ["", " ", "你好", "呀。", "第二句。"]
+    items = (
+        [llm.ChatChunk(id="r", delta=llm.ChoiceDelta(content=part)) for part in pieces]
+        if use_chunks
+        else pieces
+    )
+    monkeypatch.setattr(Agent.default, "llm_node", lambda *args: source(*items))
+    agent = NodeAgent()
+    stages = []
+    agent._timing = stages.append
+    result = [item async for item in agent.llm_node(llm.ChatContext(), [], ModelSettings())]
+    assert stages == ["first_llm_content", "first_semantic_segment"]
+    assert [item for item in result if isinstance(item, str)] == [" 你好呀。", "第二句。"]
+    assert sum(isinstance(item, FlushSentinel) for item in result) == 2
+
+
 async def test_environment_is_ephemeral_and_preserves_tool_history(monkeypatch):
-    """当前事实仅放在临时副本，纯正文历史及工具调用身份不累积额外消息。"""
+    """稳定事实与动态尾部只放临时副本，净历史和工具对象身份不随前缀布局改变。"""
     context = llm.ChatContext()
     context.add_message(role="assistant", content="纯净的已说历史。")
     context.add_message(role="user", content="请好奇地问我一个问题。")
@@ -111,14 +132,29 @@ async def test_environment_is_ephemeral_and_preserves_tool_history(monkeypatch):
         result = [item async for item in NodeAgent().llm_node(context, [], ModelSettings())]
         assert result[0] == "你最近有什么新想法呀？"
     assert context.items == before
-    assert all(generation_context.items[:-1] == before for generation_context in captured)
-    assert all("小芽" in copy.messages()[-1].text_content for copy in captured)
+    assert all(generation_context.items[1:-1] == before for generation_context in captured)
+    assert all(
+        copied is original
+        for generation_context in captured
+        for copied, original in zip(generation_context.items[1:-1], before, strict=True)
+    )
+    assert all("小芽" in copy.messages()[0].text_content for copy in captured)
+    assert all("本次生成的系统时钟快照" in copy.messages()[-1].text_content for copy in captured)
 
 
 async def test_transcription_preserves_plain_spoken_history():
-    """同步器只收到净正文；正常handle完成独立收束音频许可，不借文字EOF执行取消。"""
+    """同步器只收到净正文；公开handle正常且无异常才完成，不借文字EOF执行取消。
+
+    显式模拟公开出生事件，不能靠字幕首次调用懒登记掩盖原轮次缺失。
+    """
     agent = NodeAgent()
-    handle = Mock(id="reply-1", interrupted=False, done=Mock(return_value=False))
+    handle = Mock(
+        id="reply-1",
+        interrupted=False,
+        done=Mock(return_value=False),
+        exception=Mock(return_value=None),
+    )
+    agent.register_speech(handle)
     agent.test_session.current_speech = handle
     agent._delivery = Mock(
         bind_segment=AsyncMock(), cancel_reply=AsyncMock(), finish_reply=AsyncMock()
@@ -138,11 +174,26 @@ async def test_transcription_preserves_plain_spoken_history():
     agent._delivery.finish_reply.assert_awaited_once_with("reply-1")
 
 
+async def test_failed_speech_handle_cannot_seal_completed_conversation():
+    """SDK handle等待不抛生成异常，结束回调必须显式读取公开exception防止失败冒充完成。"""
+    agent = NodeAgent()
+    agent._delivery = Mock(cancel_reply=AsyncMock(), finish_reply=AsyncMock())
+    handle = Mock(id="failed", interrupted=False, exception=Mock(return_value=RuntimeError("tts")))
+    agent._speech_done(handle)
+    await asyncio.gather(*agent._tasks)
+    agent._delivery.cancel_reply.assert_awaited_once_with("failed")
+    agent._delivery.finish_reply.assert_not_awaited()
+
+
 @pytest.mark.parametrize("interrupted,done", [(True, False), (False, True)])
 async def test_stale_transcription_cannot_write_into_newer_reply(interrupted, done):
-    """旧回调返回时丢弃旧正文，而不是写入已经切到新回复的字幕输出。"""
+    """旧回调返回时丢弃旧正文，而不是写入已经切到新回复的字幕输出。
+
+    显式模拟公开出生事件，不能靠字幕首次调用懒登记掩盖原轮次缺失。
+    """
     agent = NodeAgent()
     handle = Mock(id="old", interrupted=interrupted, done=Mock(return_value=done))
+    agent.register_speech(handle)
     agent.test_session.current_speech = handle
     agent._delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock())
     result = [item async for item in agent.transcription_node(source("旧内容。"), ModelSettings())]
@@ -158,9 +209,13 @@ async def test_stale_transcription_cannot_write_into_newer_reply(interrupted, do
 async def test_transcription_rechecks_permission_after_first_segment(
     change: str, suffix: str, delivery_enabled: bool
 ) -> None:
-    """首段许可不能授权后续文本；普通句段、EOF 尾句与符号在房间和 console 都重新核对。"""
+    """首段许可不能授权后续文本；普通句段、EOF 尾句与符号在房间和 console 都重新核对。
+
+    显式模拟公开出生事件，不能靠字幕首次调用懒登记掩盖原轮次缺失。
+    """
     agent = NodeAgent()
     handle = Mock(id="old", interrupted=False, done=Mock(return_value=False))
+    agent.register_speech(handle)
     agent.test_session.current_speech = handle
     delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock(), aclose=AsyncMock())
     agent._delivery = delivery if delivery_enabled else None
@@ -192,9 +247,13 @@ async def test_transcription_rechecks_permission_after_first_segment(
 
 
 async def test_transcription_keeps_symbols_without_consuming_first_spoken_binding():
-    """符号只进入正文，首个可朗读片段才建立身份，后续闭括号不会重新绑定或丢失。"""
+    """符号只进入正文，首个可朗读片段才建立身份，后续闭括号不会重新绑定或丢失。
+
+    显式模拟公开出生事件，不能靠字幕首次调用懒登记掩盖原轮次缺失。
+    """
     agent = NodeAgent()
     handle = Mock(id="reply", interrupted=False, done=Mock(return_value=False))
+    agent.register_speech(handle)
     agent.test_session.current_speech = handle
     agent._delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock())
     result = [
@@ -205,9 +264,13 @@ async def test_transcription_keeps_symbols_without_consuming_first_spoken_bindin
 
 
 async def test_permission_revoked_while_binding_cannot_commit_text():
-    """异步装饰边界返回前许可也可能变化，绑定结果不能替代提交前的最后身份校验。"""
+    """异步装饰边界返回前许可也可能变化，绑定结果不能替代提交前的最后身份校验。
+
+    显式模拟公开出生事件，不能靠字幕首次调用懒登记掩盖原轮次缺失。
+    """
     agent = NodeAgent()
     handle = Mock(id="reply", interrupted=False, done=Mock(return_value=False))
+    agent.register_speech(handle)
     agent.test_session.current_speech = handle
 
     async def interrupted_binding(*_args):
@@ -228,11 +291,15 @@ async def test_permission_revoked_while_binding_cannot_commit_text():
 async def test_failed_or_cancelled_nodes_never_commit_buffered_body(
     monkeypatch: pytest.MonkeyPatch, node: str, failure: BaseException
 ) -> None:
-    """源异常直接传播而不 finish 缓冲，取消和故障都不能把尚未提交的半句补说或补演。"""
+    """源异常直接传播而不 finish 缓冲，取消和故障都不能把尚未提交的半句补说或补演。
+
+    显式模拟公开出生事件，不能靠字幕首次调用懒登记掩盖原轮次缺失。
+    """
     agent = NodeAgent()
     agent.test_session.current_speech = Mock(
         id="reply", interrupted=False, done=Mock(return_value=False)
     )
+    agent.register_speech(agent.test_session.current_speech)
     agent._delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock())
     synthesized = Mock(return_value=source("unexpected-frame"))
     monkeypatch.setattr(agent, "_synthesize", synthesized)
@@ -425,7 +492,10 @@ async def test_markdown_is_filtered_only_at_audio_boundary():
 
 
 async def test_identical_precomputed_text_keeps_committed_voice_order_for_transcription():
-    """下一段同字正文可提前合成；字幕稍后绑定时必须按真实 HTTP 顺序消费冻结声音。"""
+    """下一段同字正文可提前合成；字幕稍后绑定时必须按真实 HTTP 顺序消费冻结声音。
+
+    显式模拟公开出生事件，不能靠字幕首次调用懒登记掩盖原轮次缺失。
+    """
     happy = Mock(synthesize=Mock(return_value=SynthesisStream(["happy-frame"])))
     gentle = Mock(synthesize=Mock(return_value=SynthesisStream(["gentle-frame"])))
     agent = NodeAgent(voices={"happy": happy, "gentle": gentle}, style="happy")
@@ -439,6 +509,7 @@ async def test_identical_precomputed_text_keeps_committed_voice_order_for_transc
         DeliveryIntent("gentle"),
     ]
     handle = Mock(id="reply", interrupted=False, done=Mock(return_value=False))
+    agent.register_speech(handle)
     agent.test_session.current_speech = handle
     agent._delivery = Mock(bind_segment=AsyncMock(), cancel_reply=AsyncMock(), aclose=AsyncMock())
     for _ in range(2):

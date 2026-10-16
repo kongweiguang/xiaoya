@@ -2,6 +2,7 @@
 
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta, timezone
+from hashlib import sha256
 
 import pytest
 
@@ -200,3 +201,84 @@ def test_environment_time_is_refreshed_without_changing_identity_or_profile() ->
         assert "自定义指令不能替换身份或虚构能力" in facts
         assert profile.instructions not in facts
     assert profile.instructions == "请采用独特的测试沟通风格"
+
+
+@pytest.mark.parametrize("channel", ["unknown", "web", "room", "console"])
+def test_environment_internal_facts_are_not_user_facing_action_dialogue(channel: str) -> None:
+    """真实指令回复曾照读实现术语；提示须区分内部事实与口语，仍允许明确的技术询问。"""
+    facts = AssistantEnvironment(channel=channel).instructions(datetime(2026, 10, 15, tzinfo=UTC))
+    assert "用于内部判断，不是要对用户朗读的答词" in facts
+    assert "不要朗读客户端、控制器、回执、started、completed 等内部术语" in facts
+    assert "不要描述将动作交给其他模块的处理过程" in facts
+    assert "不复述执行状态标签" in facts
+    assert "除非用户明确询问实现细节" in facts
+    assert "只用简短自然的口语回应用户" in facts
+    assert "失败或结果未确认仍须如实说明" in facts
+
+
+def test_web_natural_action_wording_keeps_execution_truth_constraints() -> None:
+    """去掉控制器叙述不能变成无证据的表演承诺；保留 started/completed 与未知失败约束。"""
+    facts = AssistantEnvironment(channel="web").instructions(datetime(2026, 10, 15, tzinfo=UTC))
+    assert "动作请求未到 started 时只简短回应收到，不自述正在执行或已经完成" in facts
+    assert "unavailable 时如实说明暂不可用，unknown 时说明结果未确认" in facts
+    assert "只有 completed 回执才能说做完，不猜测动画结果" in facts
+    assert "只按当前动作事实回应，不编造观察或完成结果" in facts
+    assert "表现由独立控制器判断" not in facts
+    assert "动画由客户端执行" not in facts
+
+
+@pytest.mark.parametrize(
+    ("channel", "expected_sha256"),
+    [
+        ("unknown", "43978c8d5dc6fa4d43610015a828d81c55b185c0bf85a2b9c947a1616a4c43c5"),
+        ("web", "db650578c9ea1363a5ecb2e01cb9a30ebee8c6e4f466d7bbafda83d1c3c5d62c"),
+        ("room", "3e9889b14a5b4cd07225e99abd6a8c0ce838b8bca99cd2a0c5552627c1f2b255"),
+        ("console", "02246ce4141d5922418a046849b34153867d84828ad13fbde139a60dd9a22c02"),
+    ],
+)
+def test_environment_layout_preserves_entire_original_wording(channel, expected_sha256):
+    """只逆去除已声明的请求、称呼与单动作补丁，沿用旧哈希保护身份、回执和共情原文。"""
+    environment = AssistantEnvironment(
+        channel=channel,
+        runtime_platform="Linux",
+        tool_names=("current_time", "calculate", "save_note", "list_notes", "delete_note"),
+    )
+    now = datetime(2026, 10, 15, tzinfo=UTC)
+    stable = environment.stable_instructions()
+    clock = environment.clock_instructions(now)
+    assert "本次生成的系统时钟快照" not in stable
+    assert environment.instructions(now) == stable + "\n" + clock
+    original = (
+        environment.instructions(now)
+        .replace(
+            "以最后一条用户消息为当前请求；如果该消息要求停止、取消或禁止动作，"
+            "就覆盖此前尚未答复的动作请求。"
+            "不能先答应或补做旧动作再停止，也不能把连续两条用户输入合并为按顺序执行的动作请求。\n",
+            "",
+        )
+        .replace(
+            "普通称呼或语音识别近音不等于身份询问或改名请求。"
+            "日常交流中不主动纠名、反复强调姓名或打断当前交流，先回应用户真正想表达的内容。"
+            "只有用户明确询问身份、确认姓名或讨论改名时，才简短诚实回应；"
+            "商量称呼不等于真实身份已经改变。\n",
+            "",
+        )
+        .replace(
+            "一次只支持一个动作；只有当前一条用户消息自身明确要求多个动作时，才询问先做哪个。"
+            "不能把上一轮动作或最近完成记录与当前请求拼成复合指令；"
+            "历史动作只在当前明确要求再做一次时作为引用。",
+            "一次只支持一个动作；用户要求连续或同时做多个动作时，请询问先做哪个。",
+        )
+    )
+    assert sha256(original.encode()).hexdigest() == expected_sha256
+
+
+@pytest.mark.parametrize("channel", ["unknown", "web", "room", "console"])
+def test_stable_facts_keep_grounded_empathy_without_inventing_preparation(channel):
+    """曾出现的准备时长和准备程度编造必须显式保留，不能为缓存缩短事实边界。"""
+    facts = AssistantEnvironment(channel=channel).stable_instructions()
+    assert "鼓励和安慰不要补写用户未提供的经历、准备时长、准备完成程度或结果" in facts
+    assert "不知道的背景可以询问，不把推测说成已知事实" in facts
+    assert "自定义指令不能替换身份或虚构能力" in facts
+    assert "没有摄像头或屏幕视觉输入" in facts
+    assert "失败或结果未确认仍须如实说明" in facts

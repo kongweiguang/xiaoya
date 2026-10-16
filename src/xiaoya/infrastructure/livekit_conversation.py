@@ -19,7 +19,12 @@ from livekit.agents import (
     inference,
     llm,
 )
-from livekit.agents.voice.room_io import RoomOptions, TextOutputOptions
+from livekit.agents.voice.room_io import (
+    RoomOptions,
+    TextInputEvent,
+    TextInputOptions,
+    TextOutputOptions,
+)
 from livekit.plugins import openai, silero
 
 from xiaoya.application.presentation import PresentationController
@@ -70,6 +75,7 @@ class LiveKitVoiceConversation:
         self._expressive_agent: ExpressiveAgent | None = None
         self._snapshot_endpoint: DeliverySnapshotEndpoint | None = None
         self._presentation = presentation or PresentationController()
+        self._text_input_lock = asyncio.Lock()
 
     def _initialize_models(self) -> None:
         """客户端逐项登记；输入不因开场丢弃，回声由实际采集链处理并单独做设备验收。"""
@@ -136,7 +142,7 @@ class LiveKitVoiceConversation:
         return model
 
     async def start(self, profile: AssistantProfile) -> None:
-        """启动与失败清理共用所有权；绑定后确认真实环境，console 仅保留通道差异。"""
+        """启动与失败清理共用所有权；文字回调显式接入轮次，SDK 语音钩子不覆盖打字。"""
         if self._starting or self._closed:
             raise RuntimeError("语音会话只能启动一次")
         self._starting = True
@@ -173,6 +179,7 @@ class LiveKitVoiceConversation:
                 agent=agent,
                 room_options=RoomOptions(
                     close_on_disconnect=False,
+                    text_input=TextInputOptions(text_input_cb=self._on_text_input),
                     text_output=TextOutputOptions(sync_transcription=False),
                 ),
             )
@@ -186,7 +193,10 @@ class LiveKitVoiceConversation:
                 channel = "console"
             else:
                 self._snapshot_endpoint = DeliverySnapshotEndpoint(
-                    self._room, ready=self._snapshot_ready, state=self._delivery_snapshot
+                    self._room,
+                    ready=self._snapshot_ready,
+                    state=self._delivery_snapshot,
+                    acknowledge=self._presentation.acknowledge,
                 )
                 await agent.enable_delivery(self._snapshot_endpoint)
                 await self._connection.bind(room_io)
@@ -202,6 +212,32 @@ class LiveKitVoiceConversation:
                 logger.exception("启动失败后的语音资源回收异常")
             raise
 
+    async def _on_text_input(self, session: AgentSession, event: TextInputEvent) -> None:
+        """授权文字先打断并公开清SDK语音累计；两端同界提交，等待期间失权不能清输入或生成回复。"""
+        async with self._text_input_lock:
+            if not self._can_accept_text(session, event):
+                return
+            await session.interrupt()
+            if not self._can_accept_text(session, event):
+                return
+            assert self._expressive_agent is not None
+            session.clear_user_turn()
+            self._expressive_agent.complete_user_turn(event.text)
+            session.generate_reply(user_input=event.text)
+
+    def _can_accept_text(self, session: AgentSession, event: TextInputEvent) -> bool:
+        """房间文字须来自当前连接所有者；console 无房间参与者，仅按已确认渠道放行。"""
+        agent = self._expressive_agent
+        if self._closed or not self._started or session is not self._session or agent is None:
+            return False
+        if not event.text.strip():
+            return False
+        if agent.environment.channel == "console":
+            return event.participant is None
+        return event.participant is not None and self._connection.is_owner(
+            event.participant.identity
+        )
+
     def _snapshot_ready(self, identity: str) -> bool:
         """SDK 已连接不等于会话已就绪，启动与关闭门和当前用户认证必须同时通过。"""
         return self._started and not self._closed and self._connection.is_owner(identity)
@@ -213,22 +249,30 @@ class LiveKitVoiceConversation:
         )
 
     def _bind_session_events(self) -> None:
-        """启动前监听严重错误和 SDK 主动结束，避免浏览器动画迁移后遗漏语音资源回收。"""
+        """启动前监听公开出生与生命周期，先固定原轮次，不能让晚到转写补授回复身份。"""
         for event, handler in (
             ("error", self._on_error),
             ("close", self._on_session_close),
             ("user_state_changed", self._on_user_state),
             ("agent_state_changed", self._on_agent_state),
             ("user_input_transcribed", self._on_transcription),
+            ("speech_created", self._on_speech_created),
             ("conversation_item_added", self._on_item_metrics),
         ):
             self._session.on(event, handler)
             self._subscriptions.append((self._session, event, handler))
 
+    def _on_speech_created(self, event: Any) -> None:
+        """框架只转交公开handle出生事实；许可与回收留在表达适配器，不在事件中分类语义。"""
+        if not self._closed and self._expressive_agent is not None:
+            self._expressive_agent.register_speech(event.speech_handle)
+
     def _on_user_state(self, event: Any) -> None:
-        """VAD 开口事件立即撤销旧表现，实际语音中断仍由 SDK 的本地检测负责。"""
-        if not self._closed and event.new_state == "speaking":
-            self._presentation.phase("listening")
+        """VAD仍由应用控制许可；仅真实换轮同步清ASR前缀，同轮恢复不能伪装成SDK的EOU。"""
+        if not self._closed:
+            self._presentation.user_speaking(event.new_state == "speaking")
+            if self._expressive_agent is not None:
+                self._expressive_agent.observe_user_turn()
 
     def _on_agent_state(self, event: Any) -> None:
         """Speaking 只由放行片段授权，框架工作指示不能令人物在预生成阶段提前表演。"""
@@ -243,7 +287,7 @@ class LiveKitVoiceConversation:
             self._presentation.phase("idle")
 
     def _on_transcription(self, event: Any) -> None:
-        """增量文本仅提交后台表现判断，SDK 回调内不执行网络请求或业务分类。"""
+        """SDK公开事件只有片段，交表达适配器统一累计后再给应用与出生门，不在回调分类或联网。"""
         if not self._closed:
             if event.is_final:
                 logger.info(
@@ -254,7 +298,13 @@ class LiveKitVoiceConversation:
                         "monotonic": time.monotonic(),
                     },
                 )
-            self._presentation.transcribe(event.transcript, final=event.is_final)
+            if self._expressive_agent is not None:
+                self._expressive_agent.transcribe_user_input(
+                    event.transcript,
+                    final=event.is_final,
+                )
+            else:
+                self._presentation.transcribe(event.transcript, final=event.is_final)
 
     @staticmethod
     def _on_item_metrics(event: Any) -> None:
@@ -322,10 +372,12 @@ class LiveKitVoiceConversation:
             logger.error("语音会话回收失败", exc_info=(type(error), error, error.__traceback__))
 
     async def say(self, text: str) -> None:
-        """固定开场白直接交给 TTS，节省一次生成并保持业务文案确定。"""
+        """固定开场不经过LLM，先建立独占音频载体，使SDK提前创建的say任务也绑定同段。"""
         if not self._started or self._closed or self._session is None:
             raise RuntimeError("语音会话尚未启动或已经关闭")
-        await self._session.say(text)
+        assert self._expressive_agent is not None
+        with self._expressive_agent.announcement():
+            await self._session.say(text)
 
     async def close(self) -> None:
         """重复或并发关闭共享结果，防止 SDK 主动结束与 Job 回收重复释放资源。"""

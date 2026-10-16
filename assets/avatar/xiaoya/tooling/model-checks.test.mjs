@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { validateModel } from './validate-model.mjs';
 
 const directory = path.resolve(import.meta.dirname, '../../../../web/public/avatar/xiaoya');
-const poster = 'concept-v1/poster.png';
+const poster = 'native-v1/poster.png';
 
 /** 只复制当前资产到测试专属目录；破坏性样例绝不修改浏览器正在使用的运行包。 */
 function isolatedPackage(context) {
@@ -27,15 +27,17 @@ function isolatedPackage(context) {
   return model;
 }
 
-/** 当前海报与真实 Core 一起留证，未使用的根海报不能替代浏览器的实际后备图。 */
+/** 参数、完整动作身份和真实顶点同时通过，避免旧协议被静默丢弃仍凭微动报告35组合成功。 */
 test('当前资产实时验证 19 参数和 35 种表现组合', async () => {
-  const report = await validateModel(directory);
+  const report = await validateModel(directory, { stable: true });
   assert.equal(report.parameterCount, 19);
   assert.equal(report.styleGestureCombinations, 35);
   assert.equal(report.combinationFrames, 35 * 181);
   assert.equal(report.mouthParametersExclusive, true);
   assert.equal(report.officialEditorVerificationIncluded, false);
-  assert.equal(report.ordinaryParameterCount + report.blendShapeCount, 19);
+  assert.equal(report.ordinaryParameterCount, 19);
+  assert.equal(report.blendShapeCount, 0);
+  assert.equal(report.stableContract, true);
   assert.equal(report.poster, poster);
   assert.deepEqual(report.assets.find(asset => asset.file === poster), {
     file: poster,
@@ -44,6 +46,24 @@ test('当前资产实时验证 19 参数和 35 种表现组合', async () => {
   assert.equal(report.assets.some(asset => asset.file === 'poster.png'), false);
   for (const parameter of Object.values(report.parameterChecks))
     assert.ok(parameter.displacementPixels >= 0.01);
+  assert.equal(report.minimumRaisedArmPixels, 100);
+  assert.ok(report.parameterChecks.ParamArmL.raisedArmPixels > 100);
+  assert.ok(report.parameterChecks.ParamArmR.raisedArmPixels > 100);
+  assert.equal(report.combinationChecks.length, 35);
+  const identities = new Set();
+  for (const combination of report.combinationChecks) {
+    assert.ok(combination.primaryPeak > 0);
+    assert.ok(combination.displacementPixels > 1);
+    assert.deepEqual(combination.acknowledgments.map(ack => ack.status), ['started', 'completed']);
+    assert.ok(combination.acknowledgments.every(ack => ack.gesture_id === combination.gestureId));
+    identities.add(combination.gestureId);
+    if (combination.gesture === 'wave') assert.ok(combination.displacementPixels > 100);
+    if (combination.gesture === 'shy') {
+      assert.ok(combination.displacementPixels > 40);
+      assert.ok(combination.leftInwardPeak >= 0.3 && combination.rightInwardPeak >= 0.3);
+    }
+  }
+  assert.equal(identities.size, 35);
 });
 
 /** 实际后备图损坏必须失败，即使同包中保留着完整但已不用的根海报也不能补位。 */
@@ -91,18 +111,22 @@ test('显式海报选项必须提供路径', () => {
   }
 });
 
-/** stable 门以实际参数类型决定结果，不能把旧 BlendShape 包当成新普通参数工程。 */
-test('稳定版门独立于普通 Core 可加载检查', async () => {
-  const bytes = fs.readFileSync(path.join(directory, 'xiaoya.model3.json'));
-  const manifest = JSON.parse(bytes);
-  // 当前 manifest 指向历史 concept-v1；候选晋升后此门必须改为严格成功验收。
-  if (manifest.FileReferences.Moc.startsWith('concept-v1/'))
-    await assert.rejects(validateModel(directory, { stable: true }), /不得含 BlendShape/);
-  else {
-    const report = await validateModel(directory, { stable: true });
-    assert.equal(report.ordinaryParameterCount, 19);
-    assert.equal(report.blendShapeCount, 0);
-  }
+/** 晋升后的稳定门必须严格成功，不再用历史manifest分支把旧模型失败包装成测试通过。 */
+test('当前稳定版必须有19普通参数且0 BlendShape', async () => {
+  const report = await validateModel(directory, { stable: true });
+  assert.equal(report.ordinaryParameterCount, 19);
+  assert.equal(report.blendShapeCount, 0);
+  assert.equal(report.stableContract, true);
+});
+
+/** 旧包可被Core加载仍不等于符合表现需求，默认入口也不得放过BlendShape整体微形变。 */
+test('历史整体网格不能再通过正式模型门', async context => {
+  const model = isolatedPackage(context);
+  const manifestFile = path.join(model, 'xiaoya.model3.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestFile));
+  manifest.FileReferences.Moc = 'concept-v1/xiaoya.moc3';
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest));
+  await assert.rejects(validateModel(model), /19普通参数且不得含 BlendShape/);
 });
 
 /** 恶意 manifest 在进入官方二进制前就失败；临时输入不允许读包外文件。 */

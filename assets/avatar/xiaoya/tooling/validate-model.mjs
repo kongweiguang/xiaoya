@@ -9,17 +9,21 @@ const require = createRequire(import.meta.url);
 const { checkPackage } = require('./package-checks.cjs');
 const repository = path.resolve(import.meta.dirname, '../../../..');
 // 当前包的显式约定与浏览器后备图一致；正式换包时一起更新，不从 MOC 目录猜测图片。
-const currentPoster = 'concept-v1/poster.png';
+const currentPoster = 'native-v1/poster.png';
 const ranges = {
   ParamAngleX: [-30, 30, 0], ParamAngleY: [-30, 30, 0], ParamAngleZ: [-30, 30, 0],
   ParamBodyAngleX: [-30, 30, 0], ParamEyeLOpen: [0, 1, 1], ParamEyeROpen: [0, 1, 1],
   ParamEyeBallX: [-1, 1, 0], ParamEyeBallY: [-1, 1, 0], ParamEyeSmile: [0, 1, 0],
   ParamBrowLY: [-1, 1, 0], ParamBrowRY: [-1, 1, 0], ParamBrowLAngle: [-1, 1, 0],
   ParamBrowRAngle: [-1, 1, 0], ParamMouthOpenY: [0, 1, 0], ParamMouthForm: [-1, 1, 0],
-  ParamLeafSwing: [-1, 1, 0], ParamArmL: [-1, 1, 0], ParamArmR: [-1, 1, 0], ParamBreath: [0, 1, 0],
+  ParamLeafSwing: [-1, 1, 0], ParamArmL: [-1, 1, 0], ParamArmR: [-1, 1, 0], ParamBreath: [0, 1, 0.5],
 };
 const styles = ['neutral', 'happy', 'gentle', 'concerned', 'curious', 'shy', 'surprised'];
 const gestures = ['nod', 'tilt', 'wave', 'shy', 'shake'];
+const primaryParameters = { nod: 'ParamAngleY', tilt: 'ParamAngleZ', wave: 'ParamArmL', shy: 'ParamArmL', shake: 'ParamAngleX' };
+const minimumPrimaryPeaks = { nod: 5, tilt: 8, wave: 0.4, shy: 0.3, shake: 8 };
+// 原生候选单臂正向极值为303/329源像素；旧整体网格仅21像素，不能再以数值存在验收挥手。
+const minimumRaisedArmPixels = 100;
 
 /** 不接受包外链接；候选图集可以重排，但引用必须随资产包一起交付。 */
 function asset(directory, relative) {
@@ -68,12 +72,14 @@ function pose(model, values = {}) {
   return vertices;
 }
 
-/** 对所有网格计算最大源像素位移，只证明绑定有效，外观必须另做截图审查。 */
-function displacement(before, after, pixelsPerUnit) {
+/** 比较真实顶点的源像素位移；可限定可见网格，避免不可见部件替代真实肢体发力。 */
+function displacement(before, after, pixelsPerUnit, visible = null) {
   let maximum = 0;
-  for (let mesh = 0; mesh < before.length; mesh++)
+  for (let mesh = 0; mesh < before.length; mesh++) {
+    if (visible && !visible[mesh]) continue;
     for (let vertex = 0; vertex < before[mesh].length; vertex++)
       maximum = Math.max(maximum, Math.abs(before[mesh][vertex] - after[mesh][vertex]) * pixelsPerUnit);
+  }
   return maximum;
 }
 
@@ -96,7 +102,7 @@ function triangleArea(vertices, indices, offset) {
     - (vertices[c] - vertices[a]) * (vertices[b + 1] - vertices[a + 1]);
 }
 
-/** 当前海报显式进入资产闭包；候选可指定自己的图，但不得用历史根海报或目录猜测补位。 */
+/** 正式包必须是19普通参数且有可见发力；受控v3指令与无动作对照隔离表情和微姿态。 */
 export async function validateModel(directory, { stable = false, poster = currentPoster } = {}) {
   const manifest = JSON.parse(asset(directory, 'xiaoya.model3.json'));
   const bytes = asset(directory, manifest.FileReferences.Moc);
@@ -110,7 +116,8 @@ export async function validateModel(directory, { stable = false, poster = curren
     if (!model || model.parameters.count !== 19 || new Set(model.parameters.ids).size !== 19)
       throw new Error('模型必须恰有 19 个独立参数');
     const blendShapeCount = Array.from(model.parameters.types).filter(type => type === core.ParameterType_BlendShape).length;
-    if (stable && blendShapeCount) throw new Error('稳定版候选不得含 BlendShape');
+    const ordinaryParameterCount = Array.from(model.parameters.types).filter(type => type === core.ParameterType_Normal).length;
+    if (blendShapeCount || ordinaryParameterCount !== 19) throw new Error('正式模型必须有19普通参数且不得含 BlendShape');
     if (model.drawables.count > 100) throw new Error('网格数量超出 FREE 限制');
     const parameterChecks = {};
     const baseline = pose(model);
@@ -121,13 +128,20 @@ export async function validateModel(directory, { stable = false, poster = curren
       const context = id === 'ParamMouthForm' ? { ParamMouthOpenY: 1 } : {};
       const neutral = pose(model, context);
       let maximum = 0;
+      let raisedArmPixels = 0;
       for (const value of limits.slice(0, 2)) {
         const vertices = pose(model, { ...context, [id]: value });
         winding(model, baseline, vertices);
         maximum = Math.max(maximum, displacement(neutral, vertices, model.canvasinfo.PixelsPerUnit));
+        if (['ParamArmL', 'ParamArmR'].includes(id) && value === limits[1]) {
+          const visible = Array.from(model.drawables.opacities, opacity => opacity > 0.01);
+          raisedArmPixels = displacement(neutral, vertices, model.canvasinfo.PixelsPerUnit, visible);
+          if (raisedArmPixels <= minimumRaisedArmPixels) throw new Error('手臂可见位移不足100源像素：' + id);
+        }
       }
       if (maximum < 0.01) throw new Error('声明参数无有效绑定：' + id);
-      parameterChecks[id] = { min: limits[0], max: limits[1], default: limits[2], displacementPixels: maximum };
+      parameterChecks[id] = { min: limits[0], max: limits[1], default: limits[2], displacementPixels: maximum,
+        ...(['ParamArmL', 'ParamArmR'].includes(id) ? { raisedArmPixels } : {}) };
     }
     const expressions = {};
     const { AvatarPresentation, parseAvatarExpression } = await import(pathToFileURL(path.join(repository, 'web/lib/avatar/presentation.ts')));
@@ -136,22 +150,50 @@ export async function validateModel(directory, { stable = false, poster = curren
     for (const style of styles.filter(name => name !== 'neutral'))
       if (!expressions[style]) throw new Error('缺少风格资源：' + style);
     let combinationFrames = 0;
+    const combinationChecks = [];
     for (const style of styles) for (const gesture of gestures) {
       const presentation = new AvatarPresentation(expressions);
+      const control = new AvatarPresentation(expressions);
+      const identity = `model-verification:${style}:${gesture}`;
+      const delivery = { instance: 'official-model-verification', id: `${identity}:delivery`,
+        replyKey: identity, style, gesture, phase: 'speaking', turnId: identity,
+        segmentKey: `${identity}:segment`, gestureId: `${identity}:command`, gestureSource: 'command', energy: 0.8 };
+      const comparison = { ...delivery, id: `${identity}:control`, gesture: 'none', gestureId: '', gestureSource: 'none' };
+      const acknowledgments = [];
+      let primaryPeak = 0, displacementPixels = 0, leftInwardPeak = 0, rightInwardPeak = 0;
       for (let frame = 0; frame <= 180; frame++) {
-        const values = presentation.advance({ time: frame / 60, delta: 1 / 60, behavior: 'speaking',
-          delivery: { id: `${style}:${gesture}`, replyKey: 'verification', style, gesture },
+        const input = { time: frame / 60, delta: 1 / 60, behavior: 'speaking',
           gaze: { x: Math.sin(frame), y: Math.cos(frame) }, blink: frame % 20 < 2 ? 0 : 1,
-          lip: { open: frame % 3 / 2, form: frame % 3 - 1 } });
-        winding(model, baseline, pose(model, values));
+          lip: { open: frame % 3 / 2, form: frame % 3 - 1 } };
+        const values = presentation.advance({ ...input, delivery });
+        const reference = control.advance({ ...input, delivery: comparison });
+        const controlVertices = pose(model, reference);
+        const vertices = pose(model, values);
+        winding(model, baseline, vertices);
+        const visible = Array.from(model.drawables.opacities, opacity => opacity > 0.01);
+        displacementPixels = Math.max(displacementPixels, displacement(controlVertices, vertices, model.canvasinfo.PixelsPerUnit, visible));
+        primaryPeak = Math.max(primaryPeak, Math.abs(values[primaryParameters[gesture]] - reference[primaryParameters[gesture]]));
+        leftInwardPeak = Math.max(leftInwardPeak, reference.ParamArmL - values.ParamArmL);
+        rightInwardPeak = Math.max(rightInwardPeak, reference.ParamArmR - values.ParamArmR);
+        acknowledgments.push(...presentation.drainAcknowledgments());
         combinationFrames++;
       }
+      if (acknowledgments.map(ack => ack.status).join(',') !== 'started,completed' ||
+          acknowledgments.some(ack => ack.instance !== delivery.instance || ack.turn_id !== delivery.turnId || ack.gesture_id !== delivery.gestureId))
+        throw new Error('组合动作未完整执行：' + identity);
+      if (primaryPeak < minimumPrimaryPeaks[gesture] || displacementPixels <= (gesture === 'wave' ? minimumRaisedArmPixels : gesture === 'shy' ? 40 : 1) ||
+          (gesture === 'shy' && Math.min(leftInwardPeak, rightInwardPeak) < 0.3))
+        throw new Error('组合动作缺少实际顶点发力：' + identity);
+      combinationChecks.push({ style, gesture, gestureId: delivery.gestureId, acknowledgments,
+        primaryPeak, displacementPixels, leftInwardPeak, rightInwardPeak });
     }
     const coreReport = { consistency: true, sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
       parameterCount: 19, parameterChecks };
     const packageReport = checkPackage(directory, coreReport, { poster });
-    return { ...packageReport, blendShapeCount, ordinaryParameterCount: 19 - blendShapeCount,
-      stableContract: stable, styleGestureCombinations: 35, combinationFrames, parameterChecks,
+    return { ...packageReport, blendShapeCount, ordinaryParameterCount,
+      stableContract: stable, styleGestureCombinations: 35, combinationFrames, combinationChecks,
+      minimumRaisedArmPixels, parameterChecks,
+      combinationEvidence: 'controlled v3 command identities and controller acknowledgments with official Core vertices; no live room, actual PCM or pixel acceptance',
       officialEditorVerificationIncluded: false, visualAndEditorReviewRequired: true };
   } finally {
     model?.release();

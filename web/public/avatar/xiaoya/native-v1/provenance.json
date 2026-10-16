@@ -1,0 +1,17 @@
+{
+  "package": "xiaoya-native-v1",
+  "editor": "Live2D Cubism Editor 5.3.04",
+  "parameter_count": 19,
+  "blend_shape_count": 0,
+  "drawable_count": 18,
+  "source_checkpoint": "assets/avatar/xiaoya/stable-5.3/xiaoya-native-final19-checkpoint-20261011.cmo3",
+  "source_checkpoint_sha256": "003f552f4cc9ba1409fa8e95a86acdd7a345315f79935876325da913dc55b9e7",
+  "moc_sha256": "601c6d70eab756fd2265973533a3315b0e7fc5440770a0effd2495c300bae0dc",
+  "texture_sha256": "599a76def49e55a128fe7e7c3de6573e969c03d350e017b58ee019f0575bf67a",
+  "poster_sha256": "eab16cae407815bc2cde703f9594c19b7373376830c71045ec67ab483454c1ea",
+  "poster_source": "Neutral default pose, exported immediately after the production renderer draw, 1254x1254 transparent PNG",
+  "official_roundtrip_export_verified": true,
+  "free_mode_save_verified": false,
+  "presentation_configuration": "Project expressions, MotionSync, physics and idle motion; mouth parameters remain owned by actual PCM",
+  "previous_runtime_preserved": "../concept-v1"
+}

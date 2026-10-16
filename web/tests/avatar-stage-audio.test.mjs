@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { afterEach, test } from 'node:test';
 import { AudioEnvelopeTimeline } from '../lib/avatar/audio-bridge.ts';
 import { DeliveryGate } from '../lib/avatar/delivery.ts';
@@ -247,7 +248,7 @@ test('倾听微表情不要求音轨或可听上下文，说话仍保留播放�
   assert.equal(read(), null);
 });
 
-/** 使用合法 v2 字幕绑定当前回复；测试不能绕过身份门直接给舞台注入表现对象。 */
+/** 使用合法 v3 字幕绑定当前回复；测试不能绕过身份门直接给舞台注入表现对象。 */
 async function authorizeReply(view, revision, reply, overrides = {}) {
   const state = delivery(revision, {
     state: 'active',
@@ -258,8 +259,8 @@ async function authorizeReply(view, revision, reply, overrides = {}) {
     gesture: 'nod',
     ...overrides,
   });
-  if (revision === 1) view.input.delivery.current.snapshot(state);
-  else view.input.delivery.current.receive(state);
+  if (revision === 1) view.input.delivery.current.snapshot(delivery(0));
+  await settle(() => view.input.delivery.current.receive(state));
   const messages = [
     {
       id: state.segment_id,
@@ -288,6 +289,256 @@ test('已匹配新回复的未来 PCM 保留到实际输出时间，不额外等
   view.input.audio.context.currentTime = 0.06;
   assert.equal(callbacks.readLip().open, 0.87);
   assert.equal(callbacks.readDelivery().gesture, 'nod');
+});
+
+/** 工具阶段的SDK暂停不同于设备失效；可靠新段可先到，但仅自己的新PCM才能重新张嘴。 */
+test('真实舞台工具暂停清旧嘴，新段先于SDK恢复仍可在自身PCM开口', async () => {
+  const view = await stage({ nonzeroLip: true });
+  const callbacks = view.instances[0].callbacks;
+  const gate = view.input.delivery.current;
+  const first = await authorizeReply(view, 1, 'tool-reply');
+  view.input.audio.context.currentTime = 0.1;
+  view.bridges[0].config.onSamples(new Float32Array([0.5]), 24000, 0.1);
+  assert.equal(callbacks.readLip()?.open, 0.87);
+  // 权威新句段先于SDK thinking回调；旧displayed已撤，不能把待播新段误封为旧段。
+  gate.receive({
+    ...first,
+    revision: 2,
+    phase: 'thinking',
+    reply_id: '',
+    segment_id: '',
+    gesture: 'none',
+    gesture_id: '',
+    gesture_source: 'none',
+  });
+  await authorizeReply(view, 3, 'tool-reply', { segment_id: 'tool-next' });
+  view.input = { ...view.input, peer: { ...view.input.peer, state: 'thinking' } };
+  await settle(() => view.update(view.input));
+  assert.equal(callbacks.readLip(), null);
+  assert.equal(callbacks.readDelivery(), null);
+  assert.equal(callbacks.readDelivery(), null, '连续rAF等待不能取消新候选');
+  view.input = { ...view.input, peer: { ...view.input.peer, state: 'speaking' } };
+  await settle(() => view.update(view.input));
+  assert.equal(callbacks.readLip(), null, '旧PCM尾窗不能借给新段');
+  view.input.audio.context.currentTime = 0.2;
+  view.bridges[0].config.onSamples(new Float32Array([0.5]), 24000, 0.2);
+  assert.equal(callbacks.readLip()?.open, 0.87);
+  assert.equal(
+    callbacks.readDelivery()?.segmentKey,
+    JSON.stringify(['job-a', 'tool-reply', 'tool-next'])
+  );
+});
+
+/** 同样的非可听状态若来自真实静音而非SDK阶段，必须维持原整回复撤权而不能工具续说。 */
+test('舞台真实静音后即使同轮新句段和新PCM到达也不解封旧reply', async () => {
+  const view = await stage({ nonzeroLip: true });
+  const callbacks = view.instances[0].callbacks;
+  await authorizeReply(view, 1, 'muted-tool');
+  view.input.audio.context.currentTime = 0.1;
+  view.bridges[0].config.onSamples(new Float32Array([0.5]), 24000, 0.1);
+  assert.equal(callbacks.readLip()?.open, 0.87);
+  view.input.peer.track.isMuted = true;
+  assert.equal(callbacks.readLip(), null);
+  view.input.peer.track.isMuted = false;
+  await authorizeReply(view, 2, 'muted-tool', { segment_id: 'muted-tool-next' });
+  view.input.audio.context.currentTime = 0.2;
+  view.bridges[0].config.onSamples(new Float32Array([0.5]), 24000, 0.2);
+  assert.equal(callbacks.readLip(), null);
+  assert.equal(callbacks.readDelivery(), null);
+});
+
+/** 动作入口不依赖音轨，但口型不能因为指令同处speaking阶段而获得额外许可。 */
+test('指令在无声、无字幕的舞台可见，嘴部仍关闭；静态偏好反馈unavailable', async () => {
+  const view = await stage({ nonzeroLip: true });
+  const gate = view.input.delivery.current;
+  const acknowledgments = [];
+  gate.setAcknowledgmentSink((ack) => acknowledgments.push(ack));
+  await settle(() => {
+    gate.snapshot(delivery(0));
+    gate.receive(
+      delivery(1, {
+        state: 'active',
+        phase: 'speaking',
+        reply_id: 'reply-a',
+        segment_id: 'segment-a',
+        turn_id: 'command-turn',
+        gesture: 'wave',
+        gesture_source: 'command',
+      })
+    );
+  });
+  assert.equal(view.instances[0].callbacks.readDelivery()?.gestureSource, 'command');
+  assert.equal(view.instances[0].callbacks.readLip(), null);
+  assert.equal(acknowledgments.length, 0);
+  await settle(() => {
+    media.matches = true;
+    media.dispatchEvent(new Event('change'));
+  });
+  assert.equal(acknowledgments[0]?.status, 'unavailable');
+  assert.ok(!acknowledgments.some((ack) => ack.status === 'completed'));
+});
+
+/** 失败提示复用原状态区，主动重试只发送同轮实时动作且不自动重放快照。 */
+test('动作失败展示重试入口，发送失败可再点且不会伪造完成回执', async () => {
+  const view = await stage();
+  const gate = view.input.delivery.current;
+  const retried = [];
+  await settle(() => {
+    gate.snapshot(delivery(0));
+    gate.receive(
+      delivery(1, {
+        state: 'active',
+        phase: 'idle',
+        gesture: 'shake',
+        gesture_source: 'command',
+        turn_id: 'command-turn',
+      })
+    );
+    gate.receive(delivery(2, { turn_id: 'command-turn', command_feedback: 'retry' }));
+    view.update({
+      ...view.input,
+      onRetryCommand: async (gesture) => {
+        retried.push(gesture);
+        if (retried.length === 1) throw new Error('send failed');
+      },
+    });
+  });
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '重试动作' })));
+  assert.ok(view.getByText('没能发出去，可以再试一次'));
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '重试动作' })));
+  assert.deepEqual(retried, ['shake', 'shake']);
+});
+
+/** 判断超时并不授权动作；现有提示区说明降级，不能为未知轮展示上一指令的重试按钮。 */
+test('未知轮表现反馈可见且不展示上一轮动作的重试入口', async () => {
+  const view = await stage();
+  const gate = view.input.delivery.current;
+  const retried = [];
+  await settle(() => {
+    gate.snapshot(delivery(0));
+    gate.receive(
+      delivery(1, {
+        state: 'active',
+        phase: 'thinking',
+        turn_id: 'previous-turn',
+        gesture: 'wave',
+        gesture_source: 'command',
+      })
+    );
+    gate.receive(delivery(2, { turn_id: 'unknown-current-turn', command_feedback: 'retry' }));
+    view.update({
+      ...view.input,
+      /** 仅观察真实发送入口，未知判断不得制造动作或自动重发任何用户原文。 */
+      onRetryCommand: async (gesture) => retried.push(gesture),
+    });
+  });
+  assert.ok(view.getByText('表情和动作暂时没连上，聊天可以继续，请稍后再试'));
+  assert.equal(view.container.querySelector('.avatar-note').dataset.active, 'true');
+  assert.equal(view.queryByRole('button', { name: '重试动作' }), null);
+  assert.equal(view.container.querySelector('.avatar-media').dataset.renderer, 'live2d');
+  assert.deepEqual(retried, []);
+});
+
+/** 恢复 GPU 时不能先消耗同轮新指令的开始期限；就绪后仍由用户主动点击，不补发加载期点击。 */
+test('动画恢复加载期间禁用动作重试，就绪后才发送并保留重试入口', async () => {
+  const loading = deferred();
+  const view = await stage({ failFirst: true, loading });
+  const gate = view.input.delivery.current;
+  const retried = [];
+  await settle(() => {
+    gate.snapshot(delivery(0));
+    gate.receive(
+      delivery(1, {
+        state: 'active',
+        phase: 'idle',
+        turn_id: 'command-turn',
+        gesture: 'wave',
+        gesture_source: 'command',
+      })
+    );
+    gate.receive(delivery(2, { turn_id: 'command-turn', command_feedback: 'retry' }));
+    view.update({
+      ...view.input,
+      /** 仅记录真实组件回调，加载期的按钮不能调用发送端口或产生自动补发。 */
+      onRetryCommand: async (gesture) => retried.push(gesture),
+    });
+  });
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '重试动画' })));
+  assert.equal(view.instances.length, 0);
+  assert.ok(view.getByText('小芽正在准备，稍后可重试动作'));
+  assert.equal(view.getByRole('button', { name: '重试动作' }).disabled, true);
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '重试动作' })));
+  assert.deepEqual(retried, []);
+  await settle(() => loading.resolve());
+  assert.equal(view.instances.length, 1);
+  assert.equal(view.getByRole('button', { name: '重试动作' }).disabled, false);
+  assert.deepEqual(retried, []);
+  await settle(() => fireEvent.click(view.getByRole('button', { name: '重试动作' })));
+  assert.deepEqual(retried, ['wave']);
+});
+
+/** jsdom 不执行媒体查询，拆开伪元素分组应用生产手机规则，验证同轮恢复入口未被隐藏。 */
+test('手机紧凑布局保留失败、澄清和动作重试反馈，普通说明仍可隐藏', async () => {
+  const stylesheet = document.createElement('style');
+  const source = readFileSync(new URL('../styles/globals.css', import.meta.url), 'utf8');
+  stylesheet.textContent = source.slice(source.indexOf('@media (max-width: 720px)'));
+  document.head.append(stylesheet);
+  const mobile = Array.from(stylesheet.sheet.cssRules).find(
+    (rule) => rule.conditionText === '(max-width: 720px)'
+  );
+  assert.ok(mobile);
+  stylesheet.textContent = Array.from(mobile.cssRules, (rule) =>
+    rule.selectorText
+      ? rule.selectorText
+          .split(',')
+          .map((selector) => `${selector}{${rule.style.cssText}}`)
+          .join('\n')
+      : rule.cssText
+  ).join('\n');
+  try {
+    const view = await stage();
+    view.container.classList.add('xiaoya-app');
+    view.container.dataset.compactHeight = 'true';
+    const note = view.container.querySelector('.avatar-note');
+    assert.equal(getComputedStyle(note).display, 'none');
+    const gate = view.input.delivery.current;
+    await settle(() => {
+      gate.snapshot(delivery(0));
+      gate.receive(delivery(1, { command_feedback: 'clarify' }));
+    });
+    assert.notEqual(getComputedStyle(note).display, 'none');
+    assert.match(note.textContent, /请告诉我一个具体动作/);
+    await settle(() => {
+      gate.receive(
+        delivery(2, {
+          state: 'active',
+          phase: 'idle',
+          turn_id: 'command-turn',
+          gesture: 'wave',
+          gesture_source: 'command',
+        })
+      );
+      gate.receive(delivery(3, { turn_id: 'command-turn', command_feedback: 'retry' }));
+      view.update({
+        ...view.input,
+        /** 本用例只检验生产反馈布局，不请求模型或构造客户端执行成功。 */
+        onRetryCommand: async () => undefined,
+      });
+    });
+    assert.notEqual(getComputedStyle(note).display, 'none');
+    assert.ok(view.getByRole('button', { name: '重试动作' }));
+    view.unmount();
+    const failed = await stage({ failFirst: true });
+    failed.container.classList.add('xiaoya-app');
+    failed.container.dataset.compactHeight = 'true';
+    assert.notEqual(
+      getComputedStyle(failed.container.querySelector('.avatar-note')).display,
+      'none'
+    );
+    assert.ok(failed.getByRole('button', { name: '重试动画' }));
+  } finally {
+    stylesheet.remove();
+  }
 });
 
 /** 确认原回复真的张嘴后再注入迟到音频；停止的下一读帧即闭嘴，而不是等静音自然衰减。 */

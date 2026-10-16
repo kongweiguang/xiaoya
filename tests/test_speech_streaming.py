@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, Mock
 import aiohttp
 import pytest
 from fastapi.testclient import TestClient
+from livekit import rtc
 from livekit.agents import stt, utils, vad
 
 from xiaoya.infrastructure.streaming_stt import LocalRecognitionStream, LocalStreamingSTT
@@ -69,7 +70,7 @@ async def test_pcm_cancel_closes_model_iterator_in_thread(monkeypatch) -> None:
 
 
 async def test_asr_sends_incremental_frames_without_duplicating_end_buffer() -> None:
-    """VAD END 携带完整音频，但此前已经上传，重复发送会造成识别词语重复。"""
+    """用有效 PCM16 与样本坐标检查 END 整段不重发，保留跨 commit 去重的真实合同。"""
     recognizer = LocalStreamingSTT(
         base_url="http://private/v1",
         model="paraformer-streaming",
@@ -85,14 +86,22 @@ async def test_asr_sends_incremental_frames_without_duplicating_end_buffer() -> 
 
     async def events():
         """前导缓存和后续新块不同，结尾完整缓存只用于比对重复风险。"""
-        for event_type, content in (
-            (vad.VADEventType.START_OF_SPEECH, b"start"),
-            (vad.VADEventType.INFERENCE_DONE, b"new"),
-            (vad.VADEventType.END_OF_SPEECH, b"startnew"),
+        for event_type, content, index in (
+            (vad.VADEventType.START_OF_SPEECH, b"\x01\x00" * 512, 512),
+            (vad.VADEventType.INFERENCE_DONE, b"\x02\x00" * 512, 1024),
+            (vad.VADEventType.END_OF_SPEECH, b"\x01\x00" * 512 + b"\x02\x00" * 512, 1024),
         ):
             yield SimpleNamespace(
                 type=event_type,
-                frames=[SimpleNamespace(data=memoryview(content))],
+                samples_index=index,
+                frames=[
+                    rtc.AudioFrame(
+                        data=content,
+                        sample_rate=16000,
+                        num_channels=1,
+                        samples_per_channel=len(content) // 2,
+                    )
+                ],
                 silence_duration=0.3,
                 inference_duration=0.01,
             )
@@ -104,7 +113,10 @@ async def test_asr_sends_incremental_frames_without_duplicating_end_buffer() -> 
 
     socket = Mock(send_bytes=AsyncMock(), send_json=AsyncMock(side_effect=acknowledge))
     await stream._send_audio(events(), socket)
-    assert [call.args[0] for call in socket.send_bytes.call_args_list] == [b"start", b"new"]
+    assert [call.args[0] for call in socket.send_bytes.call_args_list] == [
+        b"\x01\x00" * 512,
+        b"\x02\x00" * 512,
+    ]
     assert recognizer.url == "ws://private/v1/audio/transcriptions/stream"
 
 

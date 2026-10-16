@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import { RemoteAudioTrack, type Room, RoomEvent } from 'livekit-client';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,9 @@ import type { DeliveryGate, DeliveryMessage } from '@/lib/avatar/delivery';
 import { LipSyncTimeline, getAudibleAudioTime } from '@/lib/avatar/lip-sync';
 import type { AvatarFrame, Live2DRuntime } from '@/lib/avatar/live2d-runtime';
 import type { MotionSyncAnalyzer } from '@/lib/avatar/motion-sync';
+import type { AvatarGesture } from '@/lib/avatar/presentation';
 import type { ConversationPeer } from '@/lib/conversation-controller';
-import avatarPoster from '@/public/avatar/xiaoya/concept-v1/poster.png';
+import avatarPoster from '@/public/avatar/xiaoya/native-v1/poster.png';
 
 interface AvatarStageProps {
   room?: Room;
@@ -29,10 +30,11 @@ interface AvatarStageProps {
   status: string;
   error?: boolean;
   messages?: readonly DeliveryMessage[];
+  onRetryCommand?: (gesture: AvatarGesture) => Promise<unknown>;
 }
 const EMPTY_MESSAGES: readonly DeliveryMessage[] = [];
 
-/** React 只管理加载和恢复；后备图取自同一原画模型的静音帧，加载与降级不切换角色长相。 */
+/** 后备图由当前分层模型的中性绘制导出，避免加载前后换形；执行结果仍只依赖真实渲染回执。 */
 export function AvatarStage({
   room,
   audio,
@@ -43,11 +45,14 @@ export function AvatarStage({
   status,
   error = false,
   messages = EMPTY_MESSAGES,
+  onRetryCommand,
 }: AvatarStageProps) {
   const { state, agent, track } = peer;
   const reducedMotion = useReducedMotionPreference();
   const previousReducedMotion = useRef(reducedMotion);
   const delivery = useAvatarDelivery(deliveryGate, messages, agent?.identity, state, track);
+  const gate = delivery.current;
+  const feedback = useSyncExternalStore(gate.subscribe, gate.getFeedback, gate.getFeedback);
   const canvas = useRef<HTMLCanvasElement>(null);
   const runtime = useRef<Live2DRuntime | null>(null);
   const [timeline] = useState(() => new LipSyncTimeline());
@@ -76,7 +81,15 @@ export function AvatarStage({
   const [failed, setFailed] = useState(false);
   const [analysisMode, setAnalysisMode] = useState('loading');
   const [retry, setRetry] = useState(0);
+  const [retryingCommand, setRetryingCommand] = useState(false);
+  const [commandRetryFailed, setCommandRetryFailed] = useState(false);
   const behavior = selectBehavior({ connected, reconnecting, error, agent: state });
+
+  /** 静态偏好或加载失败也反馈当前指令不可执行，网络侧不会一直等渲染完成。 */
+  useEffect(() => {
+    if (reducedMotion || failed) gate.unavailable();
+    setCommandRetryFailed(false);
+  }, [gate, feedback, reducedMotion, failed]);
 
   /** GPU 仅随动画偏好或显式重试重建，房间和模型的生命周期互不误伤。 */
   useEffect(() => {
@@ -102,7 +115,7 @@ export function AvatarStage({
     let renderObservation: (AvatarFrame & { wall: number; count: number }) | null = null;
     let rendered = 0;
     let playbackWasAvailable = false;
-    /** 口型和动作共用播放身份栅栏；迟到 PCM 不能在倾听、取消或恢复后独自重新授权嘴部。 */
+    /** SDK阶段暂停仅撤已播旧段，设备或可见性失效仍封整回复；两者都立即清嘴与尾窗。 */
     function readPerformance() {
       const current = latest.current;
       const visualAvailable = Boolean(
@@ -112,21 +125,24 @@ export function AvatarStage({
           !current.reducedMotion &&
           !document.hidden
       );
-      const available = Boolean(
+      const playbackCapable = Boolean(
         visualAvailable &&
-          current.state === 'speaking' &&
           current.room?.canPlaybackAudio &&
           current.audio?.context.state === 'running' &&
           current.track &&
           !current.track.isMuted &&
           current.track.mediaStreamTrack.readyState !== 'ended'
       );
+      const available = playbackCapable && current.state === 'speaking';
       // 停止期间到达的尾窗也丢弃，下一回复不能借用取消回复的最近开口帧。
       if (!available) {
         timeline.clear();
         envelopeTimeline.clear();
         // 只有已经实际接管的回复失去许可才取消，初始化不能误封尚未出声的开场。
-        if (playbackWasAvailable) delivery.current.interruptSpeaking();
+        if (playbackWasAvailable) {
+          if (playbackCapable) delivery.current.suspendSpeaking();
+          else delivery.current.interruptSpeaking();
+        }
       }
       const at = current.audio ? getAudibleAudioTime(current.audio.context) : 0;
       const lip = timeline.select(at);
@@ -142,7 +158,13 @@ export function AvatarStage({
         envelopeTimeline.clear();
       }
       playbackWasAvailable = available && selected?.phase === 'speaking';
-      return { available, lip, envelope, selected };
+      return {
+        available,
+        lip,
+        envelope,
+        selected,
+        speechAuthorized: delivery.current.audibleSpeechAuthorized,
+      };
     }
     const timeout = setTimeout(() => {
       timedOut = true;
@@ -164,17 +186,27 @@ export function AvatarStage({
             /** 实际音频与当前回复授权缺一即闭嘴，停止后的下一渲染帧不接受旧尾窗。 */
             readLip() {
               const frame = readPerformance();
-              return frame.available && frame.selected?.phase === 'speaking' ? frame.lip : null;
+              return frame.available && frame.speechAuthorized ? frame.lip : null;
             },
             /** 同步字幕只提供语义锚点，首次手势仍等待用户真正可听的音频窗口。 */
             readDelivery() {
-              const { selected, envelope } = readPerformance();
-              activeDelivery = selected ? { ...selected, audio: envelope } : null;
+              const { selected, envelope, speechAuthorized } = readPerformance();
+              activeDelivery = selected
+                ? {
+                    ...selected,
+                    audio: speechAuthorized ? envelope : { ...envelope, energy: 0, onset: 0 },
+                  }
+                : null;
               return activeDelivery;
+            },
+            /** Runtime 绘制成功后报告实际动作阶段，渲染候选不能直接视为执行完成。 */
+            onPresentation(ack) {
+              if (!controller.signal.aborted) delivery.current.acknowledge(ack);
             },
             /** GL 丢失保留 canvas 等待恢复，语音和文字继续可用。 */
             onFault() {
               if (!controller.signal.aborted) {
+                delivery.current.unavailable();
                 delivery.current.interrupt();
                 setFailed(true);
                 setReady(false);
@@ -222,6 +254,7 @@ export function AvatarStage({
     void load();
     return () => {
       active = false;
+      if (latest.current.reducedMotion) deliveryController.unavailable();
       deliveryController.interrupt();
       controller.abort();
       clearTimeout(timeout);
@@ -318,7 +351,7 @@ export function AvatarStage({
           onError() {
             timeline.clear();
             envelopeTimeline.clear();
-            delivery.current.interrupt();
+            delivery.current.interruptSpeaking();
             setAnalysisMode('unavailable');
           },
         });
@@ -356,11 +389,36 @@ export function AvatarStage({
 
   const animated = ready && !failed && !reducedMotion;
   const audioFailed = connected && ['amplitude', 'unavailable'].includes(analysisMode);
+  const activeNote = feedback.feedback !== 'none' || failed || audioFailed;
+  const retryGesture = feedback.gesture !== 'none' ? feedback.gesture : null;
   /** 人物重建只取消当前控制器，跨重连后不能依赖旧加载 effect 捕获的门控对象。 */
   function retryAnimation() {
     delivery.current.interrupt();
     setAnalysisMode('loading');
     setRetry((value) => value + 1);
+  }
+  /** 仅重试同轮已知指令且先等模型就绪；未知判断不能猜动作，点击才发送并保留父级草稿。 */
+  async function retryCommand() {
+    if (
+      !onRetryCommand ||
+      !retryGesture ||
+      retryingCommand ||
+      !ready ||
+      failed ||
+      reducedMotion ||
+      !connected ||
+      reconnecting
+    )
+      return;
+    setRetryingCommand(true);
+    setCommandRetryFailed(false);
+    try {
+      await onRetryCommand(retryGesture);
+    } catch {
+      setCommandRetryFailed(true);
+    } finally {
+      setRetryingCommand(false);
+    }
   }
   return (
     <section className="avatar-panel" aria-label="小芽数字人">
@@ -391,8 +449,36 @@ export function AvatarStage({
         <span className="status-dot" />
         {status}
       </p>
-      <div className="avatar-note" role="status">
-        {reducedMotion ? (
+      <div className="avatar-note" role="status" data-active={activeNote}>
+        {feedback.feedback === 'clarify' ? (
+          '请告诉我一个具体动作，比如点头或挥手'
+        ) : feedback.feedback === 'retry' &&
+          connected &&
+          !reconnecting &&
+          !failed &&
+          !reducedMotion ? (
+          <>
+            <span>
+              {!retryGesture
+                ? '表情和动作暂时没连上，聊天可以继续，请稍后再试'
+                : !ready
+                  ? '小芽正在准备，稍后可重试动作'
+                  : commandRetryFailed
+                    ? '没能发出去，可以再试一次'
+                    : '这次动作没能确认，可以再试一次'}
+            </span>
+            {onRetryCommand && retryGesture && !reducedMotion && !failed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!ready || retryingCommand}
+                onClick={() => void retryCommand()}
+              >
+                {retryingCommand ? '正在发送…' : '重试动作'}
+              </Button>
+            )}
+          </>
+        ) : reducedMotion ? (
           '已按你的偏好使用静态形象'
         ) : failed || audioFailed ? (
           <>

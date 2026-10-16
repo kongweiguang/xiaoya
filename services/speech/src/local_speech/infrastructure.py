@@ -15,6 +15,17 @@ from local_speech.domain import SpeechStyle, Transcription
 from local_speech.streaming_asr import ParaformerRecognizer
 
 logger = logging.getLogger(__name__)
+# 上游日志仍只保留异常；此子日志只写一次受控能量标量，便于对照实际下行声音。
+_signal_logger = logging.getLogger(f"{__name__}.signal")
+_signal_logger.setLevel(logging.INFO)
+
+_SIGNAL_WINDOW_SAMPLES = 480  # PCM24k 的 20ms，与实际播放器观测窗一致。
+_SIGNAL_WINDOW_BYTES = _SIGNAL_WINDOW_SAMPLES * 2
+_SIGNAL_MIN_RMS = 0.004
+_SIGNAL_ACTIVE_AMPLITUDE = 0.002
+_SIGNAL_MIN_ACTIVE_SAMPLES = 48  # 每窗至少 10% 采样，避免几个尖峰冒充持续声音。
+_SIGNAL_REQUIRED_WINDOWS = 3  # 60ms 持续信号；不把正常前导静音误当整句失败。
+_SIGNAL_PENDING_BYTES = 2**20  # 约 22 秒，故障模型不得无限积压首包内存。
 
 _STYLE_INSTRUCTIONS = {
     SpeechStyle.HAPPY: "You are a helpful assistant. 请非常开心地说一句话。<|endofprompt|>",
@@ -25,13 +36,30 @@ _STYLE_INSTRUCTIONS = {
 
 
 class SilentSynthesisError(RuntimeError):
-    """完整合成只有量化噪声时不能假装朗读成功；该错误仅允许首包前重试。"""
+    """完整合成没有持续有效信号时不能假装朗读成功；该错误仅允许首包前重试。"""
+
+
+def _log_signal_gate(
+    accepted: bool, reason: str, max_rms: float, max_run: int, observed_samples: int
+) -> None:
+    """每次首包判定仅写聚合数值，不依赖 formatter 的 extra 支持，也不记录文案或音频。"""
+    _signal_logger.info(
+        "PCM首包判定 result=%s reason=%s max_window_rms=%.6f qualified_run=%d observed_samples=%d",
+        "pass" if accepted else "reject",
+        reason,
+        max_rms,
+        max_run,
+        observed_samples,
+    )
 
 
 def _audible_pcm(chunks: Iterator[bytes], cancelled: Event | None) -> Iterator[bytes]:
-    """只拦截全程不超过三个 PCM16 量化单位的结果；有声音时前导停顿与原字节一起放行。"""
+    """首包前排除极弱和稀疏脉冲；连续窗跨块对齐，合格原字节与停顿完整放行，不增益。"""
     pending = []
     pending_bytes = 0
+    probe = b""
+    run = max_run = observed_samples = 0
+    max_rms = 0.0
     audible = False
     try:
         for chunk in chunks:
@@ -40,25 +68,53 @@ def _audible_pcm(chunks: Iterator[bytes], cancelled: Event | None) -> Iterator[b
             if audible:
                 yield chunk
                 continue
-            pcm = np.frombuffer(chunk, dtype="<i2")
-            if np.max(np.abs(pcm.astype(np.int32)), initial=0) > 3:
-                audible = True
-                yield from pending
-                pending.clear()
-                yield chunk
-            else:
-                pending_bytes += len(chunk)
-                # 约22秒的前导静音已超出正常合成；故障模型不能无限积压首包内存。
-                if pending_bytes > 2**20:
-                    raise SilentSynthesisError("语音模型未产生可播放信号")
-                pending.append(chunk)
+            if not chunk:
+                continue
+            if pending_bytes + len(chunk) > _SIGNAL_PENDING_BYTES:
+                _log_signal_gate(False, "buffer_limit", max_rms, max_run, observed_samples)
+                raise SilentSynthesisError("语音模型未产生持续可播放信号")
+            pending.append(chunk)
+            pending_bytes += len(chunk)
+            probe += chunk
+            offset = 0
+            while len(probe) - offset >= _SIGNAL_WINDOW_BYTES:
+                if cancelled is not None and cancelled.is_set():
+                    return
+                pcm = np.frombuffer(
+                    probe, dtype="<i2", count=_SIGNAL_WINDOW_SAMPLES, offset=offset
+                ).astype(np.float64)
+                pcm /= 32768
+                rms = float(np.sqrt(np.mean(pcm * pcm)))
+                active = int(np.count_nonzero(np.abs(pcm) >= _SIGNAL_ACTIVE_AMPLITUDE))
+                run = (
+                    run + 1 if rms > _SIGNAL_MIN_RMS and active >= _SIGNAL_MIN_ACTIVE_SAMPLES else 0
+                )
+                max_run = max(max_run, run)
+                max_rms = max(max_rms, rms)
+                observed_samples += _SIGNAL_WINDOW_SAMPLES
+                offset += _SIGNAL_WINDOW_BYTES
+                if run >= _SIGNAL_REQUIRED_WINDOWS:
+                    audible = True
+                    _log_signal_gate(True, "sustained", max_rms, max_run, observed_samples)
+                    # 取消可发生在缓冲逐块出站之间；未出的旧轮次音频不能继续泄露。
+                    for buffered in pending:
+                        if cancelled is not None and cancelled.is_set():
+                            return
+                        yield buffered
+                    pending.clear()
+                    pending_bytes = 0
+                    break
+            # 分析仅保留不足一窗的尾部；原始音频始终由 pending 持有，不重分包。
+            probe = b"" if audible else probe[offset:]
         if cancelled is not None and cancelled.is_set():
             return
         if not audible:
+            _log_signal_gate(False, "eof", max_rms, max_run, observed_samples)
             if pending:
-                raise SilentSynthesisError("语音模型仅返回量化噪声")
+                raise SilentSynthesisError("语音模型未返回持续可播放信号")
             raise RuntimeError("语音模型没有返回音频")
     finally:
+        pending.clear()
         chunks.close()
 
 
@@ -202,7 +258,7 @@ class LocalSpeechModels:
         style: SpeechStyle = SpeechStyle.NEUTRAL,
         cancelled: Event | None = None,
     ) -> Iterator[bytes]:
-        """无声短句在首包前同参数重试一次；排队与推理可取消，已播放内容绝不重播。"""
+        """无持续信号的短句在首包前同参数重试一次；可取消，已播放内容绝不重播。"""
         while True:
             if cancelled is not None and cancelled.is_set():
                 return
@@ -224,7 +280,7 @@ class LocalSpeechModels:
                 except SilentSynthesisError:
                     if emitted or attempt or (cancelled is not None and cancelled.is_set()):
                         raise
-                    logger.warning("合成只有量化噪声，首包前以相同语气重试一次")
+                    logger.warning("合成缺少持续有效信号，首包前以相同语气重试一次")
                 except Exception:
                     if (
                         emitted
@@ -247,7 +303,7 @@ class LocalSpeechModels:
     def _synthesize_pcm(
         self, text: str, style: SpeechStyle, cancelled: Event | None = None
     ) -> Iterator[bytes]:
-        """放行前排除量化噪声；取消在块边界生效，供应商生成器始终排空并释放缓存。"""
+        """放行前排除极弱与稀疏信号；取消在块边界生效，供应商生成器始终排空释放缓存。"""
         if cancelled is not None and cancelled.is_set():
             return
         # 上游会把块长从 25 递增至 100 并保存在模型上；下一句须恢复训练块长。

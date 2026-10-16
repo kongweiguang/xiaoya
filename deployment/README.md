@@ -30,6 +30,8 @@ WSL 的 `bash -lc` 读取登录环境，使用户安装在 `~/.local/bin` 的 uv
 
 Agent 的 `ExecStartPre` 等待 speech 最长 300 秒；整体 `TimeoutStartSec=330`。`Type=notify` 仅在 SDK 公开 `worker_registered` 事件后发送 READY；HTTP 200 或旧进程存活不能证明 Agent 已注册。重新启动 speech 后同时重启 Agent。
 
+启动器还要求三个单元分别返回 `active`；`systemctl is-active` 对多个单元可能在部分失败时仍退出 0，不能只看退出码。输出缺项、多项或任一未就绪均明确失败。
+
 日常使用的网页可启动生产模式：
 
 ```powershell
@@ -43,7 +45,9 @@ speech 与 Agent 健康接口绑定 `127.0.0.1`。LiveKit 信令与媒体必须�
 ## 安全与运维
 
 - 根配置中 STT／TTS 密钥不可留空；无鉴权填 `not-required`。DeepSeek 必须真实独立密钥，不从其他模型配置继承。
-- Jev 在根 `.env.local` 使用 `VOICE_AGENT_JEV_BASE_URL=https://api.typesafe.ai`、`VOICE_AGENT_JEV_MODEL=jev-1.13.0` 与独立 `VOICE_AGENT_JEV_API_KEY`；空 Key 保持自然表现，不影响正常对话。填 Key 后用显式配置同步并重启 Agent，密钥不下发网页。Mock 仅用于离线或受管验收，不是部署供应商。
+- Jev 在根 `.env.local` 使用 `VOICE_AGENT_JEV_BASE_URL=https://openrouter.ai`、`VOICE_AGENT_JEV_MODEL=typesafe/jev-1.13`、独立 OpenRouter `VOICE_AGENT_JEV_API_KEY` 与 `VOICE_AGENT_JEV_PROXY_URL=http://127.0.0.1:10808`；空 Key 保持自然表现，不影响正常对话。填 Key 后用显式配置同步并重启 Agent，密钥不下发网页。Mock 仅用于离线或受管验收，不是部署供应商。
+- Windows 的 `10808` 是现有日本 HTTP 代理。WSL NAT 无法访问 Windows 回环地址；`start-wsl.ps1` 会在当前 Windows WSL 网卡的 `10818` 启动本项目 TCP 转发，仅接受当前 WSL IP，再把运行目录的 Jev 代理字段更新为该网卡地址。Windows 根 `.env.local` 保留 `127.0.0.1:10808`；其他模型不使用此代理。配置改变时重启本项目 Agent，并等待公开注册就绪。关闭启动器时回收自己创建的转发，用户 VPN 不受影响。
+- 启用 Jev 后保持 Windows 启动器的日志窗口打开。相同项目和发行版重复启动会提示查看已有窗口并正常退出，不重复创建代理或日志跟随，也不会把这次退出当作就绪证明。升级时若旧窗口尚未持有新锁，仅在核实 Python 进程、本项目脚本绝对路径及当前 WSL 网卡和来源后复用已有桥，检查注册就绪后退出；原窗口继续负责该桥的生命周期。代理字段相同时不重写配置、不重启 Agent；来源不匹配、其他进程占用端口或原 `10808` 未监听时明确失败，不停止已有进程、不自动直连，也不修改 WSL 全局网络模式或 VPN 设置。
 - 2026-10-11 的房间验收临时向同一 Agent 注入 Mock Jev，保留真实私有识别、对话和合成；受管结束恢复正式入口，未改变私有 Key。严格帧观测使用独立开发诊断端口，生产页面另做真实链路检查，两份证据分别记录。
 - 本地语音要求 CUDA；`SPEECH_TTS_ACCELERATION` 明确为 `vllm` 或 `none`。保留 CosyVoice 实际需要的 Whisper、Matcha 等依赖。
 - speech 的 `SPEECH_TTS_FLOW_ACCELERATION=cuda-graph` 在启动预热中捕获两种声学形状；运行中不扩张缓存，其他形状仍由原模型计算。直接运行未设置时为 `none`，其他值会明确失败。捕获不借用 AMP 临时权重缓存，退出时还原模型与掩码；权重、精度、求解步数及训练块保持不变。关闭图或回滚前先结束会话，重载单元后同时重启 speech／Agent，并确认模型健康与公开注册，详见 [延迟验收及回滚](../docs/voice-latency.md)。

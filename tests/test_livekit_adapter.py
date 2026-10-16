@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, PropertyMock
 
@@ -10,6 +11,7 @@ import pytest
 from livekit import rtc
 from livekit.agents import llm
 
+from xiaoya.application.presentation import PresentationController
 from xiaoya.domain.assistant import AssistantEnvironment, AssistantProfile
 from xiaoya.infrastructure import livekit_conversation
 from xiaoya.infrastructure.delivery_output import DeliveryState
@@ -26,6 +28,7 @@ class MemoryAgent:
         self.delivery_snapshot = None
         self.enable_delivery = AsyncMock(side_effect=self.install)
         self.aclose = AsyncMock()
+        self.complete_user_turn = Mock()
 
     async def install(self, endpoint) -> None:
         """状态实例必须来自会话所有者，测试也不能另外生成一套表现身份。"""
@@ -35,11 +38,16 @@ class MemoryAgent:
         """每次替换完整事实快照，以检测装配是否在真实启动完成后确认渠道。"""
         self.environment = environment
 
+    def announcement(self):
+        """装配测试不替代正式音频同步测试，只提供say所需的公开作用域契约。"""
+        return nullcontext()
+
 
 @pytest.fixture
 def boundary(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """不连接模型或房间，只替换公开构造器和 IO，资源计数仍逐实例记录。"""
     session = Mock(start=AsyncMock(), say=AsyncMock(), aclose=AsyncMock())
+    session.interrupt = AsyncMock()
     connection = Mock(bind=AsyncMock(), aclose=AsyncMock(), is_owner=Mock(return_value=True))
     session_factory = Mock(return_value=session)
     stt = Mock(aclose=AsyncMock())
@@ -76,6 +84,37 @@ def boundary(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         detector_factory=detector_factory,
         agent_factory=agent_factory,
     )
+
+
+@pytest.mark.parametrize("stopped_state", ["listening", "away"])
+async def test_public_user_vad_events_revoke_and_resume_same_turn_without_submitting(
+    stopped_state: str, private_settings: Settings, boundary: SimpleNamespace
+) -> None:
+    """SDK公开停声状态必须到应用门；同轮恢复只改VAD许可，关闭后的事件不能再开新轮次。"""
+    presentation = PresentationController()
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock(), presentation=presentation
+    )
+    try:
+        conversation._on_user_state(SimpleNamespace(new_state="speaking"))
+        turn = presentation.turn_id
+        assert presentation._user_speaking and presentation._context.phase == "listening"
+        conversation._on_transcription(SimpleNamespace(transcript="识别已结束", is_final=True))
+        assert presentation._transcript_final and not presentation._user_final
+        conversation._on_user_state(SimpleNamespace(new_state=stopped_state))
+        assert not presentation._user_speaking and presentation.turn_id == turn
+        conversation._on_user_state(SimpleNamespace(new_state="speaking"))
+        conversation._on_transcription(SimpleNamespace(transcript="现在继续说", is_final=False))
+        assert presentation.turn_id == turn and presentation._user_speaking
+        assert not presentation._transcript_final and not presentation._user_final
+        assert presentation._command is None
+        await conversation.close()
+        closed_turn = presentation.turn_id
+        conversation._on_user_state(SimpleNamespace(new_state="speaking"))
+        assert presentation.turn_id == closed_turn and not presentation._user_speaking
+    finally:
+        await conversation.close()
+        await presentation.aclose()
 
 
 async def test_constructor_is_inert_and_job_close_before_start_needs_no_models(
@@ -145,6 +184,96 @@ async def test_single_expressive_pipeline_has_explicit_private_presets_and_clean
     boundary.session.aclose.assert_awaited_once()
     for model in boundary.models:
         model.aclose.assert_awaited_once()
+
+
+async def test_text_input_commits_user_before_generation_without_voice_hook(
+    private_settings: Settings, boundary: SimpleNamespace
+) -> None:
+    """模拟 SDK 直接生成文字回复的入口，动作请求必须先到应用层，不能等待永不触发的语音钩子。"""
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock()
+    )
+    await conversation.start(AssistantProfile())
+    agent = conversation._expressive_agent
+    calls = []
+
+    async def interrupted() -> None:
+        """打断完成是绑定新轮次的前提，防止旧播放结束回调收束新动作。"""
+        calls.append("interrupt")
+
+    agent.complete_user_turn.side_effect = lambda text: calls.append(("turn", text))
+    boundary.session.interrupt.side_effect = interrupted
+    boundary.session.generate_reply.side_effect = lambda **kw: calls.append(
+        ("reply", kw["user_input"])
+    )
+    options = boundary.session.start.call_args.kwargs["room_options"]
+    await options.text_input.text_input_cb(
+        boundary.session,
+        livekit_conversation.TextInputEvent(
+            text="摇摇头", participant=SimpleNamespace(identity="owner")
+        ),
+    )
+    assert calls == ["interrupt", ("turn", "摇摇头"), ("reply", "摇摇头")]
+    await conversation.close()
+
+
+@pytest.mark.parametrize(
+    "invalid", ["empty", "other-session", "other-participant", "missing-participant"]
+)
+async def test_text_input_requires_current_owner_and_session(
+    private_settings: Settings, boundary: SimpleNamespace, invalid: str
+) -> None:
+    """新增文字入口不能放大 SDK 过滤范围；空输入、伪造会话与非所有者都不提交轮次。"""
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock()
+    )
+    await conversation.start(AssistantProfile())
+    event = livekit_conversation.TextInputEvent(
+        text=" " if invalid == "empty" else "摇摇头",
+        participant=None if invalid == "missing-participant" else SimpleNamespace(identity="owner"),
+    )
+    if invalid == "other-participant":
+        boundary.connection.is_owner.return_value = False
+    await conversation._on_text_input(
+        Mock() if invalid == "other-session" else boundary.session, event
+    )
+    boundary.session.interrupt.assert_not_awaited()
+    boundary.session.generate_reply.assert_not_called()
+    conversation._expressive_agent.complete_user_turn.assert_not_called()
+    await conversation.close()
+
+
+async def test_text_input_rechecks_close_after_interruption(
+    private_settings: Settings, boundary: SimpleNamespace
+) -> None:
+    """打断仍在等待时挂断必须使文字输入失效，不能关闭后再启动模型或新表现任务。"""
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def interrupted() -> None:
+        """暂停公开 SDK 边界以稳定复现关闭竞态，不使用实际等待或网络。"""
+        entered.set()
+        await release.wait()
+
+    boundary.session.interrupt.side_effect = interrupted
+    conversation = livekit_conversation.LiveKitVoiceConversation(
+        room=boundary.room, settings=private_settings, vad=Mock()
+    )
+    await conversation.start(AssistantProfile())
+    agent = conversation._expressive_agent
+    task = asyncio.create_task(
+        conversation._on_text_input(
+            boundary.session,
+            livekit_conversation.TextInputEvent(
+                text="摇摇头", participant=SimpleNamespace(identity="owner")
+            ),
+        )
+    )
+    await entered.wait()
+    await conversation.close()
+    release.set()
+    await task
+    agent.complete_user_turn.assert_not_called()
+    boundary.session.generate_reply.assert_not_called()
 
 
 def test_public_message_metrics_are_finite_and_do_not_log_content(
@@ -381,7 +510,7 @@ async def test_snapshot_readiness_requires_binding_and_live_owner(
 
     async def inspect_pending(_room_io) -> None:
         """读取真正登记的 handler，避免用 mock ready 值代替端点行为。"""
-        handler = boundary.room.local_participant.register_rpc_method.call_args.args[1]
+        handler = boundary.room.local_participant.register_rpc_method.call_args_list[0].args[1]
         with pytest.raises(rtc.RpcError):
             await handler(SimpleNamespace(caller_identity="owner"))
 
@@ -390,11 +519,11 @@ async def test_snapshot_readiness_requires_binding_and_live_owner(
         room=boundary.room, settings=private_settings, vad=Mock()
     )
     await conversation.start(AssistantProfile())
-    method, handler = boundary.room.local_participant.register_rpc_method.call_args.args
+    method, handler = boundary.room.local_participant.register_rpc_method.call_args_list[0].args
     assert method == "xiaoya.getDeliverySnapshot"
     payload = json.loads(await handler(SimpleNamespace(caller_identity="owner")))
     assert payload["instance"] == conversation._snapshot_endpoint.instance
-    assert payload["revision"] == 3 and payload["v"] == 2
+    assert payload["revision"] == 3 and payload["v"] == 3
     boundary.connection.is_owner.return_value = False
     with pytest.raises(rtc.RpcError):
         await handler(SimpleNamespace(caller_identity="owner"))
@@ -403,14 +532,18 @@ async def test_snapshot_readiness_requires_binding_and_live_owner(
     with pytest.raises(rtc.RpcError):
         await handler(SimpleNamespace(caller_identity="owner"))
     await conversation.close()
-    boundary.room.local_participant.unregister_rpc_method.assert_called_once_with(method)
+    removed = boundary.room.local_participant.unregister_rpc_method.call_args_list
+    assert [call.args[0] for call in removed] == [
+        method,
+        "xiaoya.ackPresentation",
+    ]
 
 
 async def test_console_uses_same_voice_without_room_output_or_snapshot(
     private_settings: Settings,
     boundary: SimpleNamespace,
 ) -> None:
-    """Console 的公开 IO 属性明确不存在，声音与协议共用而不等待不存在的房间用户。"""
+    """Console 的公开 IO 属性明确不存在，声音与文字共用流程且不要求不存在的房间用户。"""
     type(boundary.session).room_io = PropertyMock(side_effect=RuntimeError("no room IO"))
     conversation = livekit_conversation.LiveKitVoiceConversation(
         room=boundary.room, settings=private_settings, vad=Mock()
@@ -423,6 +556,11 @@ async def test_console_uses_same_voice_without_room_output_or_snapshot(
     boundary.room.local_participant.register_rpc_method.assert_not_called()
     await conversation.say("本机测试。")
     boundary.session.say.assert_awaited_once_with("本机测试。")
+    await conversation._on_text_input(
+        boundary.session, livekit_conversation.TextInputEvent(text="点点头")
+    )
+    agent.complete_user_turn.assert_called_once_with("点点头")
+    boundary.session.generate_reply.assert_called_once_with(user_input="点点头")
     await conversation.close()
 
 

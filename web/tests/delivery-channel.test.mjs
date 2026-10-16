@@ -176,3 +176,161 @@ test('信令丢失与真实 Agent 离场立即取消，其他参与者离场忽�
   assert.equal(view.invalidations(), 1);
   assert.equal(view.room.listenerCount(events.DataReceived), 0);
 });
+
+/** 回执由真实 gate 的执行事件入口生成；重连或两端 SID 换代后禁止向旧 Agent 发送。 */
+test('渲染回执发送一次且旧连接、重复终态与未知身份不发送', async () => {
+  const view = await channel();
+  assert.equal(await view.controller.ready, true);
+  const current = delivery(1, {
+    state: 'active',
+    phase: 'idle',
+    turn_id: 'command-turn',
+    gesture: 'wave',
+    gesture_source: 'command',
+    gesture_id: 'command-a',
+  });
+  publish(view, current);
+  const ack = {
+    instance: current.instance,
+    turn_id: current.turn_id,
+    gesture_id: current.gesture_id,
+  };
+  for (const status of ['started', 'started', 'completed', 'completed', 'canceled'])
+    view.controller.gate.acknowledge({ ...ack, status });
+  const sent = view.room.rpcCalls.filter((request) => request.method === 'xiaoya.ackPresentation');
+  assert.deepEqual(
+    sent.map((request) => JSON.parse(request.payload).status),
+    ['started', 'completed']
+  );
+  assert.ok(
+    sent.every(
+      (request) =>
+        request.destinationIdentity === view.agent.identity && request.responseTimeout === 1000
+    )
+  );
+  publish(view, { ...current, revision: 2, gesture_id: 'command-b' });
+  view.room.localParticipant.sid = 'PA_changed';
+  view.controller.gate.acknowledge({ ...ack, gesture_id: 'command-b', status: 'started' });
+  assert.equal(
+    view.room.rpcCalls.filter((request) => request.method === 'xiaoya.ackPresentation').length,
+    2
+  );
+});
+
+/** 同一个RPC原样传递renderer的未发力事实，传输层不能以字段缺失自行补false或伪称采纳。 */
+test('当前自然动作的stroke_started=false按原RPC与所有者发送', async () => {
+  const view = await channel();
+  assert.equal(await view.controller.ready, true);
+  const current = delivery(1, {
+    state: 'active',
+    phase: 'listening',
+    turn_id: 'listen-turn',
+    gesture: 'nod',
+    gesture_source: 'dialogue',
+    gesture_id: 'listen-nod',
+  });
+  publish(view, current);
+  const ack = {
+    instance: current.instance,
+    turn_id: current.turn_id,
+    gesture_id: current.gesture_id,
+    status: 'canceled',
+    stroke_started: false,
+  };
+  view.controller.gate.acknowledge(ack);
+  const sent = view.room.rpcCalls.filter((request) => request.method === 'xiaoya.ackPresentation');
+  assert.equal(sent.length, 1);
+  assert.deepEqual(JSON.parse(sent[0].payload), ack);
+  assert.equal(sent[0].destinationIdentity, view.agent.identity);
+  assert.equal(sent[0].responseTimeout, 1000);
+  view.controller.close();
+});
+
+/** 本地 VU 的短暂停顿不等于后端的新轮次，继续说话不能封存仍在倾听的当前轮。 */
+test('VAD取消旧指令但持续讲话和短暂停顿保留已确认的倾听轮次', async () => {
+  const view = await channel();
+  await view.controller.ready;
+  const command = delivery(1, {
+    state: 'active',
+    phase: 'thinking',
+    turn_id: 'old-turn',
+    gesture: 'wave',
+    gesture_source: 'command',
+  });
+  publish(view, command);
+  view.room.localParticipant.isSpeaking = true;
+  view.room.emit(events.ActiveSpeakersChanged);
+  assert.equal(view.controller.gate.read(false, false), null);
+  const listening = delivery(2, {
+    state: 'active',
+    phase: 'listening',
+    turn_id: 'listening-turn',
+    gesture: 'tilt',
+    gesture_source: 'dialogue',
+  });
+  publish(view, listening);
+  view.room.emit(events.ActiveSpeakersChanged);
+  assert.equal(view.controller.gate.read(false, false)?.gesture, 'tilt');
+  view.room.localParticipant.isSpeaking = false;
+  view.room.emit(events.ActiveSpeakersChanged);
+  view.room.localParticipant.isSpeaking = true;
+  view.room.emit(events.ActiveSpeakersChanged);
+  assert.equal(view.controller.gate.read(false, false)?.gesture, 'tilt');
+});
+
+/** 后端 VAD 可先于 SDK 扬声器事件；按实际逆序投递，避免只验证理想事件顺序。 */
+test('后端倾听先到再收到首次本地起声时仍展示语义并允许同轮回复', async () => {
+  const view = await channel();
+  await view.controller.ready;
+  const listening = delivery(1, {
+    state: 'active',
+    phase: 'listening',
+    turn_id: 'new-listening-turn',
+    reply_id: '',
+    segment_id: '',
+    style: 'happy',
+    gesture: 'nod',
+    gesture_source: 'dialogue',
+  });
+  publish(view, listening);
+  view.room.localParticipant.isSpeaking = true;
+  view.room.emit(events.ActiveSpeakersChanged);
+  const reaction = view.controller.gate.read(false, false);
+  assert.equal(reaction?.turnId, listening.turn_id);
+  assert.equal(reaction?.style, 'happy');
+  assert.equal(reaction?.gesture, 'nod');
+  const reply = delivery(2, {
+    state: 'active',
+    phase: 'speaking',
+    turn_id: listening.turn_id,
+    reply_id: 'same-turn-reply',
+    segment_id: 'same-turn-segment',
+    gesture: 'none',
+  });
+  publish(view, reply);
+  assert.equal(view.controller.gate.read(true, true)?.turnId, listening.turn_id);
+  assert.equal(view.controller.gate.audibleSpeechAuthorized, true);
+});
+
+/** 指令即使共享 listening 语音阶段也必须服从新起声取消，来源比阶段更能界定执行许可。 */
+test('本地起声仍取消listening阶段的独立指令且只报告一次取消', async () => {
+  const view = await channel();
+  await view.controller.ready;
+  const command = delivery(1, {
+    state: 'active',
+    phase: 'listening',
+    turn_id: 'command-turn',
+    gesture: 'wave',
+    gesture_source: 'command',
+  });
+  publish(view, command);
+  view.room.localParticipant.isSpeaking = true;
+  view.room.emit(events.ActiveSpeakersChanged);
+  view.room.emit(events.ActiveSpeakersChanged);
+  assert.equal(view.controller.gate.read(false, false), null);
+  const receipts = view.room.rpcCalls.filter(
+    (request) => request.method === 'xiaoya.ackPresentation'
+  );
+  assert.equal(receipts.length, 1);
+  assert.equal(JSON.parse(receipts[0].payload).status, 'canceled');
+});

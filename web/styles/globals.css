@@ -1017,14 +1017,22 @@ select:focus-visible {
     margin-top: 0;
   }
   .xiaoya-app[data-compact-height='true'] .avatar-panel {
-    flex: 0;
+    /* 错误或澄清会多占一行，允许角色区保留其实际高度，避免反馈挤出控制条。 */
+    flex: 0 0 auto;
     min-height: 24px;
     padding: 0;
   }
   .xiaoya-app[data-compact-height='true'] .avatar-media,
   .xiaoya-app[data-compact-height='true'] .avatar-panel::before,
-  .xiaoya-app[data-compact-height='true'] .avatar-note {
+  .xiaoya-app[data-compact-height='true'] .avatar-note:not([data-active='true']) {
     display: none;
+  }
+  .xiaoya-app[data-compact-height='true'] .avatar-note[data-active='true'] {
+    /* 紧凑时省略角色图，恢复入口仍随内容排布，不借用角色图的绝对定位区域。 */
+    position: static;
+    flex-shrink: 0;
+    max-width: 100%;
+    text-align: center;
   }
   .xiaoya-app[data-compact-height='true'] .stage-region {
     gap: 8px;

@@ -74,8 +74,8 @@ export class CubismRenderer_WebGL {
   setMvpMatrix() {}
   /** 渲染目标本身由宿主 GL 管理，SDK 替身不需要额外状态。 */
   setRenderState() {}
-  /** 首帧计数证明事件测试在成功加载之后开始。 */
-  drawModel() { observation.draws += 1; }
+  /** 绘制失败可验证动作回执必须在可见帧成功之后，不能由参数准备或销毁假报成功。 */
+  drawModel() { if (observation.failure === 'draw') throw new Error('draw failed'); observation.draws += 1; }
 }
 export const CubismShaderManager_WebGL = {
   /** 共享 manager 只能在最后一个舞台退出后释放，失败重试也受此边界约束。 */
@@ -116,6 +116,54 @@ const compiled = await build({
 function readClosedLip() {
   return null;
 }
+
+/** 使用真实表现控制器与Runtime绘制顺序，SDK仅替换GPU，不替换动作计时或事件生成。 */
+test('动作回执在drawModel之后产生，失败帧销毁不能报告started或completed', async () => {
+  for (const failure of [false, true]) {
+    const { Runtime, canvas, observation } = fixture();
+    const events = [];
+    const delivery = {
+      instance: 'job-a',
+      id: 'command-a',
+      replyKey: 'turn-a',
+      segmentKey: '',
+      turnId: 'turn-a',
+      phase: 'idle',
+      gestureId: 'command-a',
+      gestureSource: 'command',
+      gesture: 'wave',
+      style: 'happy',
+      energy: 0.7,
+    };
+    const runtime = await Runtime.load(
+      canvas,
+      {
+        readLip: readClosedLip,
+        readDelivery: () => delivery,
+        onPresentation: (ack) => events.push({ status: ack.status, draws: observation.draws }),
+      },
+      new AbortController().signal
+    );
+    assert.equal(events.length, 0);
+    if (failure) observation.failure = 'draw';
+    if (failure) assert.throws(() => runtime.draw(1150), /draw failed/);
+    else {
+      runtime.draw(1150);
+      runtime.draw(3200);
+      assert.deepEqual(
+        events.map((event) => event.status),
+        ['started', 'completed']
+      );
+      assert.ok(events.every((event) => event.draws > 1));
+    }
+    runtime.dispose();
+    if (failure)
+      assert.deepEqual(
+        events.map((event) => event.status),
+        ['canceled']
+      );
+  }
+});
 
 /** 资源响应与 SDK 故障分别可注入，保证表情降级测试也执行真实加载和回收路径。 */
 function fixture({ expressions = [], expressionFiles = {}, beforeExpression } = {}) {

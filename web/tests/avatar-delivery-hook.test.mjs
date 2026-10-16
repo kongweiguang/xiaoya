@@ -42,8 +42,8 @@ async function hook(initial = {}) {
   return { ...view, input, gate, active };
 }
 
-/** 本地字幕即使先于服务器 closed 包也要截断旧回复，之后的 speaking 不会重新激活它。 */
-test('新本地输入及离开 speaking 立即停止旧表现', async () => {
+/** 取消前移到实际发送入口，迟到本地回显不能误伤已经到达的新轮次。 */
+test('迟到本地回显不取消新表现，离开 speaking 仍停止旧语音表现', async () => {
   const view = await hook();
   assert.ok(view.gate.read(true, true));
   view.rerender({
@@ -53,7 +53,7 @@ test('新本地输入及离开 speaking 立即停止旧表现', async () => {
       { id: 'local-a', message: '打断', from: { identity: 'user', isLocal: true } },
     ],
   });
-  assert.equal(view.gate.read(true, true), null);
+  assert.ok(view.gate.read(true, true));
   view.rerender({ ...view.input, state: 'listening' });
   view.rerender(view.input);
   assert.equal(view.gate.read(true, true), null);

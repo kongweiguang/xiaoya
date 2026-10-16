@@ -10,7 +10,7 @@ import {
   parseAvatarExpression,
 } from '../lib/avatar/presentation.ts';
 
-/** 只检查实际渲染使用的参数过渡，不维护一个没有生产消费者的 easing 测试副本。 */
+/** 普通思考以微动收敛且帧率无关；只测生产阻尼，不用独立easing副本掩盖阶段切换的额外动作。 */
 test('真实 presentation 在 30／60 fps 下保持同速，后台首步有界且不越界', () => {
   const slow = new AvatarPresentation();
   const fast = new AvatarPresentation();
@@ -21,7 +21,7 @@ test('真实 presentation 在 30／60 fps 下保持同速，后台首步有界�
   for (let frame = 0; frame < 60; frame++)
     at60 = fast.advance(input({ behavior: 'thinking', delta: 1 / 60 }));
   assert.ok(Math.abs(at30.ParamAngleX - at60.ParamAngleX) < 1e-12);
-  assert.ok(at30.ParamAngleX > 5.99 && at30.ParamAngleX < 6);
+  assert.ok(at30.ParamAngleX > 1.99 && at30.ParamAngleX < 2);
   const paused = new AvatarPresentation();
   const first = paused.advance(input({ behavior: 'confused', delta: 600 }));
   assert.ok(first.ParamAngleZ > -7 && first.ParamAngleZ < 0);
@@ -31,12 +31,12 @@ test('真实 presentation 在 30／60 fps 下保持同速，后台首步有界�
   );
 });
 
-/** 全身父级需要真正收到轻微联动，避免模型有身摆绑定而页面仍像固定底座；不复制耦合公式。 */
+/** 缩小普通头幅后仍保留同向轻身摆，眼球独立全幅；不通过放大背景姿态制造像手势的联动。 */
 test('头部转向带动同向小幅身摆，视线与音频口型仍各自拥有参数', () => {
   const right = settle(new AvatarPresentation(), { gaze: { x: 1, y: 0.4 } });
   const left = settle(new AvatarPresentation(), { gaze: { x: -1, y: -0.4 } });
-  assert.ok(right.ParamBodyAngleX > 0.5 && right.ParamBodyAngleX < right.ParamAngleX);
-  assert.ok(left.ParamBodyAngleX < -0.5 && left.ParamBodyAngleX > left.ParamAngleX);
+  assert.ok(right.ParamBodyAngleX > 0.15 && right.ParamBodyAngleX < right.ParamAngleX);
+  assert.ok(left.ParamBodyAngleX < -0.15 && left.ParamBodyAngleX > left.ParamAngleX);
   assert.ok(Math.abs(right.ParamEyeBallX - 1) < 1e-12);
   assert.ok(Math.abs(left.ParamEyeBallX + 1) < 1e-12);
   assert.ok(Math.abs(right.ParamEyeBallY - 0.4) < 1e-12);
@@ -45,7 +45,7 @@ test('头部转向带动同向小幅身摆，视线与音频口型仍各自拥�
   assert.equal(left.ParamMouthOpenY, 0);
 });
 
-/** 用真实动作及取消比较节奏与收回，避免另一个全身循环在打断后继续表演。 */
+/** 零时刻不预走不同长度的一帧；严格对齐物理时间后保留原误差门，避免放大动作揭露的是采样偏移。 */
 test('身摆随真实摇头在 30／60fps 下连贯，取消后与中性姿态收敛', () => {
   const slow = new AvatarPresentation();
   const fast = new AvatarPresentation();
@@ -59,6 +59,7 @@ test('身摆随真实摇头在 30／60fps 下连贯，取消后与中性姿态�
     const delivery = time < 0.8 ? cue('body-shake', 'shake') : null;
     const state = input({
       time,
+      delta: frame === 0 ? 0 : 1 / 60,
       delivery,
       lip: delivery ? { open: 0.6, form: 0 } : null,
     });
@@ -72,7 +73,7 @@ test('身摆随真实摇头在 30／60fps 下连贯，取消后与中性姿态�
       cancelled = at60;
     }
     if (frame % 2 === 0) {
-      const at30 = slow.advance({ ...state, delta: 1 / 30 });
+      const at30 = slow.advance({ ...state, delta: frame === 0 ? 0 : 1 / 30 });
       assert.ok(Math.abs(at30.ParamBodyAngleX - at60.ParamBodyAngleX) < 0.7);
       assert.ok(Math.abs(at30.ParamBodyAngleX) < 6);
     }
@@ -119,15 +120,68 @@ function settle(presentation, overrides = {}, frames = 180) {
 function cue(id, gesture = 'nod', reply = 'reply-a', style = 'neutral') {
   return {
     id,
+    instance: 'job-a',
     replyKey: JSON.stringify(['job-a', reply]),
     gesture,
     style,
     phase: 'speaking',
-    turnId: 'turn-a',
+    turnId: reply,
     segmentKey: id,
-    gestureId: id,
+    gestureId: gesture === 'none' ? '' : id,
+    gestureSource: gesture === 'none' ? 'none' : 'command',
     energy: 1,
   };
+}
+
+/** 用真实失败的低强度和不同时钟预热待机，避免只从零姿态测试而漏掉反向基姿态抵消。 */
+function naturalMotionTrace(
+  gesture,
+  { startTime = 7, fps = 60, energy = 0.45, gazeX = 0.225, cancelAt = Infinity } = {}
+) {
+  const { expressions } = resourceExpressions();
+  const runtime = new AvatarPresentation(expressions);
+  const control = new AvatarPresentation(expressions);
+  const style = gesture === 'tilt' ? 'curious' : 'neutral';
+  const delivery = {
+    ...cue(`natural-${gesture}`, gesture, 'natural-turn', style),
+    gestureSource: 'dialogue',
+    energy,
+  };
+  const reference = {
+    ...delivery,
+    id: `control-${gesture}`,
+    gesture: 'none',
+    gestureId: '',
+    gestureSource: 'none',
+  };
+  const rows = [];
+  let previous;
+  for (let frame = -2 * fps; frame <= 3 * fps; frame++) {
+    const time = startTime + frame / fps;
+    const elapsed = frame / fps;
+    const active = frame >= 0 && elapsed < cancelAt;
+    const lip = active && elapsed < 2 ? { open: 0.55, form: 0.2 } : null;
+    const audio = {
+      at: time,
+      energy: lip?.open ?? 0,
+      onset: active && [Math.round(fps * 0.15), Math.round(fps * 0.65)].includes(frame) ? 0.4 : 0,
+    };
+    const state = input({
+      time,
+      delta: 1 / fps,
+      behavior: frame < 0 ? 'idle' : 'speaking',
+      gaze: { x: gazeX, y: 0.1 },
+      lip,
+    });
+    const output = runtime.advance({ ...state, delivery: active ? { ...delivery, audio } : null });
+    const baseline = control.advance({
+      ...state,
+      delivery: active ? { ...reference, audio } : null,
+    });
+    if (frame >= 0) rows.push({ elapsed, output, baseline, previous, lip });
+    previous = output;
+  }
+  return rows;
 }
 
 /** 直接读取当前 manifest 的资源，避免手写测试表情与浏览器实际表现逐渐分叉。 */
@@ -178,7 +232,7 @@ async function productionCoreModel(directory, manifest) {
   return { moc, model: context.Live2DCubismCore.Model.fromMoc(moc) };
 }
 
-/** 每个姿态重置 Core 参数，排除上一姿态残留或 Add 累加造成的假位移。 */
+/** 重置参数并读取所有部件；统一到宽度2的画布单位，保留旧门对应的实际像素幅度而不受PPU改变影响。 */
 function modelVertices(model, values) {
   model.parameters.values.set(model.parameters.defaultValues);
   for (const [name, value] of Object.entries(values)) {
@@ -186,7 +240,46 @@ function modelVertices(model, values) {
     if (index >= 0) model.parameters.values[index] = value;
   }
   model.update();
-  return Float32Array.from(model.drawables.vertexPositions[0]);
+  const scale =
+    (2 * model.canvasinfo.PixelsPerUnit) /
+    Math.max(model.canvasinfo.CanvasWidth, model.canvasinfo.CanvasHeight);
+  const vertices = [];
+  for (const positions of model.drawables.vertexPositions) {
+    for (const value of positions) vertices.push(value * scale);
+  }
+  return Float32Array.from(vertices);
+}
+
+/** 每个分层网格保留自己的索引范围，合并后仍检查全部三角；不假设嘴部第0网格就是整个人物。 */
+function modelTopology(model) {
+  const indices = [];
+  const drawables = new Map();
+  let offset = 0;
+  for (let drawable = 0; drawable < model.drawables.count; drawable++) {
+    const id = model.drawables.ids[drawable];
+    const count = model.drawables.vertexCounts[drawable];
+    assert.equal(drawables.has(id), false, '真实分层网格身份不能重复');
+    assert.equal(model.drawables.vertexPositions[drawable].length, count * 2);
+    drawables.set(id, { offset, count });
+    const localIndices = model.drawables.indices[drawable];
+    assert.equal(localIndices.length % 3, 0, `${id}: 三角索引必须完整`);
+    for (const index of localIndices) {
+      assert.ok(index >= 0 && index < count, `${id}: 三角不能借用其他部件顶点`);
+      indices.push(offset + index);
+    }
+    offset += count;
+  }
+  return { indices, drawables };
+}
+
+/** 用独立手掌的整体中心判断内收，避免继承旧整图像素坐标后读到眼睛或不存在的顶点。 */
+function drawableCenterX(vertices, drawable) {
+  assert.ok(drawable && drawable.count > 0, '内收判断必须绑定真实手掌');
+  let total = 0;
+  for (let index = drawable.offset; index < drawable.offset + drawable.count; index++) {
+    total += vertices[index * 2];
+  }
+  return total / drawable.count;
 }
 
 /** 真实网格差值用于验证参数已经绑定；不将几何变化本身宣称为视觉或语义验收。 */
@@ -221,7 +314,7 @@ test('表情资源真实应用但数百帧不累计参数', () => {
   const output = settle(runtime, { delivery }, 600);
   assert.ok(Math.abs(output.ParamBrowLY - 0.3) < 1e-6);
   assert.equal(output.ParamBrowRY, 0);
-  const recovered = settle(runtime);
+  const recovered = settle(runtime, { behavior: 'idle' });
   assert.ok(recovered.ParamBrowLY < 1e-6);
 });
 
@@ -294,7 +387,7 @@ test('视觉修订、重复字幕和强度变化均不重演已开始手势', ()
 test('准备等待实际音频，静音不发力，有起音则完成一次动作', () => {
   const active = new AvatarPresentation();
   const silent = new AvatarPresentation();
-  const delivery = cue('wave', 'wave');
+  const delivery = { ...cue('wave', 'wave'), gestureSource: 'dialogue' };
   let earlyPeak = 0;
   let voicedPeak = 0;
   let silentPeak = 0;
@@ -314,7 +407,107 @@ test('准备等待实际音频，静音不发力，有起音则完成一次动�
   }
   assert.ok(earlyPeak > 0 && earlyPeak < 0.12);
   assert.ok(silentPeak < 0.12);
-  assert.ok(voicedPeak > 0.65);
+  assert.ok(voicedPeak > 0.29 && voicedPeak < 0.45);
+});
+
+/** 倾听和指令不依赖PCM，自然说话只采用轻幅度；回执来自实际动作时钟。 */
+test('指令无声完成且只有真实发力后报告started/completed，倾听幅度约30%', () => {
+  const command = new AvatarPresentation();
+  const listening = new AvatarPresentation();
+  const speaking = new AvatarPresentation();
+  const peaks = [0, 0, 0];
+  const acknowledgments = [];
+  for (let frame = 0; frame <= 180; frame++) {
+    const time = frame / 60;
+    for (const [index, runtime] of [command, listening, speaking].entries()) {
+      const delivery = {
+        ...cue('wave', 'wave'),
+        phase: index === 0 ? 'idle' : index === 1 ? 'listening' : 'speaking',
+        gestureSource: index === 0 ? 'command' : 'dialogue',
+      };
+      const observed = runtime.advance(
+        input({ time, delivery, lip: index === 2 ? { open: 0.5, form: 0 } : null })
+      );
+      peaks[index] = Math.max(peaks[index], observed.ParamArmL);
+      if (index === 0) {
+        assert.equal(observed.ParamMouthOpenY, 0);
+        acknowledgments.push(...runtime.drainAcknowledgments());
+      }
+    }
+  }
+  assert.deepEqual(
+    acknowledgments.map((ack) => ack.status),
+    ['started', 'completed']
+  );
+  assert.ok(peaks[0] > 0.65);
+  assert.ok(Math.abs(peaks[1] / peaks[0] - 0.3) < 0.02);
+  assert.ok(Math.abs(peaks[2] / peaks[0] - 0.45) < 0.02);
+});
+
+/** 自然也回报原stroke，指令断言按身份筛选；冷却限制和原运动期望保持不变。 */
+test('自然动作满足3秒、同类6秒及10秒两次上限，明确指令绕过冷却', () => {
+  const runtime = new AvatarPresentation();
+  const started = [];
+  const schedule = [
+    [0, 'wave'],
+    [2, 'nod'],
+    [3.2, 'nod'],
+    [6.4, 'tilt'],
+    [10.2, 'wave'],
+    [11, 'wave'],
+  ];
+  for (let frame = 0; frame <= 14 * 60; frame++) {
+    const time = frame / 60;
+    const index = schedule.findLastIndex(([at]) => time >= at);
+    const [at, gesture] = schedule[index];
+    const source = at === 11 ? 'command' : 'dialogue';
+    const delivery = {
+      ...cue(`event-${at}`, gesture),
+      gestureSource: source,
+      phase: source === 'command' ? 'idle' : 'listening',
+    };
+    runtime.advance(input({ time, delivery }));
+    if (runtime.activeGesture?.stroke === time) started.push([at, gesture]);
+  }
+  assert.deepEqual(started, [
+    [0, 'wave'],
+    [3.2, 'nod'],
+    [10.2, 'wave'],
+    [11, 'wave'],
+  ]);
+  assert.deepEqual(
+    runtime
+      .drainAcknowledgments()
+      .filter((ack) => ack.gesture_id === 'event-11')
+      .map((ack) => ack.status),
+    ['started', 'completed']
+  );
+});
+
+/** 取消必须保留未完成事实，后续同身份更新不能补演；新指令可平滑抢占。 */
+test('新指令抢占旧指令报告取消，语音phase变化不重启当前指令', () => {
+  const runtime = new AvatarPresentation();
+  const events = [];
+  let last;
+  for (let frame = 0; frame <= 180; frame++) {
+    const time = frame / 60;
+    const delivery =
+      frame < 25
+        ? cue('old', 'wave')
+        : { ...cue('new', 'shake'), id: `phase-${frame}`, phase: frame > 90 ? 'idle' : 'thinking' };
+    last = runtime.advance(input({ time, delivery }));
+    events.push(...runtime.drainAcknowledgments());
+  }
+  assert.deepEqual(
+    events.map((ack) => [ack.gesture_id, ack.status]),
+    [
+      ['old', 'started'],
+      ['old', 'canceled'],
+      ['new', 'started'],
+      ['new', 'completed'],
+    ]
+  );
+  assert.ok(Math.abs(last.ParamArmL) < 1e-6);
 });
 
 /** 在真实帧序列检查两侧位移和双臂内收；所有五种动作必须有效且保持嘴部独占。 */
@@ -346,6 +539,170 @@ test('五种手势准备发力收回，保留口型独占与主要运动幅度',
     assert.ok(Math.abs(last.ParamArmL) < 1e-6);
     assert.ok(Math.abs(last.ParamAngleY) < 1e-6);
     assert.ok(Math.abs(last.ParamAngleX) < 1e-6);
+  }
+});
+
+/** 真实失败发生于负向待机歪头，单独保留固定门回归，防止其它动作先失败而掩盖该复现。 */
+test('energy .45歪头不被负向待机抵消，原Z峰值与跨度门保持不变', (context) => {
+  const rows = naturalMotionTrace('tilt', { startTime: 7 });
+  const z = rows.map((row) => row.output.ParamAngleZ);
+  const peak = Math.max(...z),
+    span = peak - Math.min(...z);
+  assert.ok(peak > 4.5 && span > 2.5, JSON.stringify({ energy: 0.45, peak, span }));
+  context.diagnostic(JSON.stringify({ energy: 0.45, peak, span, peakGate: 4.5, spanGate: 2.5 }));
+});
+
+/** 固定沿用真实房间的五动作门，跨正反待机相位和视线只验证主动作接管，不抬高强度或放宽门。 */
+test('energy .45自然动作在各待机相位满足原运动门，表情和口型仍独立', () => {
+  for (const fps of [30, 60])
+    for (const startTime of [2, 4.5, 7, 9.5, 12])
+      for (const gazeX of [-1, 1]) {
+        for (const gesture of ['nod', 'tilt', 'wave', 'shy', 'shake']) {
+          const rows = naturalMotionTrace(gesture, { fps, startTime, gazeX });
+          const values = rows.map((row) => row.output);
+          const x = values.map((value) => value.ParamAngleX),
+            y = values.map((value) => value.ParamAngleY);
+          const z = values.map((value) => value.ParamAngleZ),
+            armL = values.map((value) => value.ParamArmL);
+          const armR = values.map((value) => value.ParamArmR);
+          const label = `${gesture} fps=${fps} start=${startTime} gaze=${gazeX}`;
+          if (gesture === 'tilt')
+            assert.ok(Math.max(...z) > 4.5 && Math.max(...z) - Math.min(...z) > 2.5, label);
+          if (gesture === 'nod')
+            assert.ok(Math.min(...y) < -2 && Math.max(...y) - Math.min(...y) > 4, label);
+          if (gesture === 'wave') assert.ok(Math.max(...armL) > 0.16, label);
+          if (gesture === 'shy')
+            assert.ok(
+              Math.min(...armL) < -0.1 && Math.min(...armR) < -0.1 && Math.min(...y) < -2,
+              label
+            );
+          if (gesture === 'shake')
+            assert.ok(
+              Math.min(...x) < -2 && Math.max(...x) > 4 && Math.max(...x) - Math.min(...x) > 5,
+              label
+            );
+          for (const row of rows) {
+            assert.equal(row.output.ParamMouthOpenY, row.lip?.open ?? 0);
+            assert.equal(row.output.ParamMouthForm, row.lip?.form ?? 0);
+            assert.equal(row.output.ParamBrowLY, row.baseline.ParamBrowLY);
+            assert.equal(row.output.ParamBrowRY, row.baseline.ParamBrowRY);
+          }
+        }
+      }
+});
+
+/** 校准替换旧参数振幅fixture，使用实际MOC物理角度而不降低可见门；原步长、取消和收敛门保持。 */
+test('自然主姿态保持能量层次，取消与结束平滑归还待机且当帧闭嘴', async (context) => {
+  const peaks = [0, 0.45, 1].map((energy) =>
+    Math.max(...naturalMotionTrace('tilt', { energy }).map((row) => row.output.ParamAngleZ))
+  );
+  assert.ok(peaks[0] < peaks[1] && peaks[1] < peaks[2]);
+  assert.ok(peaks.every((peak) => peak > 4.5));
+  const { directory, manifest } = resourceExpressions();
+  const { moc, model } = await productionCoreModel(directory, manifest);
+  let angles;
+  try {
+    modelVertices(model, {});
+    const index = model.drawables.ids.indexOf('Head');
+    const neutral = Array.from(model.drawables.vertexPositions[index]);
+    /** 对同索引头网格刚性拟合，模型参数30不再被误当成肉眼旋转30度。 */
+    const angle = (z) => {
+      modelVertices(model, { ParamAngleZ: z });
+      const actual = Array.from(model.drawables.vertexPositions[index]);
+      /** 先移除各自平移，避免身摆或画布原点被误算成头部旋转。 */
+      const center = (values) =>
+        [0, 1].map(
+          (axis) =>
+            values.filter((_, i) => i % 2 === axis).reduce((a, b) => a + b, 0) / (values.length / 2)
+        );
+      const a = center(neutral),
+        b = center(actual);
+      let dot = 0,
+        cross = 0;
+      for (let i = 0; i < neutral.length; i += 2) {
+        const x = neutral[i] - a[0],
+          y = neutral[i + 1] - a[1];
+        const u = actual[i] - b[0],
+          v = actual[i + 1] - b[1];
+        dot += x * u + y * v;
+        cross += x * v - y * u;
+      }
+      return Math.abs((Math.atan2(cross, dot) * 180) / Math.PI);
+    };
+    angles = peaks.map(angle);
+    assert.ok(angles[0] < angles[1] && angles[1] < angles[2]);
+    assert.ok(angles.every((value) => value > 0 && value <= 4.8));
+    assert.ok(angles[1] >= 2.3);
+    assert.ok(angle(30) <= 7.6);
+  } finally {
+    model.release();
+    moc._release();
+  }
+  const maximumSteps = { 30: 0, 60: 0 };
+  for (const fps of [30, 60])
+    for (const gesture of ['nod', 'tilt', 'wave', 'shy', 'shake']) {
+      for (const cancelAt of [0.6, Infinity]) {
+        const rows = naturalMotionTrace(gesture, { fps, gazeX: -1, cancelAt });
+        for (const row of rows) {
+          for (const id of ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ']) {
+            const step = Math.abs(row.output[id] - row.previous[id]);
+            maximumSteps[fps] = Math.max(maximumSteps[fps], step);
+            assert.ok(
+              step < (fps === 60 ? 2 : 3),
+              `${gesture} ${id} fps=${fps} t=${row.elapsed} step=${row.output[id] - row.previous[id]} sudden step`
+            );
+          }
+          if (row.elapsed >= cancelAt) {
+            assert.equal(row.output.ParamMouthOpenY, 0);
+            assert.equal(row.output.ParamMouthForm, 0);
+          }
+        }
+        const last = rows.at(-1);
+        for (const id of ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ', 'ParamArmL', 'ParamArmR'])
+          assert.ok(
+            Math.abs(last.output[id] - last.baseline[id]) < 1e-6,
+            `${gesture} ${id} did not recover`
+          );
+      }
+    }
+  context.diagnostic(
+    JSON.stringify({
+      energies: [0, 0.45, 1],
+      tiltPeaks: peaks,
+      physicalAngles: angles,
+      maximumSteps,
+    })
+  );
+});
+
+/** 主轴只让出背景微动，表情 Add/Overwrite 的语义偏移必须保留，不能用整轴清零掩盖抵消。 */
+test('主姿态接管仍保留Jev角度表情偏移', () => {
+  for (const blend of ['Add', 'Overwrite']) {
+    const expressive = new AvatarPresentation({
+      curious: expression([{ Id: 'ParamAngleZ', Value: 2.5, Blend: blend }]),
+    });
+    const neutral = new AvatarPresentation();
+    let difference;
+    for (let frame = -120; frame <= 42; frame++) {
+      const active = frame >= 0;
+      const delivery = {
+        ...cue('expression-tilt', 'tilt', 'turn', 'curious'),
+        gestureSource: 'dialogue',
+        energy: 0.45,
+      };
+      const state = input({
+        time: 7 + frame / 60,
+        delivery: active ? delivery : null,
+        behavior: active ? 'speaking' : 'idle',
+        lip: active ? { open: 0.5, form: -0.2 } : null,
+      });
+      const actual = expressive.advance(state);
+      const reference = neutral.advance(state);
+      difference = actual.ParamAngleZ - reference.ParamAngleZ;
+      assert.equal(actual.ParamMouthOpenY, reference.ParamMouthOpenY);
+      assert.equal(actual.ParamMouthForm, reference.ParamMouthForm);
+    }
+    assert.ok(Math.abs(difference - 2.5) < 0.01, `${blend} lost expression offset: ${difference}`);
   }
 });
 
@@ -397,28 +754,7 @@ test('160轮回复的动作身份有作用域，取消后的迟到已执行动�
       if (frame >= 120) assert.equal(observed.ParamMouthOpenY, 0);
     }
     assert.ok(peak > 0.65, `reply ${reply} must execute its own new wave`);
-    assert.equal(actual.seenGestures.size, 2, 'only this reply owns its consumed wave and nod');
-  }
-});
-
-/** 相同动作连续分句合并；完成后的静止间隔允许下一次动作，取消不能冒充完成。 */
-test('连续同款合并且none间隔只在自然完成后开放', () => {
-  for (const cancelled of [false, true]) {
-    const runtime = new AvatarPresentation();
-    let latePeak = 0;
-    for (let frame = 0; frame <= 300; frame++) {
-      let delivery = cue('first', 'wave');
-      if (frame >= 20) delivery = cue('quiet', 'none');
-      if (frame >= 45 && frame < 170) delivery = cancelled ? null : cue('quiet', 'none');
-      if (frame >= 170 && frame < 190) delivery = cue('late-none', 'none');
-      if (frame >= 190) delivery = cue('next', 'wave');
-      const output = runtime.advance(
-        input({ time: frame / 60, delivery, lip: { open: 0.5, form: 0 } })
-      );
-      if (frame >= 190) latePeak = Math.max(latePeak, output.ParamArmL);
-    }
-    if (cancelled) assert.ok(latePeak < 1e-6);
-    else assert.ok(latePeak > 0.65);
+    assert.ok(actual.seenGestures.size <= 128, '常驻舞台仅保留有界执行身份');
   }
 });
 
@@ -612,22 +948,26 @@ test('全部正式表情保留口型独占与闭眼优先级', () => {
   }
 });
 
-/** 七种表情须真实形变且嘴眼组合安全；害羞区别温柔/开心，惊讶区别中性/好奇，不降低几何差异门。 */
+/** 所有真实分层部件共同验收表情与嘴眼安全；坐标规范化保留同一像素差异门，拒绝参数变化但几何不动。 */
 test('正式 Core 的笑眼眉角真实绑定且合成表情不翻折', async (context) => {
   const { directory, manifest, expressions } = resourceExpressions();
   const { moc, model } = await productionCoreModel(directory, manifest);
   try {
     assert.equal(model.parameters.count, 19);
-    assert.equal(model.drawables.count, 1);
+    const { indices, drawables } = modelTopology(model);
+    for (const id of ['Head', 'BrowL', 'BrowR', 'EyeWhiteL', 'EyeWhiteR', 'ArmL2', 'ArmR2']) {
+      assert.ok(drawables.has(id), `必须保留独立表情或肢体网格 ${id}`);
+    }
     const reference = modelVertices(model, { ParamMouthOpenY: 1 });
     for (const id of ['ParamEyeSmile', 'ParamBrowLAngle', 'ParamBrowRAngle']) {
       const changed = modelVertices(model, { ParamMouthOpenY: 1, [id]: 0.7 });
       assert.ok(maximumDelta(reference, changed) > 0.003, `${id} must deform real geometry`);
     }
-    const indices = model.drawables.indices[0];
     const signs = [];
     for (let index = 0; index < indices.length; index += 3) {
-      signs.push(Math.sign(triangleArea(reference, indices, index)));
+      const area = triangleArea(reference, indices, index);
+      assert.ok(Number.isFinite(area) && area !== 0, '真实参考拓扑不能退化');
+      signs.push(Math.sign(area));
     }
     const geometry = {};
     for (const style of [
@@ -678,10 +1018,16 @@ test('正式 Core 的笑眼眉角真实绑定且合成表情不翻折', async (c
       `458px原画布几何差：惊讶/中性 ${(maximumDelta(geometry.surprised, geometry.neutral) * 229).toFixed(3)}px；惊讶/好奇 ${(maximumDelta(geometry.surprised, geometry.curious) * 229).toFixed(3)}px，睁眼不超过正式模型上限`
     );
     const inward = modelVertices(model, { ParamMouthOpenY: 1, ParamArmL: -0.55, ParamArmR: -0.55 });
-    const leftHand = (59 * 81 + 24) * 2;
-    const rightHand = (59 * 81 + 54) * 2;
-    assert.ok(inward[leftHand] > reference[leftHand], '左臂负参数必须向身体中心移动');
-    assert.ok(inward[rightHand] < reference[rightHand], '右臂负参数必须向身体中心移动');
+    const leftHand = drawables.get('ArmL2');
+    const rightHand = drawables.get('ArmR2');
+    assert.ok(
+      drawableCenterX(inward, leftHand) > drawableCenterX(reference, leftHand),
+      '左臂负参数必须向身体中心移动'
+    );
+    assert.ok(
+      drawableCenterX(inward, rightHand) < drawableCenterX(reference, rightHand),
+      '右臂负参数必须向身体中心移动'
+    );
   } finally {
     model.release();
     moc._release();

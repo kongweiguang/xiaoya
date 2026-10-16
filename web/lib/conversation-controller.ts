@@ -243,7 +243,7 @@ export class ConversationAttempt {
     if (this.active) this.recover();
   }
 
-  /** SDK 可变状态每次重读，active 旧渲染不能把文字发送到已断开的房间。 */
+  /** 校验当前 SID 后先撤销旧表现再发送；迟到文字回显不能取消已经开始的新指令。 */
   send(text: string): Promise<unknown> {
     if (
       !this.active ||
@@ -253,6 +253,7 @@ export class ConversationAttempt {
       !this.sendText
     )
       return Promise.reject(new Error('连接未就绪'));
+    this.channel.gate.interrupt();
     return this.sendText(text);
   }
 

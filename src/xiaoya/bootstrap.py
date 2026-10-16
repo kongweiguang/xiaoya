@@ -51,7 +51,7 @@ def validate_configuration(*, require_livekit: bool = False) -> None:
 
 
 def prepare_conversation(context: JobContext) -> StartVoiceConversation:
-    """工具和表现连接池按 Job 隔离；唯一装配入口显式选择可选外部判断端口。"""
+    """按 Job 隔离表现连接池；代理仅注入 Jev，私有语音和 DeepSeek 保持独立配置。"""
     settings = Settings.from_environment()
     profile = AssistantProfile(instructions=settings.instructions, greeting=settings.greeting)
     conversation = LiveKitVoiceConversation(
@@ -66,6 +66,7 @@ def prepare_conversation(context: JobContext) -> StartVoiceConversation:
                 base_url=settings.jev_base_url,
                 model=settings.jev_model,
                 api_key=settings.jev_api_key,
+                proxy_url=settings.jev_proxy_url,
             )
             if settings.jev_api_key
             else None

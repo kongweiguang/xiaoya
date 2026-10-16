@@ -1,6 +1,8 @@
 # 小芽模型资产
 
-`concept.png` 是保留的原画。当前网页运行模型仍保留在 `web/public/avatar/xiaoya`，现有工程和历史证据不能充当本轮稳定版重建通过的证明。
+`concept.png` 是保留的原画。2026-10-15 当前网页运行包为 `web/public/avatar/xiaoya/native-v1`：同形象的官方 5.3.04 分层导出，19 普通参数、0 BlendShape、18 个独立部件。旧单张整体网格只能产生很小的肢体挪动，保留作回退，不再作为动作已可见的证明。
+
+运行 MOC 为 SHA-256 `601c6d70eab756fd2265973533a3315b0e7fc5440770a0effd2495c300bae0dc`；来源为已验收保护工程 `stable-5.3/xiaoya-native-final19-checkpoint-20261011.cmo3`（`003f552f4cc9ba1409fa8e95a86acdd7a345315f79935876325da913dc55b9e7`）。同名工作工程后来发生变化，不借其当前身份证明旧导出。完整资源包含官方 MOC／纹理／显示参数、项目表情／MotionSync／物理／微动配置，以及当前渲染器直接导出的中性透明海报。此次晋升复用官方技术验收；历史 FREE 实际保存仍待验，未改变许可或文件头。
 
 ## 稳定版重建目标
 
@@ -21,6 +23,6 @@ node assets/avatar/xiaoya/tooling/validate-model.mjs --output .tools/logs/refact
 node assets/avatar/xiaoya/tooling/validate-model.mjs --model-dir <candidate-package> --poster poster.png --stable
 ```
 
-当前包固定检查浏览器实际使用的 `concept-v1/poster.png`，报告包含该路径及实时 SHA；未使用的根 `poster.png` 不能替代它。候选包用 `--poster <包内相对路径>` 明确声明实际后备图，不根据 MOC 位置猜测、不搜索或回退其他图片。正式资产包晋升时，浏览器引用与检查入口的当前海报约定必须一起更新。
+当前包固定检查浏览器实际使用的 `native-v1/poster.png`，报告包含该路径及实时 SHA；未使用的根 `poster.png` 不能替代它。候选包用 `--poster <包内相对路径>` 明确声明实际后备图，不根据 MOC 位置猜测、不搜索或回退其他图片。正式资产包晋升时，浏览器引用与检查入口的当前海报约定一起更新。
 
-`--stable` 必须 19 普通参数、0 BlendShape；当前旧运行包不满足这个门，不能据此宣称稳定版通过。该入口不约束单网格、顶点数量或纹理字节，只检查真实参数、网格绕序、资产引用和嘴参数独占；外观与官方工程往返仍需单独留证。
+`--stable` 必须 19 普通参数、0 BlendShape，当前包严格执行该门。35 组组合使用有效 v3 指令并检查开始／完成和相对同风格无动作对照的实际顶点位移；独立手臂还须超过可见幅度门。前端物理检查遍历全部部件三角与不透明纹理面，拒绝旧整体网格。外观、真实对话及官方工程往返分别留证，参数或回执单独通过不等于用户看到了动作。

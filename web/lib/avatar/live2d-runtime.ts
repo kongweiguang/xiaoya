@@ -4,6 +4,7 @@ import {
   type AvatarDelivery,
   type AvatarExpressions,
   AvatarPresentation,
+  type PresentationAck,
   isAvatarExpressionName,
   parseAvatarExpression,
 } from './presentation';
@@ -32,6 +33,7 @@ type RuntimeOptions = {
   onFault: () => void;
   onRestore: () => void;
   onFrame?: (frame: AvatarFrame) => void;
+  onPresentation?: (ack: PresentationAck) => void;
 };
 let frameworkReady = false;
 let activeRuntimes = 0;
@@ -332,6 +334,7 @@ export class Live2DRuntime {
       this.canvas.height,
     ]);
     this.renderer.drawModel();
+    for (const ack of this.presentation.drainAcknowledgments()) this.options.onPresentation?.(ack);
     this.options.onFrame?.({
       time: seconds,
       open: parameters.ParamMouthOpenY,
@@ -359,10 +362,13 @@ export class Live2DRuntime {
     if (!this.disposed) this.options.onRestore();
   };
 
-  /** 幂等销毁覆盖加载失败、减少动态、重试和卸载，且从不触碰 SDK 音轨。 */
+  /** 销毁先丢弃未绘制事件再报告取消，失败帧不能借释放流程假报启动或完成。 */
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.presentation.drainAcknowledgments();
+    this.presentation.cancel();
+    for (const ack of this.presentation.drainAcknowledgments()) this.options.onPresentation?.(ack);
     cancelAnimationFrame(this.frame);
     this.observer?.disconnect();
     this.canvas.removeEventListener('webglcontextlost', this.contextLost);

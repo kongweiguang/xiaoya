@@ -11,6 +11,7 @@ import { ThemeToggle } from '@/components/app/theme-toggle';
 import { Button } from '@/components/ui/button';
 import type { Conversation } from '@/hooks/use-conversation';
 import { groupReplyMessages } from '@/lib/avatar/delivery';
+import type { AvatarGesture } from '@/lib/avatar/presentation';
 import avatarPoster from '@/public/avatar/xiaoya/concept-v1/poster.png';
 
 /** 页面持续持有草稿和阅读意图；浮层开合、连接恢复及设备失败均不能重建会话。 */
@@ -155,6 +156,19 @@ export function ViewController({ conversation }: { conversation: Conversation })
     lastScroll.current = following;
     setShowLatest(!following);
   }
+  /** 动作重试复用现有文字发送，独立于编辑框草稿且不能发送给恢复中的旧会话。 */
+  async function retryCommand(gesture: AvatarGesture): Promise<unknown> {
+    const instructions = {
+      nod: '点点头',
+      tilt: '歪歪头',
+      wave: '挥挥手',
+      shy: '害羞一下',
+      shake: '摇摇头',
+    };
+    if (!connected || reconnecting || isSending || gesture === 'none')
+      throw new Error('当前无法发送');
+    return send(instructions[gesture]);
+  }
   return (
     <main
       className="xiaoya-app"
@@ -193,6 +207,7 @@ export function ViewController({ conversation }: { conversation: Conversation })
             audio={attempt?.audio ?? null}
             peer={peer}
             delivery={conversation.controller.delivery}
+            onRetryCommand={retryCommand}
           />
           {mobile && (
             <p className="current-caption" aria-live={historyOpen ? 'off' : 'polite'}>

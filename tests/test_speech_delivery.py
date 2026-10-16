@@ -19,6 +19,9 @@ from fastapi import UploadFile
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+_AUDIO_RESULT_SAMPLES = 1440
+_AUDIO_RESULT_BYTES = _AUDIO_RESULT_SAMPLES * 2
+
 
 def _load_module(name: str, path: Path) -> ModuleType:
     """每个测试使用独立模块，避免模型替身泄漏到其他启动或 HTTP 测试。"""
@@ -70,10 +73,10 @@ def speech_delivery(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 
 
 def _audio_result(value: float = 0.25) -> dict[str, Mock]:
-    """使用真实浮点采样让测试覆盖 PCM16 转换，张量接口不需要加载 PyTorch。"""
+    """正常替身持续 60ms 以满足首包新合同；仍使用真实转换，不把短脉冲冒作语音。"""
     tensor = Mock()
     tensor.detach.return_value.cpu.return_value.numpy.return_value = np.full(
-        (1, 240), value, dtype=np.float32
+        (1, _AUDIO_RESULT_SAMPLES), value, dtype=np.float32
     )
     return {"tts_speech": tensor}
 
@@ -321,7 +324,7 @@ def test_style_failure_before_pcm_falls_back_once(speech_delivery, failure, capl
     chunks = list(
         models.synthesize_stream("私有用户文案不能写入日志", style=speech_delivery.style_type.HAPPY)
     )
-    assert sum(map(len, chunks)) == 480
+    assert sum(map(len, chunks)) == _AUDIO_RESULT_BYTES
     models._voice.inference_instruct2.assert_called_once()
     models._voice.inference_zero_shot.assert_called_once_with(
         "私有用户文案不能写入日志", "", "", zero_shot_spk_id="default", stream=True, speed=1.0
@@ -344,7 +347,7 @@ def test_failed_neutral_fallback_propagates_without_retry(speech_delivery) -> No
 
 
 @pytest.mark.parametrize("style", ["NEUTRAL", "HAPPY", "GENTLE"])
-@pytest.mark.parametrize("noise", [0.0, 1 / 32767, 3 / 32767])
+@pytest.mark.parametrize("noise", [0.0, 1 / 32767, 3 / 32767, 4 / 32767])
 def test_quantization_only_speech_retries_once_with_same_voice(
     speech_delivery, style, noise
 ) -> None:
@@ -358,7 +361,7 @@ def test_quantization_only_speech_retries_once_with_same_voice(
     )
     method.side_effect = [_audio_results(noise), _audio_results(0.25)]
     chunks = list(models.synthesize_stream("你好。", style=voice))
-    assert sum(map(len, chunks)) == 480
+    assert sum(map(len, chunks)) == _AUDIO_RESULT_BYTES
     assert method.call_count == 2
     assert method.call_args_list[0] == method.call_args_list[1]
     assert not models._tts_lock.locked()
@@ -384,14 +387,14 @@ def test_repeated_silent_speech_fails_before_pcm_without_unbounded_retry(speech_
     assert not models._tts_lock.locked()
 
 
-@pytest.mark.parametrize("signal", [4 / 32767, 0.25])
+@pytest.mark.parametrize("signal", [0.006, 0.25])
 def test_signal_gate_preserves_soft_voice_and_all_pause_bytes(speech_delivery, signal) -> None:
-    """极轻声音也保留原字节和完整前后停顿；门槛不承担识别或主观音质判断。"""
+    """持续轻声原字节和前后停顿不变；四个量化单位另作失败反例，不再冒充有效语音。"""
     models = speech_delivery.models
     models._voice.inference_zero_shot.return_value = _audio_results(0, signal, 0)
     chunks = list(models.synthesize_stream("轻声说话。"))
     expected = [
-        np.full(240, int(np.float32(value) * 32767), dtype=np.int16).tobytes()
+        np.full(_AUDIO_RESULT_SAMPLES, int(np.float32(value) * 32767), dtype=np.int16).tobytes()
         for value in (0, signal, 0)
     ]
     assert chunks == expected
@@ -490,7 +493,7 @@ def test_failure_after_pcm_never_replays_the_sentence(speech_delivery) -> None:
 
     models._voice.inference_instruct2.return_value = partial_failure()
     stream = models.synthesize_stream("不要重复播放。", style=speech_delivery.style_type.HAPPY)
-    assert len(next(stream)) == 480
+    assert len(next(stream)) == _AUDIO_RESULT_BYTES
     with pytest.raises(RuntimeError, match="中途推理失败"):
         next(stream)
     assert closed == [True]
@@ -517,7 +520,7 @@ def test_cancellation_drains_style_and_never_starts_fallback(speech_delivery, dr
 
     models._voice.inference_instruct2.return_value = long_results()
     stream = models.synthesize_stream("被打断的句子。", style=speech_delivery.style_type.GENTLE)
-    assert len(next(stream)) == 480
+    assert len(next(stream)) == _AUDIO_RESULT_BYTES
     if drain_fails:
         with pytest.raises(RuntimeError, match="排空失败"):
             stream.close()
@@ -567,7 +570,7 @@ async def test_wav_uses_same_style_and_pcm_contract(speech_delivery) -> None:
         assert wav.getnchannels() == 1
         assert wav.getsampwidth() == 2
         assert wav.getframerate() == 24000
-        assert wav.getnframes() == 240
+        assert wav.getnframes() == _AUDIO_RESULT_SAMPLES
     assert (
         models._voice.inference_instruct2.call_args.kwargs["zero_shot_spk_id"] == "default:gentle"
     )
@@ -1118,7 +1121,7 @@ def test_diagnostic_decoder_reads_writable_spooled_upload(speech_delivery, max_s
 
 
 def test_http_synthetic_wav_roundtrip_uses_real_upload_decoder(speech_delivery) -> None:
-    """合成与 multipart 转写贯通真实容器和重采样，仅替换权重推理，不能再用 BytesIO 遮蔽上传模式。"""
+    """持续声音替身仍贯通真实容器重采样，长度随首包合同变化，捕获二进制上传模式问题。"""
     stream = Mock()
     stream.accept.return_value = "固定合成音频"
     speech_delivery.models._recognizer = Mock(create_stream=Mock(return_value=stream))
@@ -1139,7 +1142,8 @@ def test_http_synthetic_wav_roundtrip_uses_real_upload_decoder(speech_delivery) 
         )
         assert speech.status_code == 200
         with wave.open(io.BytesIO(speech.content), "rb") as wav:
-            assert wav.getframerate() == 24000 and wav.getnframes() == 2400
+            assert wav.getframerate() == 24000
+            assert wav.getnframes() == _AUDIO_RESULT_SAMPLES * 10
         transcription = client.post(
             "/v1/audio/transcriptions",
             data={"model": "paraformer-streaming", "response_format": "verbose_json"},
@@ -1151,11 +1155,12 @@ def test_http_synthetic_wav_roundtrip_uses_real_upload_decoder(speech_delivery) 
     assert transcription.json() == {
         "text": "固定合成音频",
         "language": "zh",
-        "duration": pytest.approx(0.1),
+        "duration": pytest.approx(_AUDIO_RESULT_SAMPLES * 10 / 24000),
     }
     calls = stream.accept.call_args_list
     decoded = b"".join(call.args[0] for call in calls[:-1])
-    assert len(decoded) == 3200 and np.frombuffer(decoded, dtype=np.int16).any()
+    assert len(decoded) == _AUDIO_RESULT_SAMPLES * 10 * 16000 // 24000 * 2
+    assert np.frombuffer(decoded, dtype=np.int16).any()
     assert calls[-1].args == (b"",) and calls[-1].kwargs == {"final": True}
 
 

@@ -19,6 +19,7 @@ from xiaoya.domain.presentation import PresentationCue
 from xiaoya.infrastructure.delivery_output import (
     DELIVERY_SNAPSHOT_RPC,
     DELIVERY_TOPIC,
+    PRESENTATION_ACK_RPC,
     TRANSCRIPTION_TOPIC,
     DeliverySnapshotEndpoint,
     DeliveryState,
@@ -163,6 +164,41 @@ def snapshot_room() -> tuple[FakeParticipant, SimpleNamespace]:
     return participant, room
 
 
+async def test_command_delivery_does_not_require_surviving_audio_binding(delivery) -> None:
+    """音频取消不能吞掉仍有效的指令更新，嘴部许可仍由前端独立核验真实音轨。"""
+    output, participant, _ = delivery
+    output.present(
+        PresentationCue(
+            phase="speaking",
+            turn_id=output._presentation.turn_id,
+            reply_id="ended",
+            segment_id="ended-segment",
+            intent=DeliveryIntent("happy", "wave"),
+            gesture_id="command-id",
+            gesture_source="command",
+        )
+    )
+    await output.drain()
+    assert output.snapshot.gesture_source == "command"
+    assert participant.packets[-1]["gesture_id"] == "command-id"
+
+
+async def test_sdk_idle_before_handle_done_preserves_completed_history(delivery) -> None:
+    """真实SDK先发idle再handle done，独立正文候选必须越过视觉撤销且仅正常done封存。"""
+    output, _, _ = delivery
+    output._presentation.complete_turn("真实用户问题")
+    await output.bind_segment("reply", DeliveryIntent(), "完整回复。")
+    await output.capture_text("完整回复。")
+    output.flush()
+    await output.drain()
+    output._presentation.phase("idle")
+    assert output._playback_binding is None
+    assert output._presentation._recent_assistant == ""
+    await output.finish_reply("reply")
+    assert output._presentation._recent_user == "真实用户问题"
+    assert output._presentation._recent_assistant == "完整回复。"
+
+
 async def test_shared_endpoint_before_output_returns_stable_neutral() -> None:
     """关闭表现时不构造字幕输出或发送动作，成功快照仍能证明稳定的当前会话就绪。"""
     participant, room = snapshot_room()
@@ -174,7 +210,7 @@ async def test_shared_endpoint_before_output_returns_stable_neutral() -> None:
         second = json.loads(await handler(SimpleNamespace(caller_identity="human", payload="")))
         assert first == second == json.loads(DeliveryState(instance=endpoint.instance).to_json())
         assert endpoint.registered
-        assert participant.registered == [DELIVERY_SNAPSHOT_RPC]
+        assert participant.registered == [DELIVERY_SNAPSHOT_RPC, PRESENTATION_ACK_RPC]
         assert participant.packets == participant.streams == []
     finally:
         await endpoint.aclose()
@@ -251,7 +287,7 @@ async def test_shared_endpoint_registration_failure_propagates_and_revokes(parti
     with pytest.raises(ConnectionError):
         DeliverySnapshotEndpoint(room, ready=Mock(return_value=True), state=provider)
     assert participant.handlers == {}
-    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
+    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC, PRESENTATION_ACK_RPC]
     if partial:
         with pytest.raises(rtc.RpcError):
             await participant.last_handler(SimpleNamespace(caller_identity="human", payload=""))
@@ -270,14 +306,14 @@ async def test_shared_endpoint_close_is_single_owner_and_late_calls_fail(
     participant.unregister_error = unregister_error
     await asyncio.gather(endpoint.aclose(), endpoint.aclose())
     assert not endpoint.registered
-    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
+    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC, PRESENTATION_ACK_RPC]
     with pytest.raises(rtc.RpcError):
         await handler(SimpleNamespace(caller_identity="human", payload=""))
     provider.assert_not_called()
 
 
 async def test_shared_output_borrows_endpoint_and_network_failure_keeps_readiness() -> None:
-    """输出只共享实例和状态，表达网络失败以及输出关闭都不能注销会话就绪入口。"""
+    """整段完成的中性状态先排完，再隔离注入新消息失败；共享输出不能注销会话入口。"""
     participant, room = snapshot_room()
 
     def read_state() -> DeliveryState:
@@ -288,7 +324,7 @@ async def test_shared_output_borrows_endpoint_and_network_failure_keeps_readines
     output = DeliveryTextOutput(room, snapshot_endpoint=endpoint)
     try:
         assert output.snapshot.instance == endpoint.instance
-        assert participant.registered == [DELIVERY_SNAPSHOT_RPC]
+        assert participant.registered == [DELIVERY_SNAPSHOT_RPC, PRESENTATION_ACK_RPC]
         await output.bind_segment("shared-reply", DeliveryIntent("happy", "nod"))
         await output.capture_text("共享状态。")
         await output.drain()
@@ -298,6 +334,7 @@ async def test_shared_output_borrows_endpoint_and_network_failure_keeps_readines
         output.flush()
         await output.drain()
         await output.finish_reply("shared-reply")
+        await output.drain()
         participant.publish_failures = 1
         await output.bind_segment("failed-expression", DeliveryIntent("happy", "nod"))
         await output.capture_text("网络失败仍有正文。")
@@ -314,11 +351,11 @@ async def test_shared_output_borrows_endpoint_and_network_failure_keeps_readines
     finally:
         await output.aclose()
         await endpoint.aclose()
-    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
+    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC, PRESENTATION_ACK_RPC]
 
 
-async def test_closed_shared_endpoint_disables_new_expression_not_plain_text() -> None:
-    """共享入口被会话撤销后，晚来的装饰输出只能保留纯字幕，不能重新注册或发 active。"""
+async def test_closed_shared_endpoint_rejects_unopened_bound_text() -> None:
+    """共享入口撤销后不能新开有回复身份却无播放的字幕；无绑定普通字幕另有独立降级。"""
     participant, room = snapshot_room()
     endpoint = DeliverySnapshotEndpoint(
         room, ready=Mock(return_value=True), state=Mock(return_value=None)
@@ -329,13 +366,12 @@ async def test_closed_shared_endpoint_disables_new_expression_not_plain_text() -
         await output.bind_segment("late", DeliveryIntent("happy", "wave"))
         await output.capture_text("仅保留正文。")
         await output.drain()
-        assert DELIVERY_TOPIC not in participant.streams[0][0]
-        assert participant.streams[0][1].chunks == ["仅保留正文。"]
+        assert participant.streams == []
         assert participant.packets == []
-        assert participant.registered == [DELIVERY_SNAPSHOT_RPC]
+        assert participant.registered == [DELIVERY_SNAPSHOT_RPC, PRESENTATION_ACK_RPC]
     finally:
         await output.aclose()
-    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC]
+    assert participant.unregistered == [DELIVERY_SNAPSHOT_RPC, PRESENTATION_ACK_RPC]
 
 
 async def test_binding_and_empty_segment_never_grant_playback(delivery: tuple) -> None:
@@ -363,7 +399,7 @@ async def test_first_text_headers_and_state_share_one_revision(delivery: tuple) 
     header = json.loads(attributes[DELIVERY_TOPIC])
     assert header == participant.packets[0] == json.loads(output.snapshot.to_json())
     assert header == {
-        "v": 2,
+        "v": 3,
         "instance": "test-instance",
         "revision": 1,
         "reply_id": "reply-1",
@@ -374,6 +410,8 @@ async def test_first_text_headers_and_state_share_one_revision(delivery: tuple) 
         "phase": "speaking",
         "turn_id": output.snapshot.turn_id,
         "gesture_id": "",
+        "gesture_source": "none",
+        "command_feedback": "none",
         "energy": 0.5,
     }
     assert "lk.expression" not in attributes
@@ -384,7 +422,7 @@ async def test_first_text_headers_and_state_share_one_revision(delivery: tuple) 
     assert output.snapshot.phase == "speaking"
     await output.finish_reply("reply-1")
     assert output.snapshot.state == "closed"
-    assert output.snapshot.revision == 2
+    assert output.snapshot.revision == 3
     assert (output.snapshot.style, output.snapshot.gesture) == ("neutral", "none")
     assert writer.close_attributes == [{"lk.transcription_final": "true"}]
 
@@ -423,8 +461,9 @@ async def test_cancelled_binding_and_queued_text_never_activate(delivery: tuple)
 
 
 async def test_cancellation_during_active_publish_does_not_open_text(delivery: tuple) -> None:
-    """网络已在发送的 active 可以随后关闭，但取消之后不能再发正文头让它生效。"""
+    """事件闸门验证取消顺序，使用生产默认I/O预算，避免共享20ms故障夹具把调度抖动混入此反例。"""
     output, participant, _ = delivery
+    output._io_timeout = 1.0
     participant.publish_gate = asyncio.Event()
     await output.bind_segment("reply-1", DeliveryIntent("happy", "wave"))
     await output.capture_text("不会被公开。")
@@ -439,8 +478,8 @@ async def test_cancellation_during_active_publish_does_not_open_text(delivery: t
     assert [packet["state"] for packet in participant.packets] == ["active", "closed"]
 
 
-async def test_user_turn_during_publish_keeps_old_subtitle_identity_and_new_snapshot() -> None:
-    """发送旧状态期间的新开口立即换轮次；旧字幕只能携带自己的关闭头，不能借新快照。"""
+async def test_user_turn_during_publish_discards_unopened_text_and_keeps_new_snapshot() -> None:
+    """发送状态期间新开口立即换轮；尚未开放的旧正文必须丢弃，不能以关闭头补开旧流。"""
     participant, room = snapshot_room()
     presentation = PresentationController()
 
@@ -475,16 +514,8 @@ async def test_user_turn_during_publish_keeps_old_subtitle_identity_and_new_snap
         )
         participant.publish_gate.set()
         await asyncio.wait_for(output.drain(), 0.5)
-        attributes, writer = participant.streams[0]
-        old_header = json.loads(attributes[DELIVERY_TOPIC])
-        assert (old_header["reply_id"], old_header["segment_id"], old_header["turn_id"]) == (
-            old_speaking.reply_id,
-            old_speaking.segment_id,
-            old_turn,
-        )
-        assert old_header["segment_id"] == attributes["lk.segment_id"]
-        assert old_header["state"] == "closed" and old_header["gesture_id"] == ""
-        assert writer.chunks == ["旧回复正文。"]
+        assert participant.streams == []
+        assert old_speaking.turn_id == old_turn and old_speaking.segment_id
         assert output.snapshot == listening
         assert json.loads(await handler(SimpleNamespace(caller_identity="human"))) == json.loads(
             listening.to_json()
@@ -517,18 +548,24 @@ async def test_late_cancel_cannot_close_a_new_reply(delivery: tuple) -> None:
     assert participant.streams[-1][1].close_attributes == []
 
 
-async def test_state_publish_failure_keeps_plain_subtitles(delivery: tuple) -> None:
-    """表达通知失败不能阻止普通字幕，但字幕头不能携带仍有效的 active 许可。"""
+async def test_state_publish_failure_discards_bound_text_and_next_segment_recovers(
+    delivery: tuple,
+) -> None:
+    """许可发布失败不能冒充有播放的正文开流；单段失败不能阻塞下一段有效字幕。"""
     output, participant, _ = delivery
     participant.publish_failures = 1
     await output.bind_segment("reply-1", DeliveryIntent("happy", "nod"))
     await output.capture_text("正文仍然可见。")
     await output.drain()
-    attributes, writer = participant.streams[0]
-    assert writer.chunks == ["正文仍然可见。"]
-    assert json.loads(attributes[DELIVERY_TOPIC])["state"] == "closed"
-    assert "lk.expression" not in attributes
+    assert participant.streams == []
     assert output.snapshot.state == "closed"
+    await output.bind_segment("reply-2", DeliveryIntent("gentle"), "恢复段。")
+    await output.capture_text("恢复段。")
+    await output.drain()
+    attributes, writer = participant.streams[0]
+    assert writer.chunks == ["恢复段。"]
+    assert json.loads(attributes[DELIVERY_TOPIC])["state"] == "active"
+    assert "lk.expression" not in attributes
 
 
 async def test_stream_open_failure_closes_expression_and_next_segment_recovers(
@@ -582,7 +619,7 @@ async def test_rpc_authenticates_live_caller_not_payload_identity(delivery: tupl
 
 
 async def test_network_timeout_does_not_block_capture_or_leave_active(delivery: tuple) -> None:
-    """不依赖真实时钟同步，有限超时后关闭表达；音频调用方不等待控制网络。"""
+    """保留原有限网络预算和非阻塞输入；超时未获许可不新开绑定流，后续仍可恢复。"""
     output, participant, _ = delivery
     participant.publish_gate = asyncio.Event()
     await output.bind_segment("reply-1", DeliveryIntent("happy", "nod"))
@@ -590,7 +627,13 @@ async def test_network_timeout_does_not_block_capture_or_leave_active(delivery: 
     assert participant.attempts == []
     await asyncio.wait_for(output.drain(), timeout=0.5)
     assert output.snapshot.state == "closed"
-    assert participant.streams[0][1].chunks == ["超时仍显示字幕。"]
+    assert participant.streams == []
+    participant.publish_gate = None
+    await output.bind_segment("reply-2", DeliveryIntent("gentle"), "恢复段。")
+    await output.capture_text("恢复段。")
+    await output.drain()
+    assert participant.streams[0][1].chunks == ["恢复段。"]
+    assert json.loads(participant.streams[0][0][DELIVERY_TOPIC])["state"] == "active"
 
 
 async def test_close_is_idempotent_and_discards_queued_output(delivery: tuple) -> None:
@@ -670,8 +713,8 @@ async def test_shutdown_during_flush_still_closes_the_owned_writer(delivery: tup
     assert output.snapshot.state == "closed"
 
 
-async def test_expired_queued_segment_keeps_text_but_never_activates(delivery: tuple) -> None:
-    """已经播放结束的排队正文可以补字幕，但不能在新回复开始后补做旧手势。"""
+async def test_expired_queued_segment_never_opens_after_new_binding(delivery: tuple) -> None:
+    """尚未开放的旧段不能补开无音频字幕，下一段仍须携带自己的不可变许可。"""
     output, participant, _ = delivery
     await output.bind_segment("old", DeliveryIntent("happy", "wave"))
     await output.capture_text("上一段已经结束。")
@@ -679,15 +722,12 @@ async def test_expired_queued_segment_keeps_text_but_never_activates(delivery: t
     await output.bind_segment("new", DeliveryIntent("gentle", "none"))
     await output.capture_text("正在播放的回复。")
     await output.drain()
-    old_attributes, old_writer = participant.streams[0]
-    old_header = json.loads(old_attributes[DELIVERY_TOPIC])
-    assert old_header["reply_id"] == "old"
-    assert (old_header["state"], old_header["style"], old_header["gesture"]) == (
-        "closed",
-        "neutral",
-        "none",
-    )
-    assert old_writer.chunks == ["上一段已经结束。"]
+    assert len(participant.streams) == 1
+    attributes, writer = participant.streams[0]
+    header = json.loads(attributes[DELIVERY_TOPIC])
+    assert header["reply_id"] == "new" and header["segment_id"] == attributes["lk.segment_id"]
+    assert header["state"] == "active"
+    assert writer.chunks == ["正在播放的回复。"]
     assert not any(
         packet["reply_id"] == "old" and packet["state"] == "active"
         for packet in participant.packets
@@ -820,6 +860,7 @@ async def test_text_flush_during_last_write_keeps_actual_playback_binding(delive
         segment_id=before.segment_id,
         intent=DeliveryIntent("happy", "nod"),
         gesture_id=f"{before.reply_id}:{before.segment_id}:nod",
+        gesture_source="dialogue",
         energy=0.6,
     )
     output.present(cue)

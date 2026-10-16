@@ -18,30 +18,51 @@ def test_private_services_use_chinese_defaults(private_settings: Settings) -> No
 
 @pytest.mark.parametrize("key", ["", "   "])
 def test_optional_jev_key_keeps_startup_offline(private_environment, key):
-    """无 Key 是自然表现的明确配置，不能强迫用户注册或创建外部网络客户端。"""
+    """空 Key 仍离线启动；OpenRouter 和代理默认值不能偷偷分配外部客户端。"""
     settings = Settings.from_environment(private_environment | {"VOICE_AGENT_JEV_API_KEY": key})
     assert settings.jev_api_key == ""
-    assert settings.jev_base_url == "https://api.typesafe.ai"
-    assert settings.jev_model == "jev-1.13.0"
+    assert settings.jev_base_url == "https://openrouter.ai"
+    assert settings.jev_model == "typesafe/jev-1.13"
+    assert settings.jev_proxy_url == "http://127.0.0.1:10808"
 
 
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("jev_base_url", "http://api.typesafe.ai"),
-        ("jev_base_url", "https://api.typesafe.ai/v1"),
-        ("jev_base_url", "https://api.typesafe.ai.attacker.test"),
-        ("jev_base_url", "https://api.typesafe.ai?key=secret"),
+        ("jev_base_url", "http://openrouter.ai"),
+        ("jev_base_url", "https://openrouter.ai/api"),
+        ("jev_base_url", "https://openrouter.ai.attacker.test"),
+        ("jev_base_url", "https://openrouter.ai?key=secret"),
+        ("jev_base_url", "https://api.typesafe.ai"),
         ("jev_model", "jev"),
         ("jev_api_key", "not-required"),
+        ("jev_proxy_url", ""),
+        ("jev_proxy_url", "socks5://127.0.0.1:10808"),
+        ("jev_proxy_url", "http://127.0.0.1"),
+        ("jev_proxy_url", "http://127.0.0.1:10808/path"),
+        ("jev_proxy_url", "http://user:secret@127.0.0.1:10808"),
+        ("jev_proxy_url", "http://127.0.0.1:10808?key=secret"),
     ],
 )
 def test_enabled_jev_validates_before_client_allocation(private_settings, field, value):
-    """官方 Key 只能进入精确 HTTPS 根地址与固定模型，异常不携带凭据或输入 URL。"""
+    """新供应商精确地址及显式代理在分配前校验，非法配置不能直连或回显凭据。"""
     with pytest.raises(ValueError) as error:
         replace(private_settings, **({"jev_api_key": "test-jev-secret"} | {field: value}))
     assert "test-jev-secret" not in str(error.value)
     assert "attacker.test" not in str(error.value)
+
+
+def test_jev_accepts_explicit_wsl_proxy_without_affecting_other_clients(private_settings):
+    """NAT 转发地址由部署显式提供，代理配置不能混入其他模型的端点或凭据。"""
+    settings = replace(
+        private_settings,
+        jev_api_key="test-jev-secret",
+        jev_proxy_url="http://172.17.0.1:10818",
+    )
+    assert settings.jev_proxy_url == "http://172.17.0.1:10818"
+    assert settings.stt_base_url == private_settings.stt_base_url
+    assert settings.llm_base_url == private_settings.llm_base_url
+    assert settings.tts_base_url == private_settings.tts_base_url
 
 
 def test_jev_credentials_are_hidden_from_settings_repr(private_settings):
